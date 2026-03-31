@@ -11,6 +11,12 @@ const ResearchStaffDashboard: React.FC = () => {
   const [stats, setStats] = useState({ totalProjects: 0, activeProjects: 0, contractsTotal: 0, overdueProjects: 0, completedProjects: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(''), 2500);
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -51,6 +57,11 @@ const ResearchStaffDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {toast && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">
+          {toast}
+        </div>
+      )}
       <div>
         <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Tổng quan hệ thống</h1>
         <p className="text-slate-500 mt-1">Hệ thống Quản lý Nghiên cứu Khoa học — Năm học 2023-2024</p>
@@ -123,7 +134,12 @@ const ResearchStaffDashboard: React.FC = () => {
                     <span className="text-[10px] font-black uppercase text-white bg-red-600 px-3 py-1 rounded-lg">CẢnh BÁO KHẨN CẤP</span>
                     <h3 className="text-sm font-extrabold text-red-900 mt-4">{p.title}</h3>
                     <p className="text-xs text-red-700 mt-1 font-bold">Mã: {p.code}</p>
-                    <button className="absolute bottom-4 right-6 text-[11px] font-bold text-red-600 hover:underline">Gửi nhắc nhở</button>
+                    <button
+                      onClick={() => showToast(`Da gui nhac nho tien do cho de tai ${p.code}.`)}
+                      className="absolute bottom-4 right-6 text-[11px] font-bold text-red-600 hover:underline"
+                    >
+                      Gửi nhắc nhở
+                    </button>
                   </div>
                 ))}
               </div>

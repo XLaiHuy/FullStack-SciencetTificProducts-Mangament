@@ -4,6 +4,9 @@ import { nextCouncilCode } from '../../utils/codeGenerator';
 import { logBusiness, logDeleteAction } from '../../middleware/requestLogger';
 import { sendCouncilInvitation } from '../../utils/emailService';
 import { hashPassword } from '../../utils/password';
+import path from 'path';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/uploadFile';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 export const MemberSchema = z.object({
@@ -31,6 +34,18 @@ export const CheckConflictSchema = z.object({
 
 type MemberInput = z.infer<typeof MemberSchema>;
 
+type CouncilDownloadPayload =
+  | {
+      kind: 'file';
+      absolutePath: string;
+      fileName: string;
+    }
+  | {
+      kind: 'buffer';
+      fileBuffer: Buffer;
+      fileName: string;
+    };
+
 const mapMemberRoleToCouncilRole = (role: MemberInput['role']) => {
   if (role === 'chu_tich') return 'chairman';
   if (role === 'thu_ky') return 'secretary';
@@ -39,6 +54,56 @@ const mapMemberRoleToCouncilRole = (role: MemberInput['role']) => {
 };
 
 const generateTemporaryPassword = () => `NCKH@${Math.random().toString(36).slice(-6)}A1`;
+
+const buildCouncilPdfBuffer = async (title: string, lines: string[]) => {
+  const toPdfText = (value: string) =>
+    value
+      .replace(/[Đđ]/g, 'D')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  let y = 790;
+  page.drawText(toPdfText(title), {
+    x: 56,
+    y,
+    size: 16,
+    font: bold,
+    color: rgb(0.12, 0.2, 0.5),
+  });
+  y -= 30;
+
+  for (const line of lines) {
+    const segments = line.match(/.{1,95}/g) ?? [line];
+    for (const segment of segments) {
+      if (y < 80) break;
+      page.drawText(toPdfText(segment), {
+        x: 56,
+        y,
+        size: 11,
+        font,
+        color: rgb(0.12, 0.12, 0.12),
+      });
+      y -= 18;
+    }
+    if (y < 80) break;
+  }
+
+  page.drawText(toPdfText(`Generated at ${new Date().toLocaleString('vi-VN')}`), {
+    x: 56,
+    y: 50,
+    size: 10,
+    font,
+    color: rgb(0.45, 0.45, 0.45),
+  });
+
+  const bytes = await pdfDoc.save();
+  return Buffer.from(bytes);
+};
 
 const ensureCouncilUserAccount = async (member: MemberInput) => {
   const byId = member.userId
@@ -101,6 +166,8 @@ export const CouncilService = {
     const where: Record<string, unknown> = { is_deleted: false };
     if (userRole === 'council_member') {
       where.members = { some: { userId, is_deleted: false } };
+    } else if (userRole === 'project_owner') {
+      where.project = { ownerId: userId };
     }
     if (status) where.status = status;
     if (search) {
@@ -130,11 +197,28 @@ export const CouncilService = {
 
   /** GET /api/councils/:id */
   async getById(id: string, userId: string, userRole: string) {
-    const roleFilter = userRole === 'council_member' ? { members: { some: { userId, is_deleted: false } } } : {};
+    const roleFilter = userRole === 'council_member'
+      ? { members: { some: { userId, is_deleted: false } } }
+      : userRole === 'project_owner'
+        ? { project: { ownerId: userId } }
+        : {};
     const council = await prisma.council.findFirst({
       where: { OR: [{ id }, { decisionCode: id }], is_deleted: false, ...roleFilter },
       include: {
-        project: { include: { owner: true } },
+        project: {
+          include: {
+            owner: true,
+            reports: {
+              orderBy: { submittedAt: 'desc' },
+              select: {
+                id: true,
+                type: true,
+                fileUrl: true,
+                submittedAt: true,
+              },
+            },
+          },
+        },
         members: { where: { is_deleted: false } },
         reviews: true,
         minutes: true,
@@ -271,6 +355,76 @@ export const CouncilService = {
 
     await logBusiness(actorId, actorName, `Tải lên quyết định Hội đồng ${council.decisionCode}`, 'Councils');
     return updated;
+  },
+
+  /** GET /api/councils/:id/decision-file */
+  async getDecisionDownload(councilId: string, userId: string, userRole: string): Promise<CouncilDownloadPayload> {
+    const council = await CouncilService.getById(councilId, userId, userRole);
+    const baseName = sanitizeDownloadName(council.decisionCode, `council_${council.id}`);
+    const uploadedFile = await resolveExistingUploadFile(council.decisionPdfUrl ?? undefined);
+
+    if (uploadedFile) {
+      const ext = path.extname(uploadedFile) || '.pdf';
+      return {
+        kind: 'file',
+        absolutePath: uploadedFile,
+        fileName: `${baseName}_decision${ext}`,
+      };
+    }
+
+    const memberSummary = council.members
+      .map((m) => `- ${m.name} (${m.role})`)
+      .join(' | ');
+
+    const fileBuffer = await buildCouncilPdfBuffer('COUNCIL DECISION SUMMARY', [
+      `Decision code: ${council.decisionCode}`,
+      `Project code: ${council.project.code}`,
+      `Project title: ${council.project.title}`,
+      `Status: ${council.status}`,
+      `Members: ${memberSummary || 'N/A'}`,
+      'Note: This PDF is generated by backend because decision file has not been uploaded yet.',
+    ]);
+
+    return {
+      kind: 'buffer',
+      fileBuffer,
+      fileName: `${baseName}_decision.pdf`,
+    };
+  },
+
+  /** GET /api/councils/:id/minutes-file */
+  async getMinutesDownload(councilId: string, userId: string, userRole: string): Promise<CouncilDownloadPayload> {
+    const council = await CouncilService.getById(councilId, userId, userRole);
+    const baseName = sanitizeDownloadName(council.decisionCode, `council_${council.id}`);
+    const uploadedFile = await resolveExistingUploadFile(council.minutes?.fileUrl ?? undefined);
+
+    if (uploadedFile) {
+      const ext = path.extname(uploadedFile) || '.pdf';
+      return {
+        kind: 'file',
+        absolutePath: uploadedFile,
+        fileName: `${baseName}_minutes${ext}`,
+      };
+    }
+
+    const scoreLines = council.reviews
+      .filter((r) => r.score !== null)
+      .map((r) => `- ${r.type}: ${Number(r.score).toFixed(1)} / 100`);
+
+    const fileBuffer = await buildCouncilPdfBuffer('COUNCIL MINUTES SUMMARY', [
+      `Decision code: ${council.decisionCode}`,
+      `Project: ${council.project.title}`,
+      `Recorded by: ${council.minutes?.recordedBy ?? 'N/A'}`,
+      `Content: ${(council.minutes?.content ?? 'No minutes content submitted yet.').slice(0, 400)}`,
+      ...(scoreLines.length ? scoreLines : ['- No score submitted yet.']),
+      'Note: This PDF is generated by backend because minutes file has not been uploaded yet.',
+    ]);
+
+    return {
+      kind: 'buffer',
+      fileBuffer,
+      fileName: `${baseName}_minutes.pdf`,
+    };
   },
 
   /** POST /api/councils/:id/resend-invitations */

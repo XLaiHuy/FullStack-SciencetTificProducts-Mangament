@@ -4,6 +4,7 @@
  */
 import { axiosClient } from './axiosClient';
 import type { Contract } from '../../types';
+import { downloadFromApi } from './downloadUtil';
 
 export type ParsedContractProposal = {
   sourceType: 'pdf' | 'docx' | 'text';
@@ -70,6 +71,16 @@ export const contractService = {
   async getById(id: string): Promise<Contract | undefined> {
     const res = await axiosClient.get(`/contracts/${id}`);
     return res.data ? mapContract(res.data) : undefined;
+  },
+
+  // GET /api/contracts/{id}/pdf
+  async downloadPdf(id: string, fallbackFileName?: string): Promise<void> {
+    await downloadFromApi(`/contracts/${id}/pdf`, fallbackFileName ?? `contract_${id}.pdf`);
+  },
+
+  // GET /api/contracts/{id}/export-excel
+  async exportExcel(id: string, fallbackFileName?: string): Promise<void> {
+    await downloadFromApi(`/contracts/${id}/export-excel`, fallbackFileName ?? `contract_${id}.xlsx`);
   },
 
   // POST /api/contracts

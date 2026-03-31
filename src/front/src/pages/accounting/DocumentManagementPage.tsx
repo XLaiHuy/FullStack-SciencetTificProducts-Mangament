@@ -10,7 +10,9 @@ const DocumentManagementPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('');
   const [schoolYearFilter, setSchoolYearFilter] = React.useState('');
+  const [currentPage, setCurrentPage] = React.useState(1);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const pageSize = 10;
 
   const loadRows = async () => {
     const data = await accountingService.getDocuments();
@@ -43,8 +45,21 @@ const DocumentManagementPage: React.FC = () => {
       return true;
     });
     setViewRows(filtered);
+    setCurrentPage(1);
     showToast(`Da ap dung bo loc: ${filtered.length}/${rows.length} ho so.`);
   };
+
+  const totalPages = Math.max(1, Math.ceil(viewRows.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedRows = viewRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const startIndex = viewRows.length ? (safePage - 1) * pageSize + 1 : 0;
+  const endIndex = viewRows.length ? (safePage - 1) * pageSize + pagedRows.length : 0;
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const exportCurrentView = () => {
     if (!viewRows.length) {
@@ -139,7 +154,7 @@ const DocumentManagementPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {viewRows.map(s => (
+            {pagedRows.map(s => (
               <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 font-bold text-primary">{s.code}</td>
                 <td className="px-6 py-4 font-medium text-gray-700 max-w-xs truncate">{s.title}</td>
@@ -147,7 +162,12 @@ const DocumentManagementPage: React.FC = () => {
                 <td className="px-6 py-4"><StatusBadge status={s.status as any} /></td>
                 <td className="px-6 py-4">
                   <div className="flex gap-3">
-                    <button className="text-[11px] font-bold text-primary hover:underline">Chi tiết</button>
+                    <button
+                      onClick={() => showToast(`Ho so ${s.code}: ${s.title} | ${s.totalAmount.toLocaleString('vi-VN')} VNĐ`)}
+                      className="text-[11px] font-bold text-primary hover:underline"
+                    >
+                      Chi tiết
+                    </button>
                     <button
                       onClick={async () => {
                         try {
@@ -168,11 +188,23 @@ const DocumentManagementPage: React.FC = () => {
           </tbody>
         </table>
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Hiển thị 1-{viewRows.length} / {rows.length} hồ sơ</span>
+          <span className="text-xs text-gray-400">Hiển thị {startIndex}-{endIndex} / {rows.length} hồ sơ</span>
           <div className="flex gap-2">
-            <button className="px-3 py-1.5 text-xs font-bold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">Trước</button>
-            <button className="w-8 h-8 rounded-lg bg-primary text-white text-xs font-bold">1</button>
-            <button className="px-3 py-1.5 text-xs font-bold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">Sau</button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="px-3 py-1.5 text-xs font-bold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Trước
+            </button>
+            <span className="w-8 h-8 inline-flex items-center justify-center rounded-lg bg-primary text-white text-xs font-bold">{safePage}</span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="px-3 py-1.5 text-xs font-bold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Sau
+            </button>
           </div>
         </div>
       </div>

@@ -3,6 +3,8 @@ import { ProjectRepository } from './project.repository';
 import { nextProjectCode } from '../../utils/codeGenerator';
 import { logBusiness } from '../../middleware/requestLogger';
 import { ProjectStatus, Prisma } from '@prisma/client';
+import path from 'path';
+import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/uploadFile';
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 export const CreateProjectSchema = z.object({
@@ -73,6 +75,29 @@ export const ProjectService = {
       throw new Error('Bạn không có quyền xem đề tài này.');
     }
     return project;
+  },
+
+  /** GET /api/projects/:id/reports/:reportId/download */
+  async getReportDownload(id: string, reportId: string, userId: string, userRole: string) {
+    const project = await ProjectRepository.findById(id);
+    if (!project) throw new Error('Đề tài không tồn tại.');
+    if (userRole === 'project_owner' && project.ownerId !== userId) {
+      throw new Error('Bạn không có quyền tải tệp của đề tài này.');
+    }
+
+    const report = project.reports.find((r) => r.id === reportId);
+    if (!report) throw new Error('Không tìm thấy báo cáo tương ứng.');
+
+    const absolutePath = await resolveExistingUploadFile(report.fileUrl ?? undefined);
+    if (!absolutePath) {
+      throw new Error('Tệp báo cáo không tồn tại trên máy chủ hoặc chưa được tải lên.');
+    }
+
+    const ext = path.extname(absolutePath) || '.dat';
+    const safeCode = sanitizeDownloadName(project.code, `project_${project.id}`);
+    const fileName = `${safeCode}_${report.type}${ext}`;
+
+    return { absolutePath, fileName };
   },
 
   /** GET /api/project-owner/projects — only my projects */

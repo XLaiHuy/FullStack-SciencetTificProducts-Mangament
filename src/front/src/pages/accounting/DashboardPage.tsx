@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../../components/StatusBadge';
 import type { Project } from '../../types';
 import { projectService } from '../../services/api/projectService';
 import { accountingService } from '../../services/api/accountingService';
 
 const AccountingDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [dashboard, setDashboard] = useState({ totalSettlements: 0, pendingSettlements: 0, confirmedSettlements: 0, totalAmount: 0 });
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  };
 
   useEffect(() => {
     Promise.all([projectService.getAll(), accountingService.getDashboard()])
@@ -34,6 +42,11 @@ const AccountingDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {toast && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">
+          {toast}
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Bảng điều khiển Phòng Kế toán</h1>
         <p className="text-gray-500 text-sm mt-1">Tổng quan quản lý tài chính nghiên cứu khoa học</p>
@@ -72,7 +85,15 @@ const AccountingDashboard: React.FC = () => {
                   <td className="px-6 py-4 font-medium text-sm">{(p.budget / 1000000).toFixed(0)}tr</td>
                   <td className="px-6 py-4"><StatusBadge status={p.status} /></td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-xs font-bold text-primary hover:underline">Chi tiết</button>
+                    <button
+                      onClick={() => {
+                        navigate('/accounting/document-management');
+                        showToast(`Dang mo danh sach chi tiet cho ${p.code}.`);
+                      }}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Chi tiết
+                    </button>
                   </td>
                 </tr>
               ))}

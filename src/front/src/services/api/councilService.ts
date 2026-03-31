@@ -4,6 +4,23 @@
  */
 import { axiosClient } from './axiosClient';
 import type { Council, CouncilMember } from '../../types';
+import { downloadFromApi } from './downloadUtil';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+
+const normalizeUploadPath = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('/uploads/')) return `${API_ORIGIN}${value}`;
+
+  const normalized = value.replace(/\\/g, '/');
+  const uploadsIndex = normalized.toLowerCase().indexOf('/uploads/');
+  if (uploadsIndex >= 0) {
+    return `${API_ORIGIN}${normalized.slice(uploadsIndex)}`;
+  }
+  return undefined;
+};
 
 /** Normalize backend Council → frontend Council shape */
 const mapCouncil = (c: any): Council => ({
@@ -24,6 +41,14 @@ const mapCouncil = (c: any): Council => ({
     hasConflict: m.hasConflict ?? false,
     phone:       m.phone ?? '',
     affiliation: m.affiliation ?? '',
+  })),
+  decisionPdfUrl: normalizeUploadPath(c.decisionPdfUrl),
+  minutesFileUrl: normalizeUploadPath(c.minutes?.fileUrl),
+  projectReports: (c.project?.reports ?? []).map((r: any) => ({
+    id: r.id,
+    type: r.type,
+    fileUrl: normalizeUploadPath(r.fileUrl),
+    submittedAt: r.submittedAt,
   })),
 });
 
@@ -95,6 +120,14 @@ export const councilService = {
     const form = new FormData();
     form.append('file', file);
     await axiosClient.post(`/councils/${councilId}/decision`, form);
+  },
+
+  async downloadDecision(councilId: string, fallbackFileName?: string): Promise<void> {
+    await downloadFromApi(`/councils/${councilId}/decision-file`, fallbackFileName ?? `decision_${councilId}.pdf`);
+  },
+
+  async downloadMinutes(councilId: string, fallbackFileName?: string): Promise<void> {
+    await downloadFromApi(`/councils/${councilId}/minutes-file`, fallbackFileName ?? `minutes_${councilId}.pdf`);
   },
 
   async resendInvitations(councilId: string): Promise<{ sent: number; councilCode: string }> {

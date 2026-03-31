@@ -93,6 +93,19 @@ const SettlementDetailPage: React.FC = () => {
     showToast(`Đã gửi Email nhắc nhở liên quan đến: "${entry.content.substring(0, 40)}..."`);
   };
 
+  const handleDownloadEvidence = (filename: string) => {
+    const blob = new Blob([`Tep minh chung: ${filename}`], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast(`Da tai tep minh chung ${filename}.`, 'info');
+  };
+
   const totalPlanned = budget.reduce((s, b) => s + b.planned, 0);
   const totalSpent = budget.reduce((s, b) => s + b.spent, 0);
   const totalRemaining = totalPlanned - totalSpent;
@@ -183,7 +196,7 @@ const SettlementDetailPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-4">
                           {item.evidenceFile ? (
-                            <button className="text-xs font-bold text-primary hover:underline">
+                            <button onClick={() => handleDownloadEvidence(item.evidenceFile as string)} className="text-xs font-bold text-primary hover:underline">
                               {item.evidenceFile}
                             </button>
                           ) : (

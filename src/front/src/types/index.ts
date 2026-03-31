@@ -69,6 +69,13 @@ export interface CouncilMember {
   affiliation?: string;
 }
 
+export interface CouncilProjectReport {
+  id: string;
+  type: 'midterm' | 'final';
+  fileUrl?: string;
+  submittedAt?: string;
+}
+
 export interface Council {
   id: string;
   projectId?: string;
@@ -78,6 +85,9 @@ export interface Council {
   createdDate: string;
   status: 'cho_danh_gia' | 'dang_danh_gia' | 'da_hoan_thanh';
   members: CouncilMember[];
+  decisionPdfUrl?: string;
+  minutesFileUrl?: string;
+  projectReports?: CouncilProjectReport[];
 }
 
 export interface Template {

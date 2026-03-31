@@ -39,6 +39,19 @@ const LiquidationConfirmationPage: React.FC = () => {
     showToast('Đã xác nhận thanh lý thành công!');
   };
 
+  const requestSupplement = async (id: string) => {
+    setRecords((prev) => prev.map((record) => (
+      record.id === id
+        ? { ...record, notes: 'Da gui yeu cau bo sung chung tu thanh toan.' }
+        : record
+    )));
+    showToast('Đã gửi yêu cầu bổ sung chứng từ.');
+  };
+
+  const viewRecordDetail = (record: LiquidationRecord) => {
+    showToast(`Chi tiet ${record.projectCode}: ${record.amount.toLocaleString('vi-VN')} VNĐ.`);
+  };
+
   return (
     <div className="space-y-8">
       {toast && (
@@ -95,10 +108,16 @@ const LiquidationConfirmationPage: React.FC = () => {
                 >
                   ✓ Xác nhận thanh lý
                 </button>
-                <button className="px-5 py-2 border border-red-200 text-red-600 bg-red-50 text-xs font-bold rounded-xl hover:bg-red-100 text-center">
+                <button
+                  onClick={() => requestSupplement(rec.id)}
+                  className="px-5 py-2 border border-red-200 text-red-600 bg-red-50 text-xs font-bold rounded-xl hover:bg-red-100 text-center"
+                >
                   Yêu cầu bổ sung
                 </button>
-                <button className="px-5 py-2 border border-gray-200 text-gray-500 text-xs font-bold rounded-xl hover:bg-gray-50 text-center">
+                <button
+                  onClick={() => viewRecordDetail(rec)}
+                  className="px-5 py-2 border border-gray-200 text-gray-500 text-xs font-bold rounded-xl hover:bg-gray-50 text-center"
+                >
                   Xem chi tiết
                 </button>
               </div>

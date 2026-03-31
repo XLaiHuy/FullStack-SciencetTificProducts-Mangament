@@ -17,6 +17,15 @@ const ReviewerPage: React.FC = () => {
     }).catch(console.error);
   }, []);
 
+  const applyInlineFormat = (leftToken: string, rightToken = leftToken) => {
+    const textarea = document.querySelector<HTMLTextAreaElement>('#reviewer-comments-textarea');
+    const start = textarea?.selectionStart ?? comments.length;
+    const end = textarea?.selectionEnd ?? comments.length;
+    const selected = comments.slice(start, end);
+    const next = `${comments.slice(0, start)}${leftToken}${selected}${rightToken}${comments.slice(end)}`;
+    setComments(next);
+  };
+
   return (
     <div className="flex flex-col h-full gap-6">
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
@@ -77,12 +86,12 @@ const ReviewerPage: React.FC = () => {
                   <div className="border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#2563eb] focus-within:border-transparent transition-all">
                     <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex gap-4">
                       <div className="flex gap-1">
-                        <button type="button" className="px-2 py-1 text-xs font-bold hover:bg-white rounded border border-transparent hover:border-slate-200">B</button>
-                        <button type="button" className="px-2 py-1 text-xs italic hover:bg-white rounded border border-transparent hover:border-slate-200">I</button>
-                        <button type="button" className="px-2 py-1 text-xs underline hover:bg-white rounded border border-transparent hover:border-slate-200">U</button>
+                        <button onClick={() => applyInlineFormat('**')} type="button" className="px-2 py-1 text-xs font-bold hover:bg-white rounded border border-transparent hover:border-slate-200">B</button>
+                        <button onClick={() => applyInlineFormat('_')} type="button" className="px-2 py-1 text-xs italic hover:bg-white rounded border border-transparent hover:border-slate-200">I</button>
+                        <button onClick={() => applyInlineFormat('<u>', '</u>')} type="button" className="px-2 py-1 text-xs underline hover:bg-white rounded border border-transparent hover:border-slate-200">U</button>
                       </div>
                     </div>
-                    <textarea value={comments} onChange={(e) => setComments(e.target.value)} className="w-full min-h-[400px] p-4 text-sm leading-relaxed border-none focus:ring-0 resize-none" placeholder="Nhập nội dung nhận xét chi tiết về các khía cạnh: Tính cấp thiết, Mục tiêu, Phương pháp nghiên cứu, Kết quả dự kiến..."></textarea>
+                    <textarea id="reviewer-comments-textarea" value={comments} onChange={(e) => setComments(e.target.value)} className="w-full min-h-[400px] p-4 text-sm leading-relaxed border-none focus:ring-0 resize-none" placeholder="Nhập nội dung nhận xét chi tiết về các khía cạnh: Tính cấp thiết, Mục tiêu, Phương pháp nghiên cứu, Kết quả dự kiến..."></textarea>
                   </div>
                 </div>
 

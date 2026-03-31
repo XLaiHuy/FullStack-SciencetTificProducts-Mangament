@@ -27,6 +27,19 @@ export const ProjectController = {
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
 
+  /** GET /api/projects/:id/reports/:reportId/download */
+  async downloadReportFile(req: Request, res: Response) {
+    try {
+      const payload = await ProjectService.getReportDownload(
+        req.params.id,
+        req.params.reportId,
+        req.user!.userId,
+        req.user!.role
+      );
+      res.download(payload.absolutePath, payload.fileName);
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
   /** GET /api/project-owner/projects */
   async getMyProjects(req: Request, res: Response) {
     try {

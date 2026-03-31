@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { projectService } from '../../services/api/projectService';
 import type { Project } from '../../types';
 
+const MIDTERM_DRAFT_KEY = 'project_owner_midterm_report_draft';
+
 const MidtermReportPage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -9,7 +11,13 @@ const MidtermReportPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  };
 
   useEffect(() => {
     projectService.getAll().then((list) => {
@@ -18,14 +26,45 @@ const MidtermReportPage: React.FC = () => {
     }).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MIDTERM_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { projectId?: string; notes?: string };
+      if (draft.projectId) setProjectId(draft.projectId);
+      if (draft.notes) setNotes(draft.notes);
+    } catch {
+      // Ignore corrupted draft payload.
+    }
+  }, []);
+
+  const handleSaveDraft = () => {
+    localStorage.setItem(
+      MIDTERM_DRAFT_KEY,
+      JSON.stringify({
+        projectId,
+        notes,
+        savedAt: new Date().toISOString(),
+      })
+    );
+    showToast('Da luu nhap bao cao giua ky.', 'success');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectId || !file) return;
+    if (!projectId || !file) {
+      showToast('Vui long chon de tai va tai len file bao cao.', 'error');
+      return;
+    }
     setLoading(true);
     try {
       await projectService.submitProduct(projectId, { type: 'midterm_report', content: notes, file });
       setSubmitted(true);
       await projectService.getAll().then(setProjects);
+      localStorage.removeItem(MIDTERM_DRAFT_KEY);
+      showToast('Da nop bao cao giua ky thanh cong.', 'success');
+    } catch (e) {
+      showToast(typeof e === 'string' ? e : 'Khong the nop bao cao giua ky.', 'error');
     } finally {
       setLoading(false);
     }
@@ -37,6 +76,11 @@ const MidtermReportPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+          {toast.message}
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Báo cáo Tiến độ Giữa kỳ</h1>
         <p className="text-slate-500 text-sm mt-1">Nộp báo cáo tiến độ nghiên cứu giữa kỳ cho Phòng NCKH</p>
@@ -119,7 +163,13 @@ const MidtermReportPage: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-              <button type="button" className="px-6 py-2.5 text-sm font-bold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50">Lưu nháp</button>
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="px-6 py-2.5 text-sm font-bold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50"
+              >
+                Lưu nháp
+              </button>
               <button disabled={loading || !projectId || !file} type="submit" className="px-8 py-2.5 text-sm font-bold text-white bg-primary rounded-xl shadow-button hover:bg-primary-dark disabled:opacity-50">{
                 loading ? 'ĐANG NỘP...' : 'NỘP BÁO CÁO GIỮA KỲ'
               }</button>

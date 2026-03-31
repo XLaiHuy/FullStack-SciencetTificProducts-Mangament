@@ -71,6 +71,34 @@ export const CouncilController = {
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
 
+  /** GET /api/councils/:id/decision-file */
+  async downloadDecision(req: Request, res: Response) {
+    try {
+      const payload = await CouncilService.getDecisionDownload(req.params.id, req.user!.userId, req.user!.role);
+      if (payload.kind === 'file') {
+        res.download(payload.absolutePath, payload.fileName);
+        return;
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${payload.fileName}"`);
+      res.send(payload.fileBuffer);
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
+  /** GET /api/councils/:id/minutes-file */
+  async downloadMinutes(req: Request, res: Response) {
+    try {
+      const payload = await CouncilService.getMinutesDownload(req.params.id, req.user!.userId, req.user!.role);
+      if (payload.kind === 'file') {
+        res.download(payload.absolutePath, payload.fileName);
+        return;
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${payload.fileName}"`);
+      res.send(payload.fileBuffer);
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
   /** POST /api/councils/:id/resend-invitations */
   async resendInvitations(req: Request, res: Response) {
     try {
@@ -125,7 +153,8 @@ export const CouncilController = {
   async recordMinutes(req: Request, res: Response) {
     try {
       const { content } = req.body;
-      const fileUrl = (req as Request & { file?: Express.Multer.File }).file?.path;
+      const file = (req as Request & { file?: Express.Multer.File }).file;
+      const fileUrl = file ? `/uploads/councils/${file.filename}` : undefined;
       const result = await CouncilService.recordMinutes(req.params.id, content, fileUrl, req.user!.name);
       R.ok(res, result, 'Đã ghi biên bản họp Hội đồng.');
     } catch (err) { R.badRequest(res, (err as Error).message); }

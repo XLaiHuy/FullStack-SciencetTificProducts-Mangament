@@ -21,7 +21,7 @@ const SuperAdminDashboard: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Quản lý Hệ thống</h1>
           <p className="text-gray-500 mt-1">Tổng quan và cấu hình tham số vận hành</p>
         </div>
-        <button className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-button hover:bg-primary-dark text-sm">
+        <button onClick={() => showToast('Da mo form tao tai khoan moi.')} className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-button hover:bg-primary-dark text-sm">
           + Tạo tài khoản mới
         </button>
       </div>
@@ -115,7 +115,7 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-bold text-lg">Danh mục Năm học</h3>
-            <button className="text-primary text-sm font-bold">Thêm mới</button>
+            <button onClick={() => showToast('Da mo form them nam hoc moi.')} className="text-primary text-sm font-bold">Thêm mới</button>
           </div>
           <div className="space-y-3">
             {[['Năm học 2023-2024', 'Hiện tại', 'bg-green-100 text-green-700'], ['Năm học 2022-2023', 'Lưu trữ', 'bg-gray-100 text-gray-500']].map(([label, status, cls]) => (
@@ -130,7 +130,7 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-bold text-lg">Lĩnh vực nghiên cứu</h3>
-            <button className="text-primary text-sm font-bold">Thêm mới</button>
+            <button onClick={() => showToast('Da mo form them linh vuc nghien cuu.')} className="text-primary text-sm font-bold">Thêm mới</button>
           </div>
           <div className="flex flex-wrap gap-2">
             {['Khoa học Tự nhiên', 'Khoa học Xã hội', 'Kỹ thuật & Công nghệ', 'Y Dược', 'Nông nghiệp', 'Kinh tế'].map(f => (

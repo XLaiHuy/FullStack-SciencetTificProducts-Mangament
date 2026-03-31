@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-03-31T02:12:11.078Z",
-  "finishedAt": "2026-03-31T02:15:08.285Z",
+  "startedAt": "2026-03-31T05:53:02.912Z",
+  "finishedAt": "2026-03-31T05:57:03.111Z",
   "frontendUrl": "http://localhost:5173",
   "roles": [
     {
@@ -15,8 +15,11 @@
         "/research-staff/settlement-tracking",
         "/research-staff/extension-management"
       ],
-      "buttonsClicked": 38,
+      "buttonsClicked": 43,
       "buttonFailures": [],
+      "uploadChecks": 1,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -32,8 +35,11 @@
         "/project-owner/acceptance-minutes",
         "/project-owner/settlement"
       ],
-      "buttonsClicked": 12,
+      "buttonsClicked": 22,
       "buttonFailures": [],
+      "uploadChecks": 1,
+      "downloadChecks": 2,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -49,6 +55,9 @@
       ],
       "buttonsClicked": 16,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -60,8 +69,11 @@
         "/archive/dashboard",
         "/archive/repository"
       ],
-      "buttonsClicked": 9,
+      "buttonsClicked": 11,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -78,6 +90,9 @@
       ],
       "buttonsClicked": 16,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -92,8 +107,11 @@
         "/superadmin/audit-log",
         "/superadmin/category-management"
       ],
-      "buttonsClicked": 19,
+      "buttonsClicked": 22,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -105,8 +123,11 @@
         "/council-member/dashboard",
         "/council-member/chairman"
       ],
-      "buttonsClicked": 8,
+      "buttonsClicked": 21,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -118,8 +139,11 @@
         "/council-member/dashboard",
         "/council-member/reviewer"
       ],
-      "buttonsClicked": 8,
+      "buttonsClicked": 21,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -131,8 +155,11 @@
         "/council-member/dashboard",
         "/council-member/secretary"
       ],
-      "buttonsClicked": 6,
+      "buttonsClicked": 17,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     },
@@ -144,8 +171,11 @@
         "/council-member/dashboard",
         "/council-member/member"
       ],
-      "buttonsClicked": 8,
+      "buttonsClicked": 21,
       "buttonFailures": [],
+      "uploadChecks": 0,
+      "downloadChecks": 0,
+      "ioFailures": [],
       "jsErrors": [],
       "error": null
     }
@@ -154,8 +184,13 @@
     "roles": 10,
     "loginFailed": 0,
     "totalRoutesVisited": 36,
-    "totalButtonsClicked": 140,
+    "totalButtonsClicked": 210,
     "totalButtonFailures": 0,
-    "totalJsErrors": 0
+    "totalJsErrors": 0,
+    "totalUploadChecks": 2,
+    "totalDownloadChecks": 2,
+    "totalIoFailures": 0,
+    "totalUploadFailures": 0,
+    "totalDownloadFailures": 0
   }
 }

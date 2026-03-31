@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const CategoryManagementPage: React.FC = () => {
-  const [years] = useState(['2023-2024', '2022-2023', '2021-2022', '2020-2021']);
+  const [years, setYears] = useState(['2023-2024', '2022-2023', '2021-2022', '2020-2021']);
   const [fields, setFields] = useState(['Khoa học Tự nhiên', 'Khoa học Xã hội', 'Kỹ thuật & Công nghệ', 'Y Dược', 'Nông nghiệp & Sinh học', 'Kinh tế & Quản trị']);
   const [newField, setNewField] = useState('');
   const [toast, setToast] = useState('');
@@ -38,7 +38,15 @@ const CategoryManagementPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   {i === 0 && <span className="text-xs font-bold px-2 py-1 rounded bg-green-100 text-green-700">Hiện tại</span>}
                   {i > 0 && <span className="text-xs text-gray-400 font-medium">Lưu trữ</span>}
-                  <button className="text-xs font-bold text-gray-400 hover:text-red-500">Xóa</button>
+                  <button
+                    onClick={() => {
+                      setYears((prev) => prev.filter((year) => year !== y));
+                      showToast(`Đã xóa năm học "${y}"`);
+                    }}
+                    className="text-xs font-bold text-gray-400 hover:text-red-500"
+                  >
+                    Xóa
+                  </button>
                 </div>
               </div>
             ))}

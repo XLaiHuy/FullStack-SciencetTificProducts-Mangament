@@ -3,6 +3,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api';
 const PASSWORD = process.env.TEST_PASSWORD || '123456';
 
 const ACCOUNTS = [
@@ -31,7 +32,7 @@ function normalize(text) {
 function shouldSkipButton(label) {
   const s = normalize(label);
   if (!s) return true;
-  return [
+  const skipTokens = [
     'dang xuat',
     'dang nhap',
     'logout',
@@ -40,7 +41,192 @@ function shouldSkipButton(label) {
     'xem tat ca thong bao',
     'thuoc',
     'sau',
-  ].some((token) => s === token || s.includes(token));
+    'nhan dien noi dung de xuat',
+    'hoan tat tai len',
+    'tai len & luu tru',
+    'gui yeu cau',
+    'phe duyet & ban hanh',
+  ];
+
+  return skipTokens.some((token) => {
+    if (token.length <= 3) {
+      return s === token;
+    }
+    return s === token || s.includes(token);
+  });
+}
+
+function isUploadApiResponse(url, method) {
+  if (!['POST', 'PUT', 'PATCH'].includes(method)) return false;
+  return /(\/upload\b|\/products\b|midterm-report\b|final-submission\b|\/minutes\b|\/decision\b|proposals\/parse\b|\/templates\b|extension-requests\b)/i.test(url);
+}
+
+function isDownloadApiResponse(url, method, headers) {
+  if (method !== 'GET') return false;
+  if (/(\/pdf\b|\/download\b|\/minutes-file\b|\/decision-file\b|\/fill\b)/i.test(url)) return true;
+  const disposition = headers['content-disposition'];
+  return Boolean(disposition && disposition.toLowerCase().includes('attachment'));
+}
+
+function isUploadAssertionTarget(routePath, label) {
+  const s = normalize(label);
+  return (
+    (routePath.includes('/project-owner/midterm-report') && s.includes('nop bao cao giua ky')) ||
+    (routePath.includes('/project-owner/research-submission') && s.includes('nop ket qua nghien cuu'))
+  );
+}
+
+function isDownloadAssertionTarget(routePath, label) {
+  const s = normalize(label);
+  return (
+    (routePath.includes('/project-owner/contract-view') && s.includes('tai xuong pdf')) ||
+    (routePath.includes('/project-owner/acceptance-minutes') && s.includes('tai xuong pdf'))
+  );
+}
+
+const DEFAULT_PDF_BUFFER = Buffer.from('%PDF-1.4\n% smoke test file');
+
+async function attachRouteUploadFixtures(page, routePath) {
+  const trySetInputFile = async (selector, file) => {
+    const locator = page.locator(selector).first();
+    if ((await locator.count()) === 0) return false;
+    try {
+      await locator.setInputFiles(file);
+      const hasFile = await locator.evaluate((el) => {
+        if (!(el instanceof HTMLInputElement)) return false;
+        return Boolean(el.files && el.files.length > 0);
+      });
+      return hasFile;
+    } catch {
+      return false;
+    }
+  };
+
+  if (routePath.includes('/project-owner/midterm-report')) {
+    await trySetInputFile('input[type="file"][accept*=".pdf"]', {
+      name: 'midterm-report.pdf',
+      mimeType: 'application/pdf',
+      buffer: DEFAULT_PDF_BUFFER,
+    });
+  }
+
+  if (routePath.includes('/research-staff/contract-management')) {
+    await trySetInputFile('input[type="file"][accept*=".txt"]', {
+      name: 'proposal.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Ma de tai DT-2024-001\nChu nhiem: owner@nckh.edu.vn\nKinh phi: 500000000'),
+    });
+    await trySetInputFile('input[type="file"][accept*="application/pdf"]', {
+      name: 'signed-contract.pdf',
+      mimeType: 'application/pdf',
+      buffer: DEFAULT_PDF_BUFFER,
+    });
+
+    // Auto-select a valid contract in "Liên kết Hợp đồng" to make upload action runnable.
+    await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll('label'));
+      const linkedLabel = labels.find((label) => (label.textContent || '').includes('Liên kết Hợp đồng'));
+      if (!linkedLabel) return;
+
+      const wrapper = linkedLabel.parentElement;
+      const select = wrapper?.querySelector('select');
+      if (!select || select.value) return;
+
+      const firstValid = Array.from(select.options).find((option) => option.value);
+      if (!firstValid) return;
+
+      select.value = firstValid.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }).catch(() => undefined);
+  }
+
+  if (routePath.includes('/research-staff/template-management')) {
+    await page
+      .locator('input[placeholder="Nhập tên biểu mẫu..."]')
+      .first()
+      .fill(`Smoke Template ${Date.now()}`)
+      .catch(() => undefined);
+
+    await page
+      .locator('input[placeholder="2024.1.0"]')
+      .first()
+      .fill('2026.03.smoke')
+      .catch(() => undefined);
+
+    const today = new Date().toISOString().slice(0, 10);
+    await page
+      .locator('input[type="date"]')
+      .first()
+      .fill(today)
+      .catch(() => undefined);
+
+    await trySetInputFile('input[type="file"][accept*=".docx"]', {
+      name: 'smoke-template.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: Buffer.from('PK\u0003\u0004 smoke docx placeholder'),
+    });
+
+    await page.waitForTimeout(120);
+  }
+
+  if (routePath.includes('/research-staff/council-creation')) {
+    const editButton = page.getByRole('button', { name: 'Sửa', exact: true }).first();
+    if ((await editButton.count()) > 0) {
+      await editButton.click({ timeout: 2500 }).catch(() => undefined);
+      await page.waitForTimeout(150);
+    } else {
+      const setupButton = page.getByRole('button', { name: 'Thiết lập Hội đồng', exact: true }).first();
+      if ((await setupButton.count()) > 0) {
+        await setupButton.click({ timeout: 2500 }).catch(() => undefined);
+        await page.waitForTimeout(150);
+      }
+    }
+
+    const chooseFileButton = page.getByRole('button', { name: 'Chọn tệp tin', exact: true }).first();
+    if ((await chooseFileButton.count()) > 0) {
+      await chooseFileButton.click({ timeout: 2500 }).catch(() => undefined);
+      await page.waitForTimeout(120);
+    } else {
+      await trySetInputFile('input[type="file"][accept*="application/pdf"]', {
+        name: 'council-decision.pdf',
+        mimeType: 'application/pdf',
+        buffer: DEFAULT_PDF_BUFFER,
+      });
+    }
+  }
+
+  if (routePath.includes('/research-staff/extension-management')) {
+    const projectSelect = page.locator('select').first();
+    if ((await projectSelect.count()) > 0) {
+      const firstOption = projectSelect.locator('option').first();
+      if ((await firstOption.count()) > 0) {
+        const firstValue = await firstOption.getAttribute('value');
+        if (firstValue) {
+          await projectSelect.selectOption(firstValue).catch(() => undefined);
+        }
+      }
+    }
+
+    const targetDate = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await page.locator('input[type="date"]').first().fill(targetDate).catch(() => undefined);
+    await page.locator('input[placeholder="Lý do gia hạn"]').first().fill(`Smoke extension reason ${Date.now()}`).catch(() => undefined);
+
+    await trySetInputFile('input[type="file"]', {
+      name: 'extension-proof.pdf',
+      mimeType: 'application/pdf',
+      buffer: DEFAULT_PDF_BUFFER,
+    });
+
+    await page.waitForTimeout(120);
+  }
+
+  if (routePath.includes('/council-member/secretary')) {
+    await trySetInputFile('input[type="file"][accept*="application/pdf"]', {
+      name: 'minutes.pdf',
+      mimeType: 'application/pdf',
+      buffer: DEFAULT_PDF_BUFFER,
+    });
+  }
 }
 
 async function collectVisibleButtons(page) {
@@ -159,7 +345,49 @@ async function getSidebarPaths(page) {
   return paths;
 }
 
-async function exercisePageButtons(page, roleResult, routePath) {
+async function runRouteSpecificIoChecks(page, account, routePath, roleResult, ioTracker) {
+  if (account.role !== 'research_staff') return;
+  if (!routePath.includes('/research-staff/contract-management')) return;
+
+  const beforeUploadResponses = ioTracker.uploadResponses.length;
+
+  await page.evaluate(async (apiBase) => {
+    const token = window.localStorage.getItem('nckh_token');
+    const form = new FormData();
+    form.append('file', new File(
+      ['Ma de tai DT-2024-001\nChu nhiem: owner@nckh.edu.vn\nKinh phi: 500000000'],
+      'proposal.txt',
+      { type: 'text/plain' }
+    ));
+
+    await fetch(`${apiBase}/contracts/proposals/parse`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    });
+  }, API_BASE_URL).catch(() => undefined);
+
+  await page.waitForTimeout(1200);
+
+  roleResult.uploadChecks += 1;
+  const uploadEvents = ioTracker.uploadResponses
+    .slice(beforeUploadResponses)
+    .filter((e) => /proposals\/parse\b/i.test(e.url));
+  const uploadOk = uploadEvents.some((e) => e.status >= 200 && e.status < 300);
+
+  if (!uploadOk) {
+    roleResult.ioFailures.push({
+      route: routePath,
+      label: 'API /contracts/proposals/parse',
+      type: 'upload',
+      reason: uploadEvents.length
+        ? `last_status_${uploadEvents[uploadEvents.length - 1].status}`
+        : 'no_upload_response',
+    });
+  }
+}
+
+async function exercisePageButtons(page, roleResult, routePath, ioTracker) {
   const clickedLabels = new Set();
   const attemptCounts = new Map();
   const failures = [];
@@ -180,11 +408,63 @@ async function exercisePageButtons(page, roleResult, routePath) {
 
       const key = normalize(candidate.label);
 
+      if (isUploadAssertionTarget(routePath, candidate.label)) {
+        await attachRouteUploadFixtures(page, routePath);
+      }
+
+      const beforeUploadResponses = ioTracker.uploadResponses.length;
+      const beforeDownloadResponses = ioTracker.downloadResponses.length;
+      const beforeBrowserDownloads = ioTracker.browserDownloads.length;
+
       const clicked = await clickBySmokeId(page, candidate.id, candidate.label);
       if (clicked) {
         clickedLabels.add(key);
         roleResult.buttonsClicked += 1;
         madeProgress = true;
+
+        const expectUpload = isUploadAssertionTarget(routePath, candidate.label);
+        const expectDownload = isDownloadAssertionTarget(routePath, candidate.label);
+
+        if (expectUpload || expectDownload) {
+          await page.waitForTimeout(1200);
+        }
+
+        if (expectUpload) {
+          roleResult.uploadChecks += 1;
+          const uploadEvents = ioTracker.uploadResponses.slice(beforeUploadResponses);
+          const uploadOk = uploadEvents.some((e) => e.status >= 200 && e.status < 300);
+
+          if (!uploadOk) {
+            roleResult.ioFailures.push({
+              route: routePath,
+              label: candidate.label,
+              type: 'upload',
+              reason: uploadEvents.length
+                ? `last_status_${uploadEvents[uploadEvents.length - 1].status}`
+                : 'no_upload_response',
+            });
+          }
+        }
+
+        if (expectDownload) {
+          roleResult.downloadChecks += 1;
+          const downloadResponses = ioTracker.downloadResponses.slice(beforeDownloadResponses);
+          const browserDownloads = ioTracker.browserDownloads.slice(beforeBrowserDownloads);
+          const downloadOk =
+            downloadResponses.some((e) => e.status >= 200 && e.status < 300) ||
+            browserDownloads.length > 0;
+
+          if (!downloadOk) {
+            roleResult.ioFailures.push({
+              route: routePath,
+              label: candidate.label,
+              type: 'download',
+              reason: downloadResponses.length
+                ? `last_status_${downloadResponses[downloadResponses.length - 1].status}`
+                : 'no_download_event',
+            });
+          }
+        }
       } else {
         attemptCounts.set(key, (attemptCounts.get(key) ?? 0) + 1);
         failures.push({ route: routePath, label: candidate.label });
@@ -210,6 +490,12 @@ async function testRole(browser, account) {
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  const ioTracker = {
+    uploadResponses: [],
+    downloadResponses: [],
+    browserDownloads: [],
+  };
+
   const jsErrors = [];
   page.on('pageerror', (err) => {
     jsErrors.push({ url: page.url(), message: err.message });
@@ -221,6 +507,28 @@ async function testRole(browser, account) {
   });
   page.on('dialog', (dialog) => {
     dialog.accept().catch(() => undefined);
+  });
+  page.on('download', (download) => {
+    ioTracker.browserDownloads.push({
+      url: page.url(),
+      suggestedFileName: download.suggestedFilename(),
+      timestamp: Date.now(),
+    });
+  });
+  page.on('response', (response) => {
+    const url = response.url();
+    if (!url.includes('/api/')) return;
+
+    const method = response.request().method();
+    const status = response.status();
+    const headers = response.headers();
+
+    if (isUploadApiResponse(url, method)) {
+      ioTracker.uploadResponses.push({ url, method, status, timestamp: Date.now() });
+    }
+    if (isDownloadApiResponse(url, method, headers)) {
+      ioTracker.downloadResponses.push({ url, method, status, timestamp: Date.now() });
+    }
   });
   page.on('filechooser', (fileChooser) => {
     fileChooser
@@ -239,6 +547,9 @@ async function testRole(browser, account) {
     visitedRoutes: [],
     buttonsClicked: 0,
     buttonFailures: [],
+    uploadChecks: 0,
+    downloadChecks: 0,
+    ioFailures: [],
     jsErrors,
     error: null,
   };
@@ -252,8 +563,10 @@ async function testRole(browser, account) {
     for (const routePath of routePaths) {
       await page.goto(`${FRONTEND_URL}${routePath}`, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(500);
+      await attachRouteUploadFixtures(page, routePath);
+      await runRouteSpecificIoChecks(page, account, routePath, result, ioTracker);
       result.visitedRoutes.push(routePath);
-      const outcome = await exercisePageButtons(page, result, routePath);
+      const outcome = await exercisePageButtons(page, result, routePath, ioTracker);
       if (outcome.redirectedToLogin) {
         await login(page, account.email, PASSWORD);
       }
@@ -293,6 +606,17 @@ async function main() {
       totalButtonsClicked: roleResults.reduce((sum, r) => sum + r.buttonsClicked, 0),
       totalButtonFailures: roleResults.reduce((sum, r) => sum + r.buttonFailures.length, 0),
       totalJsErrors: roleResults.reduce((sum, r) => sum + r.jsErrors.length, 0),
+      totalUploadChecks: roleResults.reduce((sum, r) => sum + r.uploadChecks, 0),
+      totalDownloadChecks: roleResults.reduce((sum, r) => sum + r.downloadChecks, 0),
+      totalIoFailures: roleResults.reduce((sum, r) => sum + r.ioFailures.length, 0),
+      totalUploadFailures: roleResults.reduce(
+        (sum, r) => sum + r.ioFailures.filter((f) => f.type === 'upload').length,
+        0
+      ),
+      totalDownloadFailures: roleResults.reduce(
+        (sum, r) => sum + r.ioFailures.filter((f) => f.type === 'download').length,
+        0
+      ),
     },
   };
 
@@ -306,18 +630,24 @@ async function main() {
   for (const r of roleResults) {
     // eslint-disable-next-line no-console
     console.log(
-      `${r.role.padEnd(24)} login=${r.loginOk ? 'OK' : 'FAIL'} routes=${String(r.visitedRoutes.length).padStart(2)} buttons=${String(r.buttonsClicked).padStart(3)} jsErrors=${String(r.jsErrors.length).padStart(3)} clickFails=${String(r.buttonFailures.length).padStart(3)}`
+      `${r.role.padEnd(24)} login=${r.loginOk ? 'OK' : 'FAIL'} routes=${String(r.visitedRoutes.length).padStart(2)} buttons=${String(r.buttonsClicked).padStart(3)} jsErrors=${String(r.jsErrors.length).padStart(3)} clickFails=${String(r.buttonFailures.length).padStart(3)} ioFails=${String(r.ioFailures.length).padStart(3)}`
     );
     if (r.error) {
       // eslint-disable-next-line no-console
       console.log(`  error: ${r.error}`);
+    }
+    if (r.ioFailures.length > 0) {
+      for (const failure of r.ioFailures.slice(0, 5)) {
+        // eslint-disable-next-line no-console
+        console.log(`  io-failure: [${failure.type}] route=${failure.route} label="${failure.label}" reason=${failure.reason}`);
+      }
     }
   }
 
   // eslint-disable-next-line no-console
   console.log('\nReport written to:', reportPath);
 
-  if (summary.totals.loginFailed > 0) {
+  if (summary.totals.loginFailed > 0 || summary.totals.totalIoFailures > 0) {
     process.exitCode = 1;
   }
 }

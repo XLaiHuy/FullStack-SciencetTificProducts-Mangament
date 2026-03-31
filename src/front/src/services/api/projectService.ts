@@ -4,6 +4,7 @@
  */
 import { axiosClient } from './axiosClient';
 import type { Project } from '../../types';
+import { downloadFromApi } from './downloadUtil';
 
 /** Normalize backend Project (owner is object) → frontend Project (owner is string) */
 const mapProject = (p: any): Project => ({
@@ -29,6 +30,14 @@ export const projectService = {
   async getById(id: string): Promise<Project | undefined> {
     const res = await axiosClient.get(`/projects/${id}`);
     return res.data ? mapProject(res.data) : undefined;
+  },
+
+  // GET /api/projects/{id}/reports/{reportId}/download
+  async downloadReportFile(projectId: string, reportId: string, fallbackFileName?: string): Promise<void> {
+    await downloadFromApi(
+      `/projects/${projectId}/reports/${reportId}/download`,
+      fallbackFileName ?? `report_${reportId}.dat`
+    );
   },
 
   // GET /api/projects?status={status}

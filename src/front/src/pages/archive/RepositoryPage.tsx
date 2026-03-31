@@ -5,6 +5,7 @@ import { archiveService } from '../../services/api/archiveService';
 const RepositoryPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [field, setField] = useState('');
+  const [sortOrder, setSortOrder] = useState<'latest' | 'asc'>('latest');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [allProjects, setAllProjects] = useState<Array<{ id: string; code: string; title: string; ownerName: string; field: string; status: string; files: string[] }>>([]);
 
@@ -22,6 +23,13 @@ const RepositoryPage: React.FC = () => {
     const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.code.toLowerCase().includes(search.toLowerCase());
     const matchField = !field || p.field === field;
     return matchSearch && matchField;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortOrder === 'asc') {
+      return a.code.localeCompare(b.code);
+    }
+    return b.code.localeCompare(a.code);
   });
 
   return (
@@ -67,15 +75,20 @@ const RepositoryPage: React.FC = () => {
 
       {/* Results count */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">Tìm thấy <span className="font-bold text-gray-900">{filtered.length}</span> đề tài</p>
+        <p className="text-sm text-gray-500">Tìm thấy <span className="font-bold text-gray-900">{sorted.length}</span> đề tài</p>
         <div className="flex gap-2">
-          <button className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50">Sắp xếp: Mới nhất</button>
+          <button
+            onClick={() => setSortOrder((prev) => (prev === 'latest' ? 'asc' : 'latest'))}
+            className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50"
+          >
+            {sortOrder === 'latest' ? 'Sắp xếp: Mới nhất' : 'Sắp xếp: Mã tăng dần'}
+          </button>
         </div>
       </div>
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 gap-6">
-        {filtered.map(p => (
+        {sorted.map(p => (
           <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-card p-6 hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer">
             <div className="flex items-start justify-between mb-3">
               <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{p.code}</span>
@@ -94,7 +107,12 @@ const RepositoryPage: React.FC = () => {
               </p>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100 flex gap-3">
-              <button className="text-xs font-bold text-primary hover:underline">Xem chi tiết</button>
+              <button
+                onClick={() => showToast(`Chi tiet de tai ${p.code}: ${p.title}`, 'success')}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Xem chi tiết
+              </button>
               <button
                 onClick={async () => {
                   if (!p.files || p.files.length === 0) {

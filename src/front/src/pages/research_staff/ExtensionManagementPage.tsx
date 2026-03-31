@@ -14,6 +14,8 @@ const ExtensionManagementPage: React.FC = () => {
   const [reason, setReason] = useState('');
   const [supportingDocument, setSupportingDocument] = useState<File | null>(null);
   const [projects, setProjects] = useState<Array<{ id: string; code: string; title: string }>>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const refresh = async () => {
     const data = await extensionService.getAll();
@@ -33,6 +35,26 @@ const ExtensionManagementPage: React.FC = () => {
   }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  const triggerDownload = (filename: string, content: string, mimeType = 'application/msword;charset=utf-8') => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadSupportingDoc = (ext: LocalExtension) => {
+    triggerDownload(
+      `GiaiTrinhGiaHan_${ext.projectCode}.doc`,
+      `De tai: ${ext.projectCode}\nChu nhiem: ${ext.projectOwner}\nLy do gia han: ${ext.reason}`
+    );
+    showToast(`Da tai file giai trinh cua ${ext.projectCode}.`);
+  };
 
   const countBadge = (count: number) => {
     const colors = ['', 'bg-blue-50 text-blue-600 border-blue-100', 'bg-amber-50 text-amber-600 border-amber-100', 'bg-red-50 text-red-600 border-red-100'];
@@ -67,6 +89,7 @@ const ExtensionManagementPage: React.FC = () => {
         supporting_document: supportingDocument ?? undefined,
       });
       await refresh();
+      setCurrentPage(1);
       setReason('');
       setRequestedDeadline('');
       setSupportingDocument(null);
@@ -76,6 +99,16 @@ const ExtensionManagementPage: React.FC = () => {
       showToast(typeof e === 'string' ? e : 'Khong the tao yeu cau gia han.');
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(extensions.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedExtensions = extensions.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div className="space-y-8">
@@ -126,7 +159,7 @@ const ExtensionManagementPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {extensions.map(ext => (
+            {pagedExtensions.map(ext => (
               <tr key={ext.id} className={`hover:bg-gray-50/50 transition-colors ${ext.status === 'pending' ? 'bg-gray-50/20' : ''}`}>
                 <td className="px-8 py-6">
                   <div className="flex flex-col gap-1.5">
@@ -139,7 +172,10 @@ const ExtensionManagementPage: React.FC = () => {
                 </td>
                 <td className="px-8 py-6 text-sm text-gray-600 max-w-[280px]">{ext.reason}</td>
                 <td className="px-8 py-6">
-                  <button className="text-[11px] font-bold uppercase tracking-tight text-primary hover:text-primary-dark">
+                  <button
+                    onClick={() => handleDownloadSupportingDoc(ext)}
+                    className="text-[11px] font-bold uppercase tracking-tight text-primary hover:text-primary-dark"
+                  >
                     Xem file
                   </button>
                 </td>
@@ -175,11 +211,23 @@ const ExtensionManagementPage: React.FC = () => {
 
         {/* Pagination */}
         <div className="px-8 py-6 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hiển thị 1 - {extensions.length} / {extensions.length} yêu cầu</span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hiển thị {(safePage - 1) * pageSize + 1} - {(safePage - 1) * pageSize + pagedExtensions.length} / {extensions.length} yêu cầu</span>
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50">Trước</button>
-            <button className="w-9 h-9 flex items-center justify-center bg-primary text-white rounded-xl text-xs font-bold shadow-card">1</button>
-            <button className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-colors">Sau</button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Trước
+            </button>
+            <span className="w-9 h-9 inline-flex items-center justify-center bg-primary text-white rounded-xl text-xs font-bold shadow-card">{safePage}</span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Sau
+            </button>
           </div>
         </div>
       </div>

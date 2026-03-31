@@ -7,12 +7,12 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/',
-  requireRole('research_staff', 'superadmin', 'council_member'),
+  requireRole('research_staff', 'superadmin', 'council_member', 'project_owner'),
   CouncilController.getAll
 );
 router.get('/mine', requireRole('council_member'), CouncilController.getMine);
 router.get('/:id',
-  requireRole('research_staff', 'superadmin', 'council_member'),
+  requireRole('research_staff', 'superadmin', 'council_member', 'project_owner'),
   CouncilController.getById
 );
 
@@ -35,6 +35,16 @@ router.post('/:id/decision',
   requireRole('research_staff', 'superadmin'),
   uploadDecision.single('file'),
   CouncilController.uploadDecision
+);
+
+router.get('/:id/decision-file',
+  requireRole('research_staff', 'superadmin', 'council_member', 'project_owner'),
+  CouncilController.downloadDecision
+);
+
+router.get('/:id/minutes-file',
+  requireRole('research_staff', 'superadmin', 'council_member', 'project_owner'),
+  CouncilController.downloadMinutes
 );
 
 router.post('/:id/resend-invitations',

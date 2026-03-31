@@ -93,7 +93,12 @@ const ProjectOwnerDashboard: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-2">{d.info}</p>
               </div>
             ))}
-            <button className="w-full py-3 mt-4 text-sm font-bold text-primary border border-primary/20 hover:bg-primary/5 rounded-lg transition-colors">Xem toàn bộ lịch</button>
+            <button
+              onClick={() => navigate('/project-owner/research-submission')}
+              className="w-full py-3 mt-4 text-sm font-bold text-primary border border-primary/20 hover:bg-primary/5 rounded-lg transition-colors"
+            >
+              Xem toàn bộ lịch
+            </button>
           </div>
         </div>
       </div>

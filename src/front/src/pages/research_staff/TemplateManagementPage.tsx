@@ -16,6 +16,7 @@ const TemplateManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [formTypes, setFormTypes] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [formTypeCode, setFormTypeCode] = useState('general');
+  const [roleFilter, setRoleFilter] = useState('');
 
   const refresh = async () => {
     const data = await templateService.getAll();
@@ -99,7 +100,39 @@ const TemplateManagementPage: React.FC = () => {
     }
   };
 
-  const grouped = templates.reduce((acc: Record<string, Template[]>, t) => {
+  const handleResetForm = () => {
+    setName('');
+    setRole('chu_tich');
+    setVersion('');
+    setEffectiveDate('');
+    setNote('');
+    setFile(null);
+    setFormTypeCode(formTypes[0]?.code ?? 'general');
+    showToast('Da xoa du lieu dang nhap tren form.', 'success');
+  };
+
+  const cycleRoleFilter = () => {
+    const availableRoles = Array.from(new Set(templates.map((t) => t.role)));
+    if (!availableRoles.length) return;
+    if (!roleFilter) {
+      setRoleFilter(availableRoles[0]);
+      showToast(`Dang loc theo vai tro: ${availableRoles[0]}`, 'success');
+      return;
+    }
+    const currentIndex = availableRoles.indexOf(roleFilter);
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= availableRoles.length) {
+      setRoleFilter('');
+      showToast('Da bo loc vai tro.', 'success');
+      return;
+    }
+    setRoleFilter(availableRoles[nextIndex]);
+    showToast(`Dang loc theo vai tro: ${availableRoles[nextIndex]}`, 'success');
+  };
+
+  const visibleTemplates = roleFilter ? templates.filter((t) => t.role === roleFilter) : templates;
+
+  const grouped = visibleTemplates.reduce((acc: Record<string, Template[]>, t) => {
     if (!acc[t.role]) acc[t.role] = [];
     acc[t.role].push(t);
     return acc;
@@ -182,7 +215,7 @@ const TemplateManagementPage: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-8 pt-8 border-t border-gray-100">
-            <button className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">Hủy bỏ</button>
+            <button onClick={handleResetForm} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">Hủy bỏ</button>
             <button
               onClick={handleUpload}
               disabled={loading}
@@ -196,7 +229,9 @@ const TemplateManagementPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-900">Danh sách biểu mẫu hiện hành</h2>
-          <button className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 bg-white hover:bg-gray-50">Bộ lọc</button>
+          <button onClick={cycleRoleFilter} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 bg-white hover:bg-gray-50">
+            {roleFilter ? `Bộ lọc: ${roleFilter}` : 'Bộ lọc'}
+          </button>
         </div>
         {Object.entries(grouped).map(([role, tmps]) => (
           <div key={role} className="bg-white border border-gray-200 rounded-2xl shadow-card overflow-hidden">

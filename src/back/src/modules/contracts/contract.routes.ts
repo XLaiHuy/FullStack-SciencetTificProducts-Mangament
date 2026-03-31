@@ -30,6 +30,14 @@ router.get('/:id',
   requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'report_viewer'),
   ContractController.getById
 );
+router.get('/:id/pdf',
+  requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'report_viewer'),
+  ContractController.downloadPdf
+);
+router.get('/:id/export-excel',
+  requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'report_viewer'),
+  ContractController.exportExcel
+);
 
 router.post('/',
   requireRole('research_staff', 'superadmin'),

@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { mockProjects } from '../../mock/mockData';
 import { StatusBadge } from '../../components/StatusBadge';
 
 const CouncilMemberDashboard: React.FC = () => {
+  const navigate = useNavigate();
   useEffect(() => {}, []);
 
   const myProjects = mockProjects.slice(0, 3);
@@ -39,8 +41,18 @@ const CouncilMemberDashboard: React.FC = () => {
                 <StatusBadge status={p.status} />
               </div>
               <div className="flex gap-3 mt-4">
-                <button className="px-4 py-2 text-xs font-bold bg-primary text-white rounded-xl shadow-card hover:bg-primary-dark">Xem hồ sơ</button>
-                <button className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">Nhận xét phản biện</button>
+                <button
+                  onClick={() => navigate('/council-member/member')}
+                  className="px-4 py-2 text-xs font-bold bg-primary text-white rounded-xl shadow-card hover:bg-primary-dark"
+                >
+                  Xem hồ sơ
+                </button>
+                <button
+                  onClick={() => navigate('/council-member/reviewer')}
+                  className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50"
+                >
+                  Nhận xét phản biện
+                </button>
               </div>
             </div>
           ))}

@@ -8,6 +8,7 @@ import { projectService } from '../../services/api/projectService';
 
 type ToastType = 'success' | 'error';
 type ProposalMode = 'manual_email' | 'upload_autodetect';
+const CONTRACT_DRAFT_KEY = 'research_staff_contract_draft';
 
 const formatCurrency = (value: number) => `${value.toLocaleString('vi-VN')} VNĐ`;
 
@@ -130,6 +131,23 @@ const ContractManagementPage: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CONTRACT_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        selectedProjectId?: string;
+        proposalMode?: ProposalMode;
+        budgetOverride?: number | null;
+      };
+      if (draft.selectedProjectId) setSelectedProjectId(draft.selectedProjectId);
+      if (draft.proposalMode) setProposalMode(draft.proposalMode);
+      if (typeof draft.budgetOverride === 'number') setBudgetOverride(draft.budgetOverride);
+    } catch {
+      // Ignore malformed contract draft payload.
+    }
+  }, []);
+
   const keyword = search.trim().toLowerCase();
   const filtered = contracts.filter(c =>
     c.code.toLowerCase().includes(keyword) ||
@@ -190,41 +208,26 @@ const ContractManagementPage: React.FC = () => {
     showToast('Đã xuất nháp Word đầy đủ Bên A/B.', 'success');
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!filtered.length) {
       showToast('Không có hợp đồng để xuất.', 'error');
       return;
     }
 
-    const header = [
-      'Mã hợp đồng',
-      'Mã đề tài',
-      'Tên đề tài',
-      'Bên A',
-      'Bên B',
-      'Email chủ nhiệm',
-      'Ngân sách (VNĐ)',
-      'Trạng thái',
-      'Ngày ký',
-      'Đường dẫn PDF',
-    ];
+    const targetContract =
+      filtered.find((c) => c.id === selectedContractId)
+      ?? detailContract
+      ?? filtered[0];
 
-    const rows = filtered.map((c) => [
-      c.code,
-      c.projectCode,
-      c.projectTitle,
-      'Truong/Co quan quan ly de tai',
-      `${c.ownerTitle ? `${c.ownerTitle} ` : ''}${c.owner}`.trim(),
-      c.ownerEmail ?? '',
-      c.budget,
-      c.status,
-      c.signedDate ?? '',
-      c.pdfUrl ?? '',
-    ]);
-
-    const csv = ['\ufeff' + header.map(csvCell).join(','), ...rows.map((row) => row.map(csvCell).join(','))].join('\n');
-    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `DanhSachHopDong_${new Date().toISOString().slice(0, 10)}.csv`);
-    showToast('Đã xuất Excel (CSV) cho danh sách hợp đồng.', 'success');
+    try {
+      await contractService.exportExcel(
+        targetContract.id,
+        `HopDong_${targetContract.code.replace(/[^a-zA-Z0-9_-]+/g, '_')}.xlsx`
+      );
+      showToast(`Đã xuất Excel thật cho hợp đồng ${targetContract.code}.`, 'success');
+    } catch (err) {
+      showToast(typeof err === 'string' ? err : 'Không thể xuất Excel từ backend.', 'error');
+    }
   };
 
   const handleCreateEligibleSampleProject = async () => {
@@ -360,6 +363,7 @@ const ContractManagementPage: React.FC = () => {
       });
       await refresh();
       showToast('Đã tạo hợp đồng và gửi thông báo thành công!', 'success');
+      localStorage.removeItem(CONTRACT_DRAFT_KEY);
       setSelectedProjectId('');
       setProposalFile(null);
       setProposalParsed(null);
@@ -370,6 +374,19 @@ const ContractManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveDraft = () => {
+    localStorage.setItem(
+      CONTRACT_DRAFT_KEY,
+      JSON.stringify({
+        selectedProjectId,
+        proposalMode,
+        budgetOverride: typeof budgetOverride === 'number' ? budgetOverride : null,
+        savedAt: new Date().toISOString(),
+      })
+    );
+    showToast('Đã lưu nháp mẫu hợp đồng.', 'success');
   };
 
   const handleUploadPdf = async () => {
@@ -563,7 +580,7 @@ const ContractManagementPage: React.FC = () => {
               <button onClick={handleExportContractDraft} className="px-5 py-2 text-sm font-semibold text-primary bg-white border border-primary rounded-lg hover:bg-blue-50 transition-colors">
                 XUẤT FILE WORD (.DOCX)
               </button>
-              <button className="px-5 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button onClick={handleSaveDraft} className="px-5 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
                 LƯU NHÁP
               </button>
               <button

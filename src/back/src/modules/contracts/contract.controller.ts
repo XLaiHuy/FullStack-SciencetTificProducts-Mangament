@@ -36,6 +36,33 @@ export const ContractController = {
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
 
+  /** GET /api/contracts/:id/pdf */
+  async downloadPdf(req: Request, res: Response) {
+    try {
+      const payload = await ContractService.getPdfDownload(req.params.id, req.user!.userId, req.user!.role);
+
+      if (payload.kind === 'file') {
+        res.download(payload.absolutePath, payload.fileName);
+        return;
+      }
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${payload.fileName}"`);
+      res.send(payload.fileBuffer);
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
+  /** GET /api/contracts/:id/export-excel */
+  async exportExcel(req: Request, res: Response) {
+    try {
+      const payload = await ContractService.getExcelExport(req.params.id, req.user!.userId, req.user!.role);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${payload.fileName}"`);
+      await payload.workbook.xlsx.write(res);
+      res.end();
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
   /** GET /api/project-owner/contracts */
   async getMyContracts(req: Request, res: Response) {
     try {
