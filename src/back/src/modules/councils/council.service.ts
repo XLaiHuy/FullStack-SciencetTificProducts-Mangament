@@ -4,7 +4,9 @@ import { nextCouncilCode } from '../../utils/codeGenerator';
 import { logBusiness, logDeleteAction } from '../../middleware/requestLogger';
 import { sendCouncilInvitation } from '../../utils/emailService';
 import { hashPassword } from '../../utils/password';
+import fs from 'fs/promises';
 import path from 'path';
+import mammoth from 'mammoth';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/uploadFile';
 
@@ -142,6 +144,7 @@ const ensureCouncilUserAccount = async (member: MemberInput) => {
       department: member.affiliation ?? member.institution,
       isActive: true,
       isLocked: false,
+      mustChangePassword: true as never,
     },
   });
 
@@ -153,8 +156,116 @@ const ensureCouncilUserAccount = async (member: MemberInput) => {
   };
 };
 
+// ─── Utilities for file parsing ───────────────────────────────────────────────
+
+const normalizeText = (raw: string) =>
+  raw
+    .replace(/\r/g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+type ParsedMember = {
+  name?: string;
+  title?: string;
+  institution?: string;
+  email?: string;
+  phone?: string;
+  role?: z.infer<typeof MemberSchema>['role'];
+  confidence: number;
+  rawLine: string;
+};
+
+/**
+ * Parses raw text to detect council member information based on regex.
+ * This is the core parsing logic and likely needs adjustment based on real-world file formats.
+ */
+const detectCouncilMembers = (text: string): ParsedMember[] => {
+  const lines = text.split('\n').filter(line => line.trim().length > 10);
+  const detectedMembers: ParsedMember[] = [];
+
+  const roleMap: Record<string, z.infer<typeof MemberSchema>['role']> = {
+    'chủ tịch': 'chu_tich',
+    'chủ tịch hội đồng': 'chu_tich',
+    'chu tich': 'chu_tich',
+    'phản biện 1': 'phan_bien_1',
+    'phan bien 1': 'phan_bien_1',
+    'phản biện 2': 'phan_bien_2',
+    'phan bien 2': 'phan_bien_2',
+    'thư ký': 'thu_ky',
+    'thu ky': 'thu_ky',
+    'ủy viên': 'uy_vien',
+    'uy vien': 'uy_vien',
+  };
+
+  for (const line of lines) {
+    const email = line.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+    const phone = line.match(/(?:\d{10,11}\b)/)?.[0];
+
+    const roleText = line.match(/(?:vai trò|chức vụ|vi trí)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim().toLowerCase();
+    const role = roleText ? Object.keys(roleMap).find(k => roleText.includes(k)) : undefined;
+
+    const nameText =
+      line.match(/(?:họ và tên|họ tên)\s*[:\-]?\s*([^\n,]+)/i)?.[1] ??
+      line.split(/[,;]/)[0]; // Fallback: assume name is the first part of the line
+
+    const name = nameText?.replace(/(?:GS\.TS|PGS\.TS|TS|ThS)\.?/ig, '').trim();
+    const title = nameText?.match(/(GS\.TS|PGS\.TS|TS|ThS)\.?/i)?.[0];
+
+    const institution = line.match(/(?:đơn vị|cơ quan)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim();
+
+    const points = [name, email, role, institution].filter(Boolean).length;
+    const confidence = Math.round((points / 4) * 100);
+
+    if (confidence > 25) {
+      detectedMembers.push({
+        name,
+        email,
+        phone,
+        title,
+        institution,
+        role: role ? roleMap[role] : undefined,
+        confidence,
+        rawLine: line.slice(0, 200),
+      });
+    }
+  }
+
+  return detectedMembers;
+};
+
+
 // ─── Council Service ──────────────────────────────────────────────────────────
 export const CouncilService = {
+  /** POST /api/councils/parse-members */
+  async parseMembersFromFile(filePath: string, originalName: string): Promise<ParsedMember[]> {
+    const ext = path.extname(originalName).toLowerCase();
+    let rawText = '';
+
+    if (ext === '.docx' || ext === '.doc') {
+      const parsed = await mammoth.extractRawText({ path: filePath });
+      rawText = parsed.value ?? '';
+    } else {
+      const buffer = await fs.readFile(filePath);
+      rawText = buffer.toString('utf8');
+    }
+
+    const text = normalizeText(rawText);
+    if (!text) {
+      throw new Error('Không thể trích xuất nội dung từ tệp. Vui lòng kiểm tra định dạng file.');
+    }
+
+    const members = detectCouncilMembers(text);
+    if (members.length === 0) {
+      throw new Error('Không nhận diện được thành viên nào từ file. Vui lòng kiểm tra nội dung và định dạng.');
+    }
+
+    // Clean up uploaded file
+    await fs.unlink(filePath);
+
+    return members;
+  },
+
   /** GET /api/councils */
   async getAll(
     filters: { status?: string; search?: string; page?: number; limit?: number },

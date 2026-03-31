@@ -4,7 +4,7 @@ import { nextContractCode } from '../../utils/codeGenerator';
 import { logBusiness } from '../../middleware/requestLogger';
 import fs from 'fs/promises';
 import path from 'path';
-import { PDFParse } from 'pdf-parse';
+const { PDFParse } = require('pdf-parse');
 import mammoth from 'mammoth';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import ExcelJS from 'exceljs';
@@ -14,6 +14,8 @@ import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/upl
 export const CreateContractSchema = z.object({
   projectId: z.string().cuid(),
   budget:    z.number().positive(),
+  agencyName: z.string().optional(),
+  representative: z.string().optional(),
   notes:     z.string().optional(),
 });
 
@@ -61,6 +63,12 @@ const normalizeText = (raw: string) =>
 
 const normalizeCode = (value: string) => value.replace(/[\s_/]+/g, '-').toUpperCase();
 
+const stripVietnamese = (value: string) =>
+  value
+    .replace(/[Đđ]/g, 'D')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 const parseMoney = (value: string): number | undefined => {
   const digits = value.replace(/[^\d]/g, '');
   if (!digits) return undefined;
@@ -69,7 +77,13 @@ const parseMoney = (value: string): number | undefined => {
   return parsed;
 };
 
-const detectProposalData = (text: string) => {
+const isLikelyProjectCode = (value?: string): boolean => {
+  if (!value) return false;
+  const compact = value.replace(/\s+/g, '');
+  return /[A-Z]/i.test(compact) && /\d/.test(compact) && compact.length >= 5;
+};
+
+const legacyDetectProposalData = (text: string) => {
   const projectCodeRaw = text.match(/(?:ĐT|DT)[\s_\/-]?\d{2,4}[\s_\/-]?\d{2,6}(?:[\s_\/-]?[A-Z0-9]{1,6})?/i)?.[0];
   const projectCode = projectCodeRaw ? normalizeCode(projectCodeRaw) : undefined;
 
@@ -85,6 +99,44 @@ const detectProposalData = (text: string) => {
     text.match(/(?:kinh\s*phí|ngân\s*sách|gia\s*trị\s*hợp\s*đồng|gia\s*tri\s*hop\s*dong)\s*[:\-]?\s*([\d\s.,]{6,})/i)?.[1] ??
     text.match(/\b\d{1,3}(?:[.\s,]\d{3}){1,}(?:[.,]\d{1,2})?\b/)?.[0] ??
     text.match(/\b\d{7,}\b/)?.[0];
+
+  const suggestedBudget = budgetCandidate ? parseMoney(budgetCandidate) : undefined;
+
+  return {
+    projectCode,
+    ownerEmail,
+    ownerName,
+    ownerTitle,
+    suggestedBudget,
+  };
+};
+
+const detectProposalData = (text: string) => {
+  const normalized = stripVietnamese(text);
+  const projectCodeFromLabelRaw =
+    normalized.match(/(?:ma\s*de\s*tai|ma\s*dt)\s*[:\-]\s*([A-Z0-9\-_/.\s]{4,})/i)?.[1]?.trim();
+  const projectCodeFromLabel = projectCodeFromLabelRaw
+    ?.split(/\n|;|,/)[0]
+    ?.trim();
+  const projectCodeFromPattern =
+    normalized.match(/\b(?:DT|DETAI)[\s_\/-]?\d{2,4}[\s_\/-]?\d{2,6}(?:[\s_\/-]?[A-Z0-9]{1,6})?\b/i)?.[0];
+  const projectCodeCandidate = [projectCodeFromLabel, projectCodeFromPattern].find(isLikelyProjectCode);
+  const projectCode = projectCodeCandidate ? normalizeCode(projectCodeCandidate) : undefined;
+
+  const ownerEmail =
+    normalized.match(/email\s*[:\-]\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i)?.[1]?.toLowerCase() ??
+    normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
+
+  const ownerNameLine =
+    normalized.match(/(?:chu\s*nhiem(?:\s*de\s*tai)?|ben\s*b)\s*[:\-]\s*([^\n]+)/i)?.[1]?.trim();
+
+  const ownerTitle = ownerNameLine?.match(/^(GS\.TS\.|PGS\.TS\.|TS\.|ThS\.|GS|PGS|TS|ThS)/i)?.[0];
+  const ownerName = ownerNameLine?.replace(/^(GS\.TS\.|PGS\.TS\.|TS\.|ThS\.|GS|PGS|TS|ThS)\s*/i, '').trim();
+
+  const budgetCandidate =
+    normalized.match(/(?:kinh\s*phi\s*du\s*kien|kinh\s*phi|ngan\s*sach|gia\s*tri\s*hop\s*dong)\s*[:\-]?\s*([\d\s.,]{6,})/i)?.[1] ??
+    normalized.match(/\b\d{1,3}(?:[.\s,]\d{3}){1,}(?:[.,]\d{1,2})?\b/)?.[0] ??
+    normalized.match(/\b\d{7,}\b/)?.[0];
 
   const suggestedBudget = budgetCandidate ? parseMoney(budgetCandidate) : undefined;
 
@@ -181,8 +233,7 @@ export const ContractService = {
       sourceType = 'pdf';
       const buffer = await fs.readFile(filePath);
       const parser = new PDFParse({ data: buffer });
-      const parsed = await parser.getText();
-      rawText = parsed.text ?? '';
+      rawText = await parser.getText();
       await parser.destroy();
     } else if (ext === '.docx' || ext === '.doc') {
       sourceType = 'docx';
@@ -394,9 +445,24 @@ export const ContractService = {
     if (existing) throw new Error(`Đề tài đã có hợp đồng ${existing.code} còn hiệu lực.`);
 
     const code = await nextContractCode();
-    const contract = await prisma.contract.create({
-      data: { code, projectId: data.projectId, budget: data.budget, notes: data.notes },
-    });
+    const advanceAmount = Number(project.budget) * 0.4;
+
+    const [contract] = await prisma.$transaction([
+      prisma.contract.create({
+        data: {
+          code,
+          projectId: data.projectId,
+          budget: data.budget,
+          agencyName: data.agencyName,
+          representative: data.representative,
+          notes: data.notes,
+        },
+      }),
+      prisma.project.update({
+        where: { id: data.projectId },
+        data: { advancedAmount: advanceAmount },
+      }),
+    ]);
 
     await logBusiness(actorId, actorName, `Tạo hợp đồng ${code} cho đề tài ${project.code}`, 'Contracts');
     return contract;

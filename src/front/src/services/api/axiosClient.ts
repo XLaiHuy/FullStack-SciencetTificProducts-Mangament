@@ -3,9 +3,6 @@ import axios from 'axios';
 // Create a configured Axios instance
 export const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 10000, // 10 seconds
 });
 

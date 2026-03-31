@@ -9,8 +9,23 @@ const storage = multer.diskStorage({
   filename:    (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
 export const uploadDecision = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+export const uploadMemberFile = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 export const CouncilController = {
+  /** POST /api/councils/parse-members */
+  async parseMembersFromFile(req: Request, res: Response) {
+    try {
+      const file = (req as Request & { file?: Express.Multer.File }).file;
+      if (!file) {
+        return R.badRequest(res, 'Vui lòng chọn file danh sách thành viên.');
+      }
+      const members = await CouncilService.parseMembersFromFile(file.path, file.originalname);
+      R.ok(res, members, 'Đã nhận diện các thành viên từ file.');
+    } catch (err) {
+      R.badRequest(res, (err as Error).message);
+    }
+  },
+
   /** GET /api/councils */
   async getAll(req: Request, res: Response) {
     try {

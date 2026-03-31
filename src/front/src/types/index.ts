@@ -17,6 +17,7 @@ export interface User {
   email: string;
   role: UserRole;
   councilRole?: CouncilRole;
+  mustChangePassword?: boolean;
   title?: string;
   department?: string;
   avatar?: string;

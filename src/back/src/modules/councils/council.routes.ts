@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { CouncilController, uploadDecision } from './council.controller';
+import { CouncilController, uploadDecision, uploadMemberFile } from './council.controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 
@@ -24,6 +24,12 @@ router.post('/',
 router.post('/check-conflict',
   requireRole('research_staff', 'superadmin'),
   CouncilController.checkConflict
+);
+
+router.post('/parse-members',
+  requireRole('research_staff', 'superadmin'),
+  uploadMemberFile.single('file'),
+  CouncilController.parseMembersFromFile
 );
 
 router.post('/:id/members',

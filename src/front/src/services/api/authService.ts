@@ -27,4 +27,16 @@ export const authService = {
   async logout(_userName: string): Promise<void> {
     await axiosClient.post('/auth/logout');
   },
+
+  async forgotPassword(email: string): Promise<void> {
+    await axiosClient.post('/auth/forgot-password', { email });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await axiosClient.post('/auth/reset-password', { token, newPassword });
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await axiosClient.put('/auth/change-password', { currentPassword, newPassword });
+  },
 };
