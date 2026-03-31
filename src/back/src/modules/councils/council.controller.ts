@@ -20,7 +20,7 @@ export const CouncilController = {
         search: search as string,
         page:   page  ? parseInt(page as string) : undefined,
         limit:  limit ? parseInt(limit as string) : undefined,
-      });
+      }, req.user!.userId, req.user!.role);
       R.ok(res, result.councils, undefined, result.meta);
     } catch (err) { R.serverError(res, (err as Error).message); }
   },
@@ -28,7 +28,7 @@ export const CouncilController = {
   /** GET /api/councils/:id */
   async getById(req: Request, res: Response) {
     try {
-      const council = await CouncilService.getById(req.params.id);
+      const council = await CouncilService.getById(req.params.id, req.user!.userId, req.user!.role);
       R.ok(res, council);
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
@@ -56,6 +56,26 @@ export const CouncilController = {
       const member = AddMemberSchema.parse(req.body);
       const result = await CouncilService.addMember(req.params.id, member, req.user!.userId, req.user!.name);
       R.created(res, result, 'Thêm thành viên thành công.');
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
+  /** POST /api/councils/:id/decision */
+  async uploadDecision(req: Request, res: Response) {
+    try {
+      const file = (req as Request & { file?: Express.Multer.File }).file;
+      if (!file) { R.badRequest(res, 'Vui lòng chọn file quyết định.'); return; }
+
+      const webPath = `/uploads/councils/${file.filename}`;
+      const result = await CouncilService.uploadDecision(req.params.id, webPath, req.user!.userId, req.user!.name);
+      R.ok(res, result, 'Đã tải lên quyết định thành lập Hội đồng.');
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
+  /** POST /api/councils/:id/resend-invitations */
+  async resendInvitations(req: Request, res: Response) {
+    try {
+      const result = await CouncilService.resendInvitations(req.params.id, req.user!.userId, req.user!.name);
+      R.ok(res, result, `Đã gửi lại email mời cho ${result.sent} thành viên.`);
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
 

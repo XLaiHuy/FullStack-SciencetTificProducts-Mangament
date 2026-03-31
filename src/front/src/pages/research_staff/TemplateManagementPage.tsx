@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import type { Template } from '../../types';
 import { templateService } from '../../services/api/templateService';
 
+type ToastType = 'success' | 'error';
+
 const TemplateManagementPage: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState('chu_tich');
   const [version, setVersion] = useState('');
@@ -31,11 +33,14 @@ const TemplateManagementPage: React.FC = () => {
     });
   }, []);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const showToast = (msg: string, type: ToastType = 'success') => {
+    setToast({ message: msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleUpload = async () => {
     if (!name || !version || !effectiveDate || !file) {
-      showToast('Vui lòng nhập đủ thông tin và chọn file.');
+      showToast('Vui lòng nhập đủ thông tin và chọn file.', 'error');
       return;
     }
     setLoading(true);
@@ -56,10 +61,10 @@ const TemplateManagementPage: React.FC = () => {
       setNote('');
       setFormTypeCode(formTypes[0]?.code ?? 'general');
       setFile(null);
-      showToast('Biểu mẫu đã được tải lên và lưu trữ thành công!');
+      showToast('Biểu mẫu đã được tải lên và lưu trữ thành công!', 'success');
     } catch (e) {
       console.error(e);
-      showToast(typeof e === 'string' ? e : 'Tải biểu mẫu thất bại.');
+      showToast(typeof e === 'string' ? e : 'Tải biểu mẫu thất bại.', 'error');
     } finally {
       setLoading(false);
     }
@@ -70,10 +75,10 @@ const TemplateManagementPage: React.FC = () => {
     try {
       await templateService.delete(id);
       await refresh();
-      showToast('Đã ngưng áp dụng biểu mẫu.');
+      showToast('Đã ngưng áp dụng biểu mẫu.', 'success');
     } catch (e) {
       console.error(e);
-      showToast(typeof e === 'string' ? e : 'Không thể ngưng áp dụng biểu mẫu.');
+      showToast(typeof e === 'string' ? e : 'Không thể ngưng áp dụng biểu mẫu.', 'error');
     } finally {
       setLoading(false);
     }
@@ -85,10 +90,10 @@ const TemplateManagementPage: React.FC = () => {
     setLoading(true);
     try {
       await templateService.fill(id, projectId);
-      showToast("Tải dự thảo thành công!");
+      showToast('Tải dự thảo thành công!', 'success');
     } catch (e) {
       console.error(e);
-      showToast("Không thể tải dự thảo. Kiểm tra lại ID Đề tài.");
+      showToast('Không thể tải dự thảo. Kiểm tra lại ID Đề tài.', 'error');
     } finally {
       setLoading(false);
     }
@@ -102,7 +107,11 @@ const TemplateManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
+      {toast && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+          {toast.message}
+        </div>
+      )}
 
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quản lý Biểu mẫu Hội đồng</h1>
@@ -134,10 +143,17 @@ const TemplateManagementPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[13px] font-bold text-gray-700 mb-2">Loại biểu mẫu</label>
-                  <select value={formTypeCode} onChange={(e) => setFormTypeCode(e.target.value)} className="w-full h-11 rounded-xl border-gray-200 text-sm focus:ring-primary">
+                  <input
+                    list="template-form-types"
+                    value={formTypeCode}
+                    onChange={(e) => setFormTypeCode(e.target.value)}
+                    className="w-full h-11 rounded-xl border-gray-200 text-sm focus:ring-primary"
+                    placeholder="Nhập hoặc chọn loại biểu mẫu"
+                  />
+                  <datalist id="template-form-types">
                     {formTypes.map((f) => <option key={f.id} value={f.code}>{f.name}</option>)}
                     {!formTypes.length && <option value="general">general</option>}
-                  </select>
+                  </datalist>
                 </div>
               </div>
               <div>

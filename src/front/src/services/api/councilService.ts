@@ -8,6 +8,7 @@ import type { Council, CouncilMember } from '../../types';
 /** Normalize backend Council → frontend Council shape */
 const mapCouncil = (c: any): Council => ({
   id:           c.id ?? '',
+  projectId:    c.project?.id ?? c.projectId ?? '',
   decisionCode: c.decisionCode ?? '',
   projectCode:  c.project?.code ?? c.projectCode ?? '',
   projectTitle: c.project?.title ?? c.projectTitle ?? '',
@@ -76,7 +77,7 @@ export const councilService = {
       await axiosClient.post(`/councils/${councilId}/members`, {
         userId: member.id || undefined,
         name: member.name,
-        title: member.title,
+        title: member.title ?? member.hocHamHocVi,
         institution: member.institution,
         email: member.email,
         phone: member.phone,
@@ -84,6 +85,21 @@ export const councilService = {
         role: member.role,
       });
     }
+  },
+
+  async removeMember(councilId: string, memberId: string): Promise<void> {
+    await axiosClient.delete(`/councils/${councilId}/members/${memberId}`);
+  },
+
+  async uploadDecision(councilId: string, file: File): Promise<void> {
+    const form = new FormData();
+    form.append('file', file);
+    await axiosClient.post(`/councils/${councilId}/decision`, form);
+  },
+
+  async resendInvitations(councilId: string): Promise<{ sent: number; councilCode: string }> {
+    const res = await axiosClient.post(`/councils/${councilId}/resend-invitations`);
+    return res.data;
   },
 
   /** 

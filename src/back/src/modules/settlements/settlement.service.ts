@@ -25,9 +25,16 @@ export const SupplementRequestSchema = z.object({
 // ─── Settlement Service ───────────────────────────────────────────────────────
 export const SettlementService = {
   /** GET /api/settlements */
-  async getAll(filters: { status?: string; search?: string; page?: number; limit?: number }) {
+  async getAll(
+    filters: { status?: string; search?: string; page?: number; limit?: number },
+    userId: string,
+    userRole: string
+  ) {
     const { status, search, page = 1, limit = 20 } = filters;
     const where: Record<string, unknown> = { is_deleted: false };
+    if (userRole === 'project_owner') {
+      where.project = { ownerId: userId };
+    }
     if (status) where.status = status;
     if (search) {
       where.OR = [
@@ -51,9 +58,10 @@ export const SettlementService = {
   },
 
   /** GET /api/settlements/:id — with full budget breakdown + audit log */
-  async getById(id: string) {
+  async getById(id: string, userId: string, userRole: string) {
+    const roleFilter = userRole === 'project_owner' ? { project: { ownerId: userId } } : {};
     const settlement = await prisma.settlement.findFirst({
-      where: { OR: [{ id }, { code: id }], is_deleted: false },
+      where: { OR: [{ id }, { code: id }], is_deleted: false, ...roleFilter },
       include: {
         project: { include: { owner: { select: { name: true, email: true } } } },
         budgetItems: true,
@@ -152,6 +160,25 @@ export const SettlementService = {
     const settlement = await prisma.settlement.findFirst({ where: { id, is_deleted: false } });
     if (!settlement) throw new Error('Hồ sơ quyết toán không tồn tại.');
 
+    const validStatuses = ['cho_bo_sung', 'hop_le', 'da_xac_nhan', 'hoa_don_vat'];
+    if (!validStatuses.includes(status)) {
+      throw new Error(`Trạng thái không hợp lệ. Hợp lệ: ${validStatuses.join(', ')}`);
+    }
+
+    const allowedTransitions: Record<string, string[]> = {
+      cho_bo_sung: ['hop_le', 'hoa_don_vat', 'da_xac_nhan'],
+      hop_le: ['cho_bo_sung', 'hoa_don_vat', 'da_xac_nhan'],
+      hoa_don_vat: ['cho_bo_sung', 'da_xac_nhan'],
+      da_xac_nhan: [],
+    };
+
+    if (status !== settlement.status) {
+      const allowed = allowedTransitions[settlement.status] ?? [];
+      if (!allowed.includes(status)) {
+        throw new Error(`Không thể chuyển trạng thái từ "${settlement.status}" sang "${status}".`);
+      }
+    }
+
     const [updated] = await prisma.$transaction([
       prisma.settlement.update({
         where: { id },
@@ -185,9 +212,10 @@ export const SettlementService = {
   },
 
   /** GET /api/settlements/:id/export — returns export metadata (real file gen is Phase 2) */
-  async exportSettlement(id: string, format: 'excel' | 'word') {
+  async exportSettlement(id: string, format: 'excel' | 'word', userId: string, userRole: string) {
+    const roleFilter = userRole === 'project_owner' ? { project: { ownerId: userId } } : {};
     const settlement = await prisma.settlement.findFirst({
-      where: { id, is_deleted: false },
+      where: { id, is_deleted: false, ...roleFilter },
       include: { budgetItems: true, project: { select: { code: true, title: true } } },
     });
     if (!settlement) throw new Error('Hồ sơ quyết toán không tồn tại.');

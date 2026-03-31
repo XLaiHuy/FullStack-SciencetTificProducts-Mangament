@@ -75,6 +75,36 @@ const SettlementTrackingPage: React.FC = () => {
     { key: 'bi_tu_choi', label: 'Đề tài có chứng từ bị từ chối', activeColor: 'border-red-400 bg-red-50 text-red-700' },
   ];
 
+  const exportFilteredRows = () => {
+    if (!filtered.length) {
+      showToast('Khong co du lieu de xuat.');
+      return;
+    }
+
+    const headers = ['Ma ho so', 'Noi dung', 'De tai', 'So tien', 'Trang thai'];
+    const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const body = filtered.map((s) => [
+      s.code,
+      s.content,
+      s.projectTitle,
+      String(s.amount),
+      s.status,
+    ]);
+    const csv = [headers.map(escapeCell).join(','), ...body.map((row) => row.map(escapeCell).join(','))].join('\n');
+
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `settlement_tracking_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    showToast('Da xuat Excel (CSV) cho danh sach hien tai.');
+  };
+
   return (
     <div className="space-y-8">
       {toast && (
@@ -169,7 +199,7 @@ const SettlementTrackingPage: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => showToast('Đang xuất bảng Excel...')}
+                  onClick={exportFilteredRows}
                   className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase bg-slate-50 rounded-lg hover:text-green-600 hover:bg-green-50 transition-colors"
                 >
                   Xuất Excel

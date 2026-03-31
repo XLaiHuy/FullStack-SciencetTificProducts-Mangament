@@ -6,9 +6,15 @@ import { requireRole } from '../../middleware/rbac';
 const router = Router();
 router.use(authenticate);
 
-router.get('/',    CouncilController.getAll);
+router.get('/',
+  requireRole('research_staff', 'superadmin', 'council_member'),
+  CouncilController.getAll
+);
 router.get('/mine', requireRole('council_member'), CouncilController.getMine);
-router.get('/:id', CouncilController.getById);
+router.get('/:id',
+  requireRole('research_staff', 'superadmin', 'council_member'),
+  CouncilController.getById
+);
 
 router.post('/',
   requireRole('research_staff', 'superadmin'),
@@ -23,6 +29,17 @@ router.post('/check-conflict',
 router.post('/:id/members',
   requireRole('research_staff', 'superadmin'),
   CouncilController.addMember
+);
+
+router.post('/:id/decision',
+  requireRole('research_staff', 'superadmin'),
+  uploadDecision.single('file'),
+  CouncilController.uploadDecision
+);
+
+router.post('/:id/resend-invitations',
+  requireRole('research_staff', 'superadmin'),
+  CouncilController.resendInvitations
 );
 
 router.delete('/:id/members/:memberId',

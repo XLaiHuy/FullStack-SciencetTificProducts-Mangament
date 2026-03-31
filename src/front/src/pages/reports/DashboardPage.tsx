@@ -5,6 +5,12 @@ const ReportsDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [year, setYear] = useState('2023-2024');
   const [level, setLevel] = useState('');
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  };
 
   const summaryCards = [
     { label: 'Tổng số đề tài', value: '1,248', trend: '+12% so với năm trước', trendClass: 'text-emerald-600' },
@@ -28,6 +34,11 @@ const ReportsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {toast && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">
+          {toast}
+        </div>
+      )}
       {/* Header with filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
@@ -59,6 +70,20 @@ const ReportsDashboard: React.FC = () => {
             className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-button hover:bg-primary-dark flex items-center gap-2"
           >
             📄 Xuất PDF
+          </button>
+          <button
+            onClick={() => {
+              showToast(`Da ap dung bo loc nam hoc ${year}${level ? ` - ${level}` : ''}.`);
+            }}
+            className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:border-primary hover:text-primary"
+          >
+            Lọc
+          </button>
+          <button
+            onClick={() => navigate('/reports/export')}
+            className="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black"
+          >
+            Xuất báo cáo
           </button>
         </div>
       </div>

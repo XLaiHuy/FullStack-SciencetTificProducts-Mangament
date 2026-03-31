@@ -5,7 +5,13 @@ import { archiveService } from '../../services/api/archiveService';
 const RepositoryPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [field, setField] = useState('');
-  const [allProjects, setAllProjects] = useState<Array<{ id: string; code: string; title: string; ownerName: string; field: string; status: string }>>([]);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [allProjects, setAllProjects] = useState<Array<{ id: string; code: string; title: string; ownerName: string; field: string; status: string; files: string[] }>>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 2500);
+  };
 
   React.useEffect(() => {
     archiveService.getAll().then(setAllProjects).catch(console.error);
@@ -20,6 +26,11 @@ const RepositoryPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+          {toast.message}
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Kho lưu trữ Nghiên cứu</h1>
         <p className="text-gray-500 text-sm mt-1">Tìm kiếm và tra cứu kết quả nghiên cứu khoa học</p>
@@ -86,9 +97,18 @@ const RepositoryPage: React.FC = () => {
               <button className="text-xs font-bold text-primary hover:underline">Xem chi tiết</button>
               <button
                 onClick={async () => {
-                  await archiveService.download(p.id);
+                  if (!p.files || p.files.length === 0) {
+                    showToast(`De tai ${p.code} chua co tep luu tru de tai.`, 'error');
+                    return;
+                  }
+                  try {
+                    await archiveService.download(p.id);
+                    showToast(`Da tai tai lieu cua de tai ${p.code}.`, 'success');
+                  } catch (e) {
+                    showToast(typeof e === 'string' ? e : `Khong the tai tai lieu cua de tai ${p.code}.`, 'error');
+                  }
                 }}
-                className="text-xs font-bold text-gray-400 hover:text-primary transition-colors"
+                className={`text-xs font-bold transition-colors ${p.files && p.files.length > 0 ? 'text-gray-400 hover:text-primary' : 'text-gray-300 cursor-not-allowed'}`}
               >Tải tài liệu</button>
             </div>
           </div>

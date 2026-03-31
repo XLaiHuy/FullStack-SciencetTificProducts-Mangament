@@ -1,0 +1,161 @@
+{
+  "startedAt": "2026-03-31T02:12:11.078Z",
+  "finishedAt": "2026-03-31T02:15:08.285Z",
+  "frontendUrl": "http://localhost:5173",
+  "roles": [
+    {
+      "role": "research_staff",
+      "email": "staff@nckh.edu.vn",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/research-staff/dashboard",
+        "/research-staff/council-creation",
+        "/research-staff/contract-management",
+        "/research-staff/template-management",
+        "/research-staff/settlement-tracking",
+        "/research-staff/extension-management"
+      ],
+      "buttonsClicked": 38,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "project_owner",
+      "email": "owner@nckh.edu.vn",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/project-owner/dashboard",
+        "/project-owner/contract-view",
+        "/project-owner/midterm-report",
+        "/project-owner/research-submission",
+        "/project-owner/acceptance-minutes",
+        "/project-owner/settlement"
+      ],
+      "buttonsClicked": 12,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "accounting",
+      "email": "accounting@nckh.edu.vn",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/accounting/dashboard",
+        "/accounting/document-list",
+        "/accounting/document-management",
+        "/accounting/liquidation-confirmation"
+      ],
+      "buttonsClicked": 16,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "archive_staff",
+      "email": "archive@nckh.edu.vn",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/archive/dashboard",
+        "/archive/repository"
+      ],
+      "buttonsClicked": 9,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "report_viewer",
+      "email": "reports@nckh.edu.vn",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/reports/dashboard",
+        "/reports/topic-statistics",
+        "/reports/contract-statistics",
+        "/reports/progress-statistics",
+        "/reports/export"
+      ],
+      "buttonsClicked": 16,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "superadmin",
+      "email": "admin@nckh.edu.vn",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/superadmin/dashboard",
+        "/superadmin/account-management",
+        "/superadmin/system-config",
+        "/superadmin/audit-log",
+        "/superadmin/category-management"
+      ],
+      "buttonsClicked": 19,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "council_member_chairman",
+      "email": "chairman@demo.com",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/council-member/dashboard",
+        "/council-member/chairman"
+      ],
+      "buttonsClicked": 8,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "council_member_reviewer",
+      "email": "reviewer@demo.com",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/council-member/dashboard",
+        "/council-member/reviewer"
+      ],
+      "buttonsClicked": 8,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "council_member_secretary",
+      "email": "secretary@demo.com",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/council-member/dashboard",
+        "/council-member/secretary"
+      ],
+      "buttonsClicked": 6,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    },
+    {
+      "role": "council_member_member",
+      "email": "member@demo.com",
+      "loginOk": true,
+      "visitedRoutes": [
+        "/council-member/dashboard",
+        "/council-member/member"
+      ],
+      "buttonsClicked": 8,
+      "buttonFailures": [],
+      "jsErrors": [],
+      "error": null
+    }
+  ],
+  "totals": {
+    "roles": 10,
+    "loginFailed": 0,
+    "totalRoutesVisited": 36,
+    "totalButtonsClicked": 140,
+    "totalButtonFailures": 0,
+    "totalJsErrors": 0
+  }
+}

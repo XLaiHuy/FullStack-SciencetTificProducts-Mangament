@@ -27,11 +27,13 @@ export interface Project {
   code: string;
   title: string;
   owner: string;
+  ownerId?: string;
+  ownerEmail?: string;
   ownerTitle?: string;
   department: string;
   startDate: string;
   endDate: string;
-  status: 'dang_thuc_hien' | 'tre_han' | 'cho_nghiem_thu' | 'da_nghiem_thu' | 'huy_bo';
+  status: 'dang_thuc_hien' | 'tre_han' | 'cho_nghiem_thu' | 'da_nghiem_thu' | 'da_thanh_ly' | 'huy_bo';
   budget: number;
   advancedAmount: number;
   field: string;
@@ -41,18 +43,24 @@ export interface Project {
 export interface Contract {
   id: string;
   code: string;
+  projectId?: string;
   projectCode: string;
   projectTitle: string;
   owner: string;
+  ownerTitle?: string;
+  ownerEmail?: string;
   signedDate?: string;
   status: 'cho_duyet' | 'da_ky' | 'hoan_thanh' | 'huy';
   budget: number;
+  pdfUrl?: string;
+  notes?: string;
 }
 
 export interface CouncilMember {
   id?: string;
   name: string;
   title?: string;
+  hocHamHocVi?: string;
   institution?: string;
   email: string;
   role: 'chu_tich' | 'phan_bien_1' | 'phan_bien_2' | 'thu_ky' | 'uy_vien';
@@ -63,6 +71,7 @@ export interface CouncilMember {
 
 export interface Council {
   id: string;
+  projectId?: string;
   decisionCode: string;
   projectCode: string;
   projectTitle: string;

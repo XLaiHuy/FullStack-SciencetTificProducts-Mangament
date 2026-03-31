@@ -10,14 +10,14 @@ export const ExtensionController = {
         status: status as string, search: search as string,
         page:   page  ? parseInt(page as string) : undefined,
         limit:  limit ? parseInt(limit as string) : undefined,
-      });
+      }, req.user!.userId, req.user!.role);
       R.ok(res, result.extensions, undefined, result.meta);
     } catch (err) { R.serverError(res, (err as Error).message); }
   },
 
   async getById(req: Request, res: Response) {
     try {
-      R.ok(res, await ExtensionService.getById(req.params.id));
+      R.ok(res, await ExtensionService.getById(req.params.id, req.user!.userId, req.user!.role));
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
 

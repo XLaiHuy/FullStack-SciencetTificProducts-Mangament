@@ -8,6 +8,8 @@ import type { Project } from '../../types';
 /** Normalize backend Project (owner is object) → frontend Project (owner is string) */
 const mapProject = (p: any): Project => ({
   ...p,
+  ownerId: p.owner?.id ?? p.ownerId,
+  ownerEmail: p.owner?.email,
   owner: typeof p.owner === 'object' && p.owner !== null ? p.owner.name ?? '' : p.owner ?? '',
   ownerTitle: p.owner?.title ?? p.ownerTitle ?? '',
   budget: Number(p.budget ?? 0),
@@ -35,10 +37,9 @@ export const projectService = {
     return (res.data ?? []).map(mapProject);
   },
 
-  // GET /api/project-owner/projects
+  // GET /api/projects/my
   async getByOwnerEmail(_ownerEmail: string): Promise<Project[]> {
-    // Actually our backend route is /api/project-owner/projects, it fetches by JWT user
-    const res = await axiosClient.get('/project-owner/projects');
+    const res = await axiosClient.get('/projects/my');
     return (res.data ?? []).map(mapProject);
   },
 
@@ -74,5 +75,22 @@ export const projectService = {
     if (payload.content) form.append('content', payload.content);
     form.append('file', payload.file);
     await axiosClient.post(`/projects/${id}/products`, form);
+  },
+
+  // POST /api/projects
+  async create(data: {
+    title: string;
+    ownerId: string;
+    ownerTitle?: string;
+    department: string;
+    field: string;
+    startDate: string;
+    endDate: string;
+    durationMonths: number;
+    budget: number;
+    advancedAmount?: number;
+  }): Promise<Project> {
+    const res = await axiosClient.post('/projects', data);
+    return mapProject(res.data);
   },
 };

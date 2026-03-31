@@ -15,9 +15,21 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 router.use(authenticate);
 
-router.get('/',                                    ContractController.getAll);
+router.post('/proposals/parse',
+  requireRole('research_staff', 'superadmin'),
+  upload.single('file'),
+  ContractController.parseProposal
+);
+
+router.get('/',
+  requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'report_viewer'),
+  ContractController.getAll
+);
 router.get('/my',  requireRole('project_owner'),   ContractController.getMyContracts);
-router.get('/:id',                                 ContractController.getById);
+router.get('/:id',
+  requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'report_viewer'),
+  ContractController.getById
+);
 
 router.post('/',
   requireRole('research_staff', 'superadmin'),

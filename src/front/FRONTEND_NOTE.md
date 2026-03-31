@@ -168,3 +168,13 @@ Ghi chú: project đã thêm cấu hình `src/front/.eslintrc.cjs` để lệnh 
 - Giữ logic gọi API trong `services/api`, tránh phân tán trong page.
 - Giữ type đồng bộ giữa backend response và frontend mapping.
 - Khi backend siết quyền mới, cập nhật message UI để người dùng hiểu lý do bị từ chối thao tác.
+
+---
+
+## 10) Final closure note (2026-03-31)
+
+- Đã hoàn tất vòng xử lý cuối cho nhóm button fail ưu tiên: `research_staff`, `accounting`, `report_viewer`.
+- Đã bổ sung handler/action thực tế cho các nút trước đây là no-op (lọc, xuất, in, xem tài liệu).
+- Đã harden script `src/front/scripts/role-ui-smoke.mjs` với fallback click + retry nhẹ để giảm false-fail trên UI động.
+- Kết quả smoke mới nhất: `totalButtonFailures = 0`, `totalJsErrors = 0`, `loginFailed = 0`.
+- Báo cáo chi tiết kỹ thuật và trước/sau nằm tại: `docs/testing/UI_SMOKE_FINAL_FIX_REPORT_2026-03-31.md`.

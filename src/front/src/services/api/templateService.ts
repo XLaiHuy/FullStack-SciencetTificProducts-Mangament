@@ -62,16 +62,25 @@ export const templateService = {
   },
 
   async fill(id: string, projectId: string): Promise<void> {
-    const res = await axiosClient.get(`/templates/${id}/fill`, {
-      params: { projectId },
-      responseType: 'blob',
+    const token = localStorage.getItem('nckh_token');
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const response = await fetch(`${baseUrl}/templates/${id}/fill?projectId=${encodeURIComponent(projectId)}`, {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
-    const url = window.URL.createObjectURL(new Blob([res.data]));
+
+    if (!response.ok) {
+      throw new Error('Không thể tải dự thảo biểu mẫu.');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `Draft_Template_${id}.docx`);
     document.body.appendChild(link);
     link.click();
     link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 };

@@ -2,6 +2,10 @@ import { z } from 'zod';
 import prisma from '../../prisma';
 import { nextContractCode } from '../../utils/codeGenerator';
 import { logBusiness } from '../../middleware/requestLogger';
+import fs from 'fs/promises';
+import path from 'path';
+import { PDFParse } from 'pdf-parse';
+import mammoth from 'mammoth';
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 export const CreateContractSchema = z.object({
@@ -14,13 +18,171 @@ export const UpdateContractStatusSchema = z.object({
   status: z.enum(['cho_duyet', 'da_ky', 'hoan_thanh', 'huy']),
 });
 
+type ParsedProposal = {
+  sourceType: 'pdf' | 'docx' | 'text';
+  projectCode?: string;
+  projectTitle?: string;
+  suggestedProjectId?: string;
+  suggestedBudget?: number;
+  ownerName?: string;
+  ownerTitle?: string;
+  ownerEmail?: string;
+  confidence: number;
+  notesSuggestion: string;
+  textExcerpt: string;
+};
+
+const normalizeText = (raw: string) =>
+  raw
+    .replace(/\r/g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+const normalizeCode = (value: string) => value.replace(/[\s_/]+/g, '-').toUpperCase();
+
+const parseMoney = (value: string): number | undefined => {
+  const digits = value.replace(/[^\d]/g, '');
+  if (!digits) return undefined;
+  const parsed = Number(digits);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed;
+};
+
+const detectProposalData = (text: string) => {
+  const projectCodeRaw = text.match(/(?:ĐT|DT)[\s_\/-]?\d{2,4}[\s_\/-]?\d{2,6}(?:[\s_\/-]?[A-Z0-9]{1,6})?/i)?.[0];
+  const projectCode = projectCodeRaw ? normalizeCode(projectCodeRaw) : undefined;
+
+  const ownerEmail = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
+
+  const ownerNameLine =
+    text.match(/(?:Chủ\s*nhiệm(?:\s*đề\s*tài)?|Chu\s*nhiem(?:\s*de\s*tai)?|Bên\s*B|Ben\s*B)\s*[:\-]\s*([^\n]+)/i)?.[1]?.trim();
+
+  const ownerTitle = ownerNameLine?.match(/^(GS\.TS\.|PGS\.TS\.|TS\.|ThS\.|GS|PGS|TS|ThS)/i)?.[0];
+  const ownerName = ownerNameLine?.replace(/^(GS\.TS\.|PGS\.TS\.|TS\.|ThS\.|GS|PGS|TS|ThS)\s*/i, '').trim();
+
+  const budgetCandidate =
+    text.match(/(?:kinh\s*phí|ngân\s*sách|gia\s*trị\s*hợp\s*đồng|gia\s*tri\s*hop\s*dong)\s*[:\-]?\s*([\d\s.,]{6,})/i)?.[1] ??
+    text.match(/\b\d{1,3}(?:[.\s,]\d{3}){1,}(?:[.,]\d{1,2})?\b/)?.[0] ??
+    text.match(/\b\d{7,}\b/)?.[0];
+
+  const suggestedBudget = budgetCandidate ? parseMoney(budgetCandidate) : undefined;
+
+  return {
+    projectCode,
+    ownerEmail,
+    ownerName,
+    ownerTitle,
+    suggestedBudget,
+  };
+};
+
+const buildConfidence = (data: {
+  projectCode?: string;
+  ownerEmail?: string;
+  ownerName?: string;
+  suggestedBudget?: number;
+}) => {
+  const points = [data.projectCode, data.ownerEmail, data.ownerName, data.suggestedBudget].filter(Boolean).length;
+  return Math.round((points / 4) * 100);
+};
+
 // ─── Contract Service ─────────────────────────────────────────────────────────
 export const ContractService = {
+  /** POST /api/contracts/proposals/parse */
+  async parseProposal(filePath: string, originalName: string): Promise<ParsedProposal> {
+    const ext = path.extname(originalName).toLowerCase();
+    let sourceType: ParsedProposal['sourceType'] = 'text';
+    let rawText = '';
+
+    if (ext === '.pdf') {
+      sourceType = 'pdf';
+      const buffer = await fs.readFile(filePath);
+      const parser = new PDFParse({ data: buffer });
+      const parsed = await parser.getText();
+      rawText = parsed.text ?? '';
+      await parser.destroy();
+    } else if (ext === '.docx' || ext === '.doc') {
+      sourceType = 'docx';
+      const parsed = await mammoth.extractRawText({ path: filePath });
+      rawText = parsed.value ?? '';
+    } else {
+      sourceType = 'text';
+      const buffer = await fs.readFile(filePath);
+      rawText = buffer.toString('utf8');
+    }
+
+    const text = normalizeText(rawText);
+    if (!text) {
+      throw new Error('Không thể trích xuất nội dung từ tệp đề xuất. Vui lòng kiểm tra định dạng file.');
+    }
+
+    const detected = detectProposalData(text);
+
+    let suggestedProjectId: string | undefined;
+    let projectTitle: string | undefined;
+
+    if (detected.projectCode) {
+      const byCode = await prisma.project.findFirst({
+        where: { code: detected.projectCode, is_deleted: false },
+        select: { id: true, title: true },
+      });
+      if (byCode) {
+        suggestedProjectId = byCode.id;
+        projectTitle = byCode.title;
+      }
+    }
+
+    if (!suggestedProjectId && detected.ownerEmail) {
+      const byOwner = await prisma.project.findFirst({
+        where: {
+          owner: { email: detected.ownerEmail },
+          is_deleted: false,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, code: true, title: true },
+      });
+      if (byOwner) {
+        suggestedProjectId = byOwner.id;
+        projectTitle = byOwner.title;
+      }
+    }
+
+    const confidence = buildConfidence(detected);
+    const notesSuggestion = [
+      'Nguồn đề xuất: Upload + nhận diện tự động',
+      detected.projectCode ? `Mã đề tài nhận diện: ${detected.projectCode}` : 'Mã đề tài nhận diện: chưa rõ',
+      detected.ownerEmail ? `Email chủ nhiệm: ${detected.ownerEmail}` : 'Email chủ nhiệm: chưa rõ',
+      detected.suggestedBudget ? `Kinh phí nhận diện: ${detected.suggestedBudget.toLocaleString('vi-VN')} VNĐ` : 'Kinh phí nhận diện: chưa rõ',
+    ].join('\n');
+
+    return {
+      sourceType,
+      projectCode: detected.projectCode,
+      projectTitle,
+      suggestedProjectId,
+      suggestedBudget: detected.suggestedBudget,
+      ownerName: detected.ownerName,
+      ownerTitle: detected.ownerTitle,
+      ownerEmail: detected.ownerEmail,
+      confidence,
+      notesSuggestion,
+      textExcerpt: text.slice(0, 500),
+    };
+  },
+
   /** GET /api/contracts */
-  async getAll(filters: { status?: string; search?: string; page?: number; limit?: number }) {
+  async getAll(
+    filters: { status?: string; search?: string; page?: number; limit?: number },
+    userId: string,
+    userRole: string
+  ) {
     const { status, search, page = 1, limit = 20 } = filters;
 
     const where: Record<string, unknown> = { is_deleted: false };
+    if (userRole === 'project_owner') {
+      where.project = { ownerId: userId };
+    }
     if (status) where.status = status;
     if (search) {
       where.OR = [
@@ -49,9 +211,10 @@ export const ContractService = {
   },
 
   /** GET /api/contracts/:id */
-  async getById(id: string) {
+  async getById(id: string, userId: string, userRole: string) {
+    const roleFilter = userRole === 'project_owner' ? { project: { ownerId: userId } } : {};
     const contract = await prisma.contract.findFirst({
-      where: { OR: [{ id }, { code: id }], is_deleted: false },
+      where: { OR: [{ id }, { code: id }], is_deleted: false, ...roleFilter },
       include: {
         project: { include: { owner: { select: { id: true, name: true, email: true, title: true } } } },
       },

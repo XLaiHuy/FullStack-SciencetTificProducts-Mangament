@@ -14,8 +14,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-router.get('/',    ExtensionController.getAll);
-router.get('/:id', ExtensionController.getById);
+router.get('/',
+  requireRole('project_owner', 'research_staff', 'superadmin'),
+  ExtensionController.getAll
+);
+router.get('/:id',
+  requireRole('project_owner', 'research_staff', 'superadmin'),
+  ExtensionController.getById
+);
 
 router.post('/',
   requireRole('project_owner'),

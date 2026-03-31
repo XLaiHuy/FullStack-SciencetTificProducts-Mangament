@@ -11,7 +11,7 @@ export const SettlementController = {
         status: status as string, search: search as string,
         page:   page  ? parseInt(page as string) : undefined,
         limit:  limit ? parseInt(limit as string) : undefined,
-      });
+      }, req.user!.userId, req.user!.role);
       R.ok(res, result.settlements, undefined, result.meta);
     } catch (err) { R.serverError(res, (err as Error).message); }
   },
@@ -19,7 +19,7 @@ export const SettlementController = {
   /** GET /api/settlements/:id */
   async getById(req: Request, res: Response) {
     try {
-      const s = await SettlementService.getById(req.params.id);
+      const s = await SettlementService.getById(req.params.id, req.user!.userId, req.user!.role);
       R.ok(res, s);
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
@@ -57,7 +57,7 @@ export const SettlementController = {
   async export(req: Request, res: Response) {
     try {
       const format = (req.query.format as 'excel' | 'word') ?? 'excel';
-      const result = await SettlementService.exportSettlement(req.params.id, format);
+      const result = await SettlementService.exportSettlement(req.params.id, format, req.user!.userId, req.user!.role);
       R.ok(res, result, `Xuất file ${format} thành công (mock).`);
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },

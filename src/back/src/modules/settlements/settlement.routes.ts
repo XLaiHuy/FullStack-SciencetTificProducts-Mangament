@@ -6,9 +6,18 @@ import { requireRole } from '../../middleware/rbac';
 const router = Router();
 router.use(authenticate);
 
-router.get('/',     SettlementController.getAll);
-router.get('/:id',  SettlementController.getById);
-router.get('/:id/export', SettlementController.export);
+router.get('/',
+  requireRole('project_owner', 'research_staff', 'accounting', 'superadmin', 'report_viewer'),
+  SettlementController.getAll
+);
+router.get('/:id',
+  requireRole('project_owner', 'research_staff', 'accounting', 'superadmin', 'report_viewer'),
+  SettlementController.getById
+);
+router.get('/:id/export',
+  requireRole('project_owner', 'research_staff', 'accounting', 'superadmin', 'report_viewer'),
+  SettlementController.export
+);
 
 router.post('/',
   requireRole('project_owner'),

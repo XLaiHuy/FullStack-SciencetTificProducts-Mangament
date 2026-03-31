@@ -3,6 +3,17 @@ import { ContractService, CreateContractSchema, UpdateContractStatusSchema } fro
 import * as R from '../../utils/apiResponse';
 
 export const ContractController = {
+  /** POST /api/contracts/proposals/parse */
+  async parseProposal(req: Request, res: Response) {
+    try {
+      const file = (req as Request & { file?: Express.Multer.File }).file;
+      if (!file) { R.badRequest(res, 'Vui lòng chọn file đề xuất để nhận diện.'); return; }
+
+      const parsed = await ContractService.parseProposal(file.path, file.originalname);
+      R.ok(res, parsed, 'Nhận diện đề xuất thành công.');
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
   /** GET /api/contracts */
   async getAll(req: Request, res: Response) {
     try {
@@ -12,7 +23,7 @@ export const ContractController = {
         search: search as string,
         page:   page   ? parseInt(page as string) : undefined,
         limit:  limit  ? parseInt(limit as string) : undefined,
-      });
+      }, req.user!.userId, req.user!.role);
       R.ok(res, result.contracts, undefined, result.meta);
     } catch (err) { R.serverError(res, (err as Error).message); }
   },
@@ -20,7 +31,7 @@ export const ContractController = {
   /** GET /api/contracts/:id */
   async getById(req: Request, res: Response) {
     try {
-      const c = await ContractService.getById(req.params.id);
+      const c = await ContractService.getById(req.params.id, req.user!.userId, req.user!.role);
       R.ok(res, c);
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
@@ -64,7 +75,8 @@ export const ContractController = {
     try {
       const file = (req as Request & { file?: Express.Multer.File }).file;
       if (!file) { R.badRequest(res, 'Vui lòng chọn file để tải lên.'); return; }
-      const c = await ContractService.uploadPdf(req.params.id, file.path, req.user!.userId, req.user!.name);
+      const webPath = `/uploads/contracts/${file.filename}`;
+      const c = await ContractService.uploadPdf(req.params.id, webPath, req.user!.userId, req.user!.name);
       R.ok(res, c, 'Tải lên PDF hợp đồng thành công.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },

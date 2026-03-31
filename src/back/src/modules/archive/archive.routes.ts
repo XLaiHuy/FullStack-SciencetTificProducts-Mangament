@@ -104,10 +104,14 @@ router.post('/repository/:projectId',
 
 // Standardized list endpoint
 // GET /api/archives
-router.get('/', requireRole('archive_staff', 'superadmin', 'report_viewer', 'project_owner'), async (_req: Request, res: Response) => {
+router.get('/', requireRole('archive_staff', 'superadmin', 'report_viewer', 'project_owner'), async (req: Request, res: Response) => {
   try {
+    const roleScopedWhere = req.user?.role === 'project_owner'
+      ? { ownerId: req.user.userId }
+      : {};
+
     const rows = await prisma.project.findMany({
-      where: { is_deleted: false, status: 'da_nghiem_thu' },
+      where: { is_deleted: false, status: 'da_nghiem_thu', ...roleScopedWhere },
       select: {
         id: true, code: true, title: true, field: true, status: true,
         owner: { select: { name: true, email: true } },
@@ -135,6 +139,11 @@ router.get('/:topicId/download', requireRole('archive_staff', 'superadmin', 'rep
     const files = JSON.parse(record.fileUrlsJson || '[]') as string[];
     if (!files.length) { R.notFound(res, 'Không có tệp để tải.'); return; }
     const first = files[0];
+
+    if (req.user?.role === 'project_owner' && record.project.ownerId !== req.user.userId) {
+      R.forbidden(res, 'Bạn không có quyền tải xuống hồ sơ lưu trữ của đề tài này.');
+      return;
+    }
 
     // Lecturer internal download watermark (mapped to project_owner role)
     if (req.user?.role === 'project_owner' && first.toLowerCase().endsWith('.pdf')) {

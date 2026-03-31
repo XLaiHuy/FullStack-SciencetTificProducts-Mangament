@@ -40,10 +40,15 @@ const ALLOWED_TRANSITIONS: Record<string, ProjectStatus[]> = {
 // ─── Project Service ──────────────────────────────────────────────────────────
 export const ProjectService = {
   /** GET /api/projects — filtered list with soft-delete guard */
-  async getAll(filters: { status?: string; field?: string; search?: string; page?: number; limit?: number }) {
+  async getAll(
+    filters: { status?: string; field?: string; search?: string; page?: number; limit?: number },
+    userId: string,
+    userRole: string
+  ) {
     const { status, field, search, page = 1, limit = 20 } = filters;
 
     const where: Prisma.ProjectWhereInput = { is_deleted: false };
+    if (userRole === 'project_owner') where.ownerId = userId;
     if (status) where.status = status as ProjectStatus;
     if (field)  where.field  = field;
     if (search) {
@@ -61,9 +66,12 @@ export const ProjectService = {
   },
 
   /** GET /api/projects/:id */
-  async getById(id: string) {
+  async getById(id: string, userId: string, userRole: string) {
     const project = await ProjectRepository.findById(id);
     if (!project) throw new Error('Đề tài không tồn tại.');
+    if (userRole === 'project_owner' && project.ownerId !== userId) {
+      throw new Error('Bạn không có quyền xem đề tài này.');
+    }
     return project;
   },
 

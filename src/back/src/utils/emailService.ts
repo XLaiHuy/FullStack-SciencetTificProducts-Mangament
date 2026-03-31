@@ -19,6 +19,12 @@ export interface EmailResult {
   to?: string | string[];
 }
 
+export interface CouncilInvitationOptions {
+  loginEmail?: string;
+  temporaryPassword?: string;
+  isNewAccount?: boolean;
+}
+
 const isMock = process.env.EMAIL_MOCK !== 'false';
 
 /** Send email (or mock it) */
@@ -74,7 +80,8 @@ export const sendCouncilInvitation = async (
   memberEmail: string,
   memberName: string,
   projectTitle: string,
-  councilCode: string
+  councilCode: string,
+  options?: CouncilInvitationOptions
 ): Promise<EmailResult> =>
   sendEmail({
     to: memberEmail,
@@ -85,6 +92,13 @@ Kính gửi ${memberName},
 Bạn được mời tham gia Hội đồng nghiệm thu đề tài:
 "${projectTitle}"
 Số quyết định: ${councilCode}
+
+${options?.loginEmail ? `Tài khoản đăng nhập: ${options.loginEmail}` : ''}
+${options?.temporaryPassword ? `Mật khẩu tạm thời: ${options.temporaryPassword}` : ''}
+
+${options?.isNewAccount
+  ? 'Lưu ý: Đây là tài khoản mới được hệ thống tạo tự động. Vui lòng đổi mật khẩu ngay sau khi đăng nhập lần đầu.'
+  : 'Vui lòng đăng nhập bằng tài khoản hiện có để xác nhận tham gia.'}
 
 Vui lòng xác nhận tham gia bằng cách đăng nhập vào hệ thống NCKH.
 

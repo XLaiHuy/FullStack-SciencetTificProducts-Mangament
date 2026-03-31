@@ -19,9 +19,18 @@ export const DecisionSchema = z.object({
 // ─── Extension Service ────────────────────────────────────────────────────────
 export const ExtensionService = {
   /** GET /api/extensions */
-  async getAll(filters: { status?: string; search?: string; page?: number; limit?: number }) {
+  async getAll(
+    filters: { status?: string; search?: string; page?: number; limit?: number },
+    userId: string,
+    userRole: string
+  ) {
     const { status, search, page = 1, limit = 20 } = filters;
-    const where: Record<string, unknown> = { project: { is_deleted: false } };
+    const where: Record<string, unknown> = {
+      project: {
+        is_deleted: false,
+        ...(userRole === 'project_owner' ? { ownerId: userId } : {}),
+      },
+    };
     if (status) where.boardStatus = status;
     if (search) {
       where.OR = [
@@ -45,9 +54,10 @@ export const ExtensionService = {
   },
 
   /** GET /api/extensions/:id */
-  async getById(id: string) {
+  async getById(id: string, userId: string, userRole: string) {
+    const roleFilter = userRole === 'project_owner' ? { ownerId: userId } : {};
     const ext = await prisma.extension.findFirst({
-      where: { id, project: { is_deleted: false } },
+      where: { id, project: { is_deleted: false, ...roleFilter } },
       include: { project: { include: { owner: { select: { name: true, email: true } } } } },
     });
     if (!ext) throw new Error('Yêu cầu gia hạn không tồn tại.');

@@ -14,7 +14,7 @@ export const ProjectController = {
         search: search as string,
         page:   page   ? parseInt(page as string) : undefined,
         limit:  limit  ? parseInt(limit as string) : undefined,
-      });
+      }, req.user!.userId, req.user!.role);
       R.ok(res, result.projects, undefined, result.meta);
     } catch (err) { R.serverError(res, (err as Error).message); }
   },
@@ -22,7 +22,7 @@ export const ProjectController = {
   /** GET /api/projects/:id */
   async getById(req: Request, res: Response) {
     try {
-      const project = await ProjectService.getById(req.params.id);
+      const project = await ProjectService.getById(req.params.id, req.user!.userId, req.user!.role);
       R.ok(res, project);
     } catch (err) { R.notFound(res, (err as Error).message); }
   },

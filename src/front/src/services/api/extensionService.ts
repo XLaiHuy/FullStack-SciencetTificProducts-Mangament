@@ -48,4 +48,11 @@ export const extensionService = {
   async approve(id: string, decisionNote?: string): Promise<void> {
     await axiosClient.put(`/extension-requests/${id}/approve`, { decisionNote });
   },
+
+  async reject(id: string, decisionNote?: string): Promise<void> {
+    await axiosClient.put(`/extension-requests/${id}/decision`, {
+      decision: 'tu_choi',
+      decisionNote,
+    });
+  },
 };

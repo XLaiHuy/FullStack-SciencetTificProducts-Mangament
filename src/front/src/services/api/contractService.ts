@@ -5,23 +5,77 @@
 import { axiosClient } from './axiosClient';
 import type { Contract } from '../../types';
 
+export type ParsedContractProposal = {
+  sourceType: 'pdf' | 'docx' | 'text';
+  projectCode?: string;
+  projectTitle?: string;
+  suggestedProjectId?: string;
+  suggestedBudget?: number;
+  ownerName?: string;
+  ownerTitle?: string;
+  ownerEmail?: string;
+  confidence: number;
+  notesSuggestion: string;
+  textExcerpt: string;
+};
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+
+const normalizeUploadPath = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('/uploads/')) return `${API_ORIGIN}${value}`;
+
+  const normalized = value.replace(/\\/g, '/');
+  const uploadsIndex = normalized.toLowerCase().indexOf('/uploads/');
+  if (uploadsIndex >= 0) {
+    return `${API_ORIGIN}${normalized.slice(uploadsIndex)}`;
+  }
+  return undefined;
+};
+
+const mapContract = (c: any): Contract => ({
+  id: c.id,
+  code: c.code,
+  projectId: c.projectId ?? c.project?.id,
+  projectCode: c.projectCode ?? c.project?.code ?? '',
+  projectTitle: c.projectTitle ?? c.project?.title ?? '',
+  owner: c.owner ?? c.project?.owner?.name ?? '',
+  ownerTitle: c.ownerTitle ?? c.project?.owner?.title,
+  ownerEmail: c.ownerEmail ?? c.project?.owner?.email,
+  signedDate: c.signedDate ? new Date(c.signedDate).toISOString().split('T')[0] : undefined,
+  status: c.status,
+  budget: Number(c.budget ?? 0),
+  pdfUrl: normalizeUploadPath(c.pdfUrl),
+  notes: c.notes,
+});
+
 export const contractService = {
+  // POST /api/contracts/proposals/parse (multipart/form-data)
+  async parseProposal(file: File): Promise<ParsedContractProposal> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await axiosClient.post('/contracts/proposals/parse', form);
+    return res.data;
+  },
+
   // GET /api/contracts
   async getAll(): Promise<Contract[]> {
     const res = await axiosClient.get('/contracts');
-    return res.data;
+    return (res.data ?? []).map(mapContract);
   },
 
   // GET /api/contracts/{id}
   async getById(id: string): Promise<Contract | undefined> {
     const res = await axiosClient.get(`/contracts/${id}`);
-    return res.data;
+    return res.data ? mapContract(res.data) : undefined;
   },
 
   // POST /api/contracts
   async create(data: { projectId: string; budget: number; notes?: string }): Promise<Contract> {
     const res = await axiosClient.post('/contracts', data);
-    return res.data;
+    return mapContract(res.data);
   },
 
   // POST /api/contracts/{id}/sign
@@ -36,7 +90,7 @@ export const contractService = {
     form.append('file', file);
     // Let axios set the correct multipart Content-Type (with boundary)
     const res = await axiosClient.post(`/contracts/${id}/upload`, form);
-    return res.data;
+    return mapContract(res.data);
   },
 
   // PUT /api/contracts/{id}/status

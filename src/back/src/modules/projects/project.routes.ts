@@ -21,8 +21,18 @@ router.use(authenticate);
 router.get('/dashboard', requireRole('research_staff', 'superadmin'), ProjectController.getDashboard);
 
 // CRUD
-router.get('/',    ProjectController.getAll);
-router.get('/:id', ProjectController.getById);
+router.get('/',
+  requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'archive_staff', 'report_viewer', 'council_member'),
+  ProjectController.getAll
+);
+router.get('/my',
+  requireRole('project_owner'),
+  ProjectController.getMyProjects
+);
+router.get('/:id',
+  requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'archive_staff', 'report_viewer', 'council_member'),
+  ProjectController.getById
+);
 
 router.post('/',
   requireRole('research_staff', 'superadmin'),

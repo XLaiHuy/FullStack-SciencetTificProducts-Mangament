@@ -40,11 +40,18 @@ const ExtensionManagementPage: React.FC = () => {
   };
 
   const handleUpdateStatus = async (id: string, newStatus: 'approved' | 'rejected') => {
-    if (newStatus === 'approved') {
-      await extensionService.approve(id);
+    try {
+      if (newStatus === 'approved') {
+        await extensionService.approve(id);
+      } else {
+        await extensionService.reject(id);
+      }
+      await refresh();
+      showToast(`Đã ${newStatus === 'approved' ? 'phê duyệt' : 'cập nhật'} yêu cầu gia hạn`);
+    } catch (e) {
+      console.error(e);
+      showToast(typeof e === 'string' ? e : 'Khong the cap nhat trang thai yeu cau gia han.');
     }
-    await refresh();
-    showToast(`Đã ${newStatus === 'approved' ? 'phê duyệt' : 'cập nhật'} yêu cầu gia hạn`);
   };
 
   const handleCreate = async () => {
@@ -52,17 +59,22 @@ const ExtensionManagementPage: React.FC = () => {
       showToast('Vui lòng nhập đủ thông tin yêu cầu gia hạn.');
       return;
     }
-    await extensionService.create({
-      projectId,
-      requested_deadline: requestedDeadline,
-      reason,
-      supporting_document: supportingDocument ?? undefined,
-    });
-    await refresh();
-    setReason('');
-    setRequestedDeadline('');
-    setSupportingDocument(null);
-    showToast('Đã tạo yêu cầu gia hạn mới.');
+    try {
+      await extensionService.create({
+        projectId,
+        requested_deadline: requestedDeadline,
+        reason,
+        supporting_document: supportingDocument ?? undefined,
+      });
+      await refresh();
+      setReason('');
+      setRequestedDeadline('');
+      setSupportingDocument(null);
+      showToast('Đã tạo yêu cầu gia hạn mới.');
+    } catch (e) {
+      console.error(e);
+      showToast(typeof e === 'string' ? e : 'Khong the tao yeu cau gia han.');
+    }
   };
 
   return (
@@ -141,16 +153,20 @@ const ExtensionManagementPage: React.FC = () => {
                   {ext.status === 'pending' && <span className="text-gray-500">ĐANG CHỜ</span>}
                 </td>
                 <td className="px-8 py-6 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => handleUpdateStatus(ext.id, 'approved')}
-                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded"
-                    >Phê duyệt</button>
-                    <button
-                      onClick={() => handleUpdateStatus(ext.id, 'rejected')}
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                    >Từ chối</button>
-                  </div>
+                  {ext.status === 'pending' ? (
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleUpdateStatus(ext.id, 'approved')}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded"
+                      >Phê duyệt</button>
+                      <button
+                        onClick={() => handleUpdateStatus(ext.id, 'rejected')}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                      >Từ chối</button>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] font-bold text-gray-400 uppercase">Đã xử lý</span>
+                  )}
                 </td>
               </tr>
             ))}
