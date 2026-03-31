@@ -113,10 +113,13 @@ export const AuthService = {
   async forgotPassword(email: string) {
     const user = await prisma.user.findFirst({
       where: { email, is_deleted: false, isLocked: false, isActive: true },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, role: true },
     });
 
     if (!user) return { accepted: true };
+    if (user.role === 'council_member') {
+      throw new Error('Thanh vien hoi dong vui long lien he quan tri vien de duoc cap lai mat khau.');
+    }
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, purpose: 'password_reset' } satisfies ResetTokenPayload,
@@ -125,7 +128,7 @@ export const AuthService = {
     );
 
     const appOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetLink = `${appOrigin}/login?reset_token=${encodeURIComponent(token)}`;
+    const resetLink = `${appOrigin}/reset-password?token=${encodeURIComponent(token)}`;
 
     await sendEmail({
       to: user.email,

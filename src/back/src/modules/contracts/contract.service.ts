@@ -445,7 +445,7 @@ export const ContractService = {
     if (existing) throw new Error(`Đề tài đã có hợp đồng ${existing.code} còn hiệu lực.`);
 
     const code = await nextContractCode();
-    const advanceAmount = Number(project.budget) * 0.4;
+    const advanceAmount = Number(data.budget) * 0.4;
 
     const [contract] = await prisma.$transaction([
       prisma.contract.create({

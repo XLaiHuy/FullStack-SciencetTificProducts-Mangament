@@ -49,7 +49,9 @@ const ROLE_SUGGESTION_TEMPLATE: Array<Pick<ProposalSuggestion, 'role' | 'roleDis
 ];
 
 const CouncilCreationPage: React.FC = () => {
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [councils, setCouncils] = useState<Council[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [members, setMembers] = useState<CouncilMember[]>([DEFAULT_MEMBER]);
@@ -108,6 +110,7 @@ const CouncilCreationPage: React.FC = () => {
     Promise.all([councilService.getAll(), projectService.getAll()])
       .then(([councilRows, projectRows]) => {
         setCouncils(councilRows);
+        setAllProjects(projectRows);
         setProjects(projectRows.filter((item) => item.status === 'cho_nghiem_thu'));
       })
       .catch((error) => {
@@ -121,6 +124,7 @@ const CouncilCreationPage: React.FC = () => {
     const matched = projects.find((item) => item.id === activeProjectId);
     if (matched) {
       setActiveProjectSnapshot({ id: matched.id, code: matched.code, title: matched.title, owner: matched.owner });
+      setWizardStep((prev) => (prev < 2 ? 2 : prev));
     }
   }, [activeProjectId, projects]);
 
@@ -131,7 +135,16 @@ const CouncilCreationPage: React.FC = () => {
 
   const refreshProjects = async () => {
     const projectRows = await projectService.getAll();
+    setAllProjects(projectRows);
     setProjects(projectRows.filter((item) => item.status === 'cho_nghiem_thu'));
+  };
+
+  const handleSelectProject = (project: Project) => {
+    setActiveProjectId(project.id);
+    setActiveCouncilId(null);
+    setActiveProjectSnapshot({ id: project.id, code: project.code, title: project.title, owner: project.owner });
+    setWizardStep(2);
+    document.getElementById('council-details-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const loadCouncilDetail = async (councilId: string, editMode: boolean) => {
@@ -148,6 +161,7 @@ const CouncilCreationPage: React.FC = () => {
       setActiveProjectSnapshot({ id: council.projectId, code: council.projectCode, title: council.projectTitle });
       setMembers(council.members.map((member) => ({ ...member, title: member.title ?? member.hocHamHocVi ?? '' })));
       setRemovedMemberIndexes([]);
+      setWizardStep(3);
       document.getElementById('council-details-section')?.scrollIntoView({ behavior: 'smooth' });
       showToast(editMode ? 'Da mo che do sua hoi dong.' : 'Da mo chi tiet hoi dong.', 'success');
     } catch (error) {
@@ -216,23 +230,23 @@ const CouncilCreationPage: React.FC = () => {
   };
 
   const handleParseProposal = async () => {
-    if (!proposalFile) {
+    const fileToParse = proposalFile ?? proposalInputRef.current?.files?.[0] ?? null;
+    if (!fileToParse) {
       showToast('Vui long chon file de xuat truoc khi nhan dien.', 'error');
       return;
     }
-    if (proposalInputRef.current && (proposalInputRef.current.files?.length ?? 0) === 0) {
-      showToast('Khong the doc file da chon, vui long chon lai file roi thu lai.', 'error');
-      return;
-    }
-    if (proposalFile.size === 0) {
+    if (fileToParse.size === 0) {
       showToast('File de xuat dang rong. Vui long chon file hop le.', 'error');
       return;
     }
 
     setProposalParseLoading(true);
     try {
-      const parsed = await contractService.parseProposal(proposalFile);
+      const parsed = await contractService.parseProposal(fileToParse);
       setProposalParsed(parsed);
+      if (!proposalFile) {
+        setProposalFile(fileToParse);
+      }
 
       const matchedProject = resolveProjectFromProposal(parsed);
       if (matchedProject) {
@@ -247,12 +261,13 @@ const CouncilCreationPage: React.FC = () => {
 
       const suggestions = await buildParsedSuggestions(parsed, matchedProject?.id);
       setProposalCandidates(suggestions);
+      setWizardStep(3);
       showToast('Nhan dien de xuat thanh cong!', 'success');
     } catch (error) {
       console.error(error);
       const message = typeof error === 'string'
         ? error
-        : proposalFile
+        : fileToParse
           ? 'Khong the nhan dien noi dung tep. Neu file da hien ten, vui long chon lai file roi thu lai.'
           : 'Khong the nhan dien noi dung tep.';
       showToast(message, 'error');
@@ -412,6 +427,7 @@ const CouncilCreationPage: React.FC = () => {
       await refreshCouncils();
       setActiveProjectId('');
       setActiveProjectSnapshot(null);
+      setWizardStep(1);
       setMembers([DEFAULT_MEMBER]);
       setRemovedMemberIndexes([]);
       setDecisionFile(null);
@@ -434,18 +450,87 @@ const CouncilCreationPage: React.FC = () => {
       )}
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Thanh lap Hoi dong Nghiem thu</h1>
-        <p className="text-gray-500 text-sm mt-1">Thanh lap hoi dong cho cac de tai da hoan thanh</p>
+        <h1 className="text-2xl font-bold text-gray-800">Thành lập Hội đồng Nghiệm thu</h1>
+        <p className="text-gray-500 text-sm mt-1">Tối giản quy trình lập hội đồng cho đề tài đã hoàn thành</p>
       </div>
+
+      <section className="bg-white border border-gray-200 rounded-2xl p-4 shadow-card">
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          {[
+            { step: 1, label: 'Chọn đề tài' },
+            { step: 2, label: 'Tải & nhận diện' },
+            { step: 3, label: 'Chốt hội đồng' },
+          ].map((item) => {
+            const active = wizardStep === item.step;
+            const done = wizardStep > item.step;
+            return (
+              <div
+                key={item.step}
+                className={`rounded-xl border px-3 py-2 font-bold ${active ? 'border-primary bg-blue-50 text-primary' : done ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400'}`}
+              >
+                Bước {item.step}: {item.label}
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-primary rounded-full" />
-            De tai cho thanh lap Hoi dong
+            Đề tài cho thành lập Hội đồng
           </h2>
-          <span className="bg-blue-50 text-primary text-[10px] font-bold px-3 py-1 rounded-full uppercase border border-blue-100">{projects.length} can xu ly</span>
+          <span className="bg-blue-50 text-primary text-[10px] font-bold px-3 py-1 rounded-full uppercase border border-blue-100">{projects.length} cần xử lý</span>
         </div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-card space-y-4">
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Chọn nhanh đề tài</label>
+            <select
+              value={activeProjectId}
+              onChange={(event) => {
+                const selected = allProjects.find((item) => item.id === event.target.value);
+                if (!selected) return;
+                if (selected.status !== 'cho_nghiem_thu') {
+                  showToast('Đề tài chưa ở trạng thái Chờ nghiệm thu nên chưa thể lập hội đồng.', 'error');
+                  return;
+                }
+                handleSelectProject(selected);
+              }}
+              className="w-full border border-gray-200 rounded-xl text-sm"
+            >
+              <option value="">-- Chọn đề tài --</option>
+              {allProjects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.code} - {project.title} ({project.status})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {projects.length === 0 ? (
+            <div className="p-4 border border-dashed border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-600">
+              Hiện chưa có đề tài ở trạng thái <span className="font-bold">Chờ nghiệm thu</span>. Bạn vẫn có thể chọn đề tài trong danh sách để kiểm tra trạng thái.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {projects.map((project) => (
+                <div key={project.id} className="p-4 border border-gray-100 rounded-xl flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-primary mb-1">{project.code}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate">{project.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">Chủ nhiệm: {project.owner} • Thời gian: {project.durationMonths} tháng</p>
+                  </div>
+                  <button type="button" onClick={() => handleSelectProject(project)} className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-button hover:bg-primary-dark">
+                    Chọn đề tài
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {false && (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-card">
           {projects.map((project, index) => (
             <div key={project.id} className={`p-6 flex items-center justify-between gap-6 border-l-4 ${index === 0 ? 'border-l-primary' : 'border-l-transparent'} border-b border-gray-50 last:border-b-0`}>
@@ -463,6 +548,7 @@ const CouncilCreationPage: React.FC = () => {
                   setActiveProjectId(project.id);
                   setActiveCouncilId(null);
                   setActiveProjectSnapshot({ id: project.id, code: project.code, title: project.title, owner: project.owner });
+                  setWizardStep(2);
                   document.getElementById('council-details-section')?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="px-6 py-3 bg-primary text-white text-xs font-bold rounded-xl shadow-button hover:bg-primary-dark"
@@ -472,13 +558,21 @@ const CouncilCreationPage: React.FC = () => {
             </div>
           ))}
         </div>
+        )}
       </section>
 
       <div className="grid grid-cols-12 gap-8">
         <div className="col-span-4 space-y-6">
+          {wizardStep < 2 && (
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-card p-5 text-sm text-gray-600">
+              Chọn một đề tài ở bước 1 để bắt đầu tải file và nhận diện gợi ý hội đồng.
+            </div>
+          )}
+
+          {wizardStep >= 2 && (
           <div className="bg-white border border-blue-200 rounded-2xl shadow-card overflow-hidden">
             <div className="p-5 border-b border-blue-50 bg-blue-50/50">
-              <h3 className="font-bold text-blue-800 text-sm uppercase tracking-tight">AI Nhan Dien De Xuat</h3>
+              <h3 className="font-bold text-blue-800 text-sm uppercase tracking-tight">AI nhận diện đề xuất</h3>
             </div>
             <div className="p-5 space-y-4 text-center">
               <div className="border-2 border-dashed border-blue-100 rounded-xl p-6 bg-blue-50/20">
@@ -492,35 +586,44 @@ const CouncilCreationPage: React.FC = () => {
                 <button type="button" onClick={() => proposalInputRef.current?.click()} className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-button">
                   <span className="text-xl">+</span>
                 </button>
-                <p className="text-xs font-bold text-gray-700">{proposalFile ? proposalFile.name : 'TAI FILE DE XUAT (PDF/DOCX)'}</p>
-                <p className="text-[10px] text-gray-400 mt-1 uppercase">Tu dong dien canh bao COI va goi y role</p>
+                <p className="text-xs font-bold text-gray-700">{proposalFile ? proposalFile.name : 'Tải file đề xuất (PDF/DOCX)'}</p>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase">Tự động cảnh báo COI và gợi ý vai trò</p>
               </div>
 
               <button type="button" onClick={handleParseProposal} disabled={proposalParseLoading || !proposalFile} className="w-full py-2.5 bg-blue-700 text-white text-xs font-bold rounded-xl shadow-button hover:bg-blue-800 disabled:opacity-50">
-                {proposalParseLoading ? 'DANG XU LY...' : 'BAT DAU NHAN DIEN'}
+                {proposalParseLoading ? 'Đang xử lý...' : 'Bắt đầu nhận diện'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setWizardStep(3)}
+                className="w-full py-2.5 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50"
+              >
+                Bỏ qua nhận diện, sang bước 3
               </button>
 
               {proposalParsed && (
                 <div className="text-left bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Ket qua nhan dien</p>
-                  <p className="text-xs font-bold text-gray-800">Ma de tai: <span className="text-blue-600 font-black">{proposalParsed.projectCode || 'N/A'}</span></p>
-                  <p className="text-xs text-gray-600">Chu nhiem: {proposalParsed.ownerTitle ? `${proposalParsed.ownerTitle} ` : ''}{proposalParsed.ownerName || 'N/A'}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase">Kết quả nhận diện</p>
+                  <p className="text-xs font-bold text-gray-800">Mã đề tài: <span className="text-blue-600 font-black">{proposalParsed.projectCode || 'N/A'}</span></p>
+                  <p className="text-xs text-gray-600">Chủ nhiệm: {proposalParsed.ownerTitle ? `${proposalParsed.ownerTitle} ` : ''}{proposalParsed.ownerName || 'N/A'}</p>
                   <p className="text-xs text-gray-600">Email: {proposalParsed.ownerEmail || 'N/A'}</p>
-                  <p className="text-xs text-gray-600">Kinh phi: {proposalParsed.suggestedBudget ? proposalParsed.suggestedBudget.toLocaleString('vi-VN') : 'N/A'}</p>
+                  <p className="text-xs text-gray-600">Kinh phí: {proposalParsed.suggestedBudget ? proposalParsed.suggestedBudget.toLocaleString('vi-VN') : 'N/A'}</p>
                   <p className="text-[11px] text-gray-600 italic">"{proposalParsed.textExcerpt.slice(0, 120)}..."</p>
                 </div>
               )}
             </div>
           </div>
+          )}
 
+          {wizardStep >= 2 && (
           <div className="bg-white border border-gray-200 rounded-2xl shadow-card">
             <div className="p-5 border-b border-gray-100 bg-gray-50/30">
-              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-tight">Goi y tu Chu nhiem</h3>
+              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-tight">Gợi ý từ Chủ nhiệm</h3>
             </div>
             <div className="p-5 space-y-4">
               {proposalCandidates.length === 0 && (
                 <div className="p-4 border border-dashed border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-500">
-                  Chua co goi y. Tai file de xuat va bam nhan dien de hien canh bao COI cho chu nhiem cung cac role mem.
+                  Chưa có gợi ý. Hãy tải file đề xuất và bấm nhận diện để hiển thị cảnh báo COI.
                 </div>
               )}
               {proposalCandidates.map((candidate) => (
@@ -564,9 +667,17 @@ const CouncilCreationPage: React.FC = () => {
               ))}
             </div>
           </div>
+          )}
         </div>
 
         <div className="col-span-8" id="council-details-section">
+          {wizardStep < 3 && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-card text-sm text-gray-600">
+              Hoàn tất bước 2 (nhận diện) hoặc bấm "Bỏ qua nhận diện" để chuyển sang bước 3 và chốt danh sách hội đồng.
+            </div>
+          )}
+
+          {wizardStep >= 3 && (
           <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-card">
             <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">Chi tiet thanh phan Hoi dong</h3>
             <div className="mb-6 bg-gray-50 border border-gray-100 rounded-xl p-4">
@@ -649,12 +760,33 @@ const CouncilCreationPage: React.FC = () => {
 
             <div className="flex justify-end">
               <button type="button" onClick={handleCreateCouncil} disabled={loading} className="px-8 py-3 text-xs font-bold text-white bg-primary rounded-xl shadow-button hover:bg-primary-dark">
-                {loading ? 'DANG XU LY...' : 'Phe duyet & Ban hanh'}
+                {loading ? 'Đang xử lý...' : 'Phê duyệt & Ban hành'}
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
+
+      {wizardStep >= 3 && (
+        <div className="sticky bottom-3 z-30 bg-white/95 backdrop-blur border border-gray-200 rounded-2xl p-3 shadow-card flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => showToast('Đã lưu bản nháp tạm thời trên màn hình.', 'success')}
+            className="px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50"
+          >
+            Lưu nháp
+          </button>
+          <button
+            type="button"
+            onClick={handleCreateCouncil}
+            disabled={loading}
+            className="px-4 py-2 text-xs font-bold text-white bg-primary rounded-xl shadow-button hover:bg-primary-dark disabled:opacity-50"
+          >
+            {loading ? 'Đang xử lý...' : 'Ban hành'}
+          </button>
+        </div>
+      )}
 
       <section>
         <div className="flex items-center justify-between mb-4">
