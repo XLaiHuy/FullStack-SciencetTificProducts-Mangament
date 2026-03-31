@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-03-31T05:53:02.912Z",
-  "finishedAt": "2026-03-31T05:57:03.111Z",
+  "startedAt": "2026-03-31T12:32:33.499Z",
+  "finishedAt": "2026-03-31T12:36:27.152Z",
   "frontendUrl": "http://localhost:5173",
   "roles": [
     {
@@ -9,19 +9,32 @@
       "loginOk": true,
       "visitedRoutes": [
         "/research-staff/dashboard",
-        "/research-staff/council-creation",
-        "/research-staff/contract-management",
-        "/research-staff/template-management",
-        "/research-staff/settlement-tracking",
-        "/research-staff/extension-management"
+        "/research-staff/council-creation"
       ],
-      "buttonsClicked": 43,
+      "buttonsClicked": 19,
       "buttonFailures": [],
-      "uploadChecks": 1,
+      "uploadChecks": 0,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
-      "error": null
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/research-staff/council-creation",
+          "message": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+        },
+        {
+          "url": "http://localhost:5173/research-staff/council-creation",
+          "message": "Vui lòng chọn file đề xuất để nhận diện."
+        },
+        {
+          "url": "http://localhost:5173/research-staff/council-creation",
+          "message": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+        },
+        {
+          "url": "http://localhost:5173/research-staff/council-creation",
+          "message": "Vui lòng chọn file đề xuất để nhận diện."
+        }
+      ],
+      "error": "page.evaluate: Execution context was destroyed, most likely because of a navigation"
     },
     {
       "role": "project_owner",
@@ -183,11 +196,11 @@
   "totals": {
     "roles": 10,
     "loginFailed": 0,
-    "totalRoutesVisited": 36,
-    "totalButtonsClicked": 210,
+    "totalRoutesVisited": 32,
+    "totalButtonsClicked": 186,
     "totalButtonFailures": 0,
-    "totalJsErrors": 0,
-    "totalUploadChecks": 2,
+    "totalJsErrors": 4,
+    "totalUploadChecks": 1,
     "totalDownloadChecks": 2,
     "totalIoFailures": 0,
     "totalUploadFailures": 0,

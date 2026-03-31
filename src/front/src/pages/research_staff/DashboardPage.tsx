@@ -4,6 +4,10 @@ import { StatusBadge } from '../../components/StatusBadge';
 import type { Project } from '../../types';
 import { projectService } from '../../services/api/projectService';
 import { reportService } from '../../services/api/reportService';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Pie } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const ResearchStaffDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -48,12 +52,26 @@ const ResearchStaffDashboard: React.FC = () => {
 
   const pendingCouncil = projects.filter(p => p.status === 'cho_nghiem_thu');
   const overdue = projects.filter(p => p.status === 'tre_han');
+  
+  const activeCount = stats.activeProjects;
+  const overdueCount = stats.overdueProjects;
+  const completedCount = stats.completedProjects;
+  const pendingCount = pendingCouncil.length;
+  const otherCount = Math.max(0, projects.length - (activeCount + overdueCount + completedCount + pendingCount));
+
+  const statusDataRaw = [
+    { label: 'Đang thực hiện', count: activeCount, color: '#3b82f6' },
+    { label: 'Chờ nghiệm thu', count: pendingCount, color: '#f59e0b' },
+    { label: 'Trễ hạn', count: overdueCount, color: '#ef4444' },
+    { label: 'Đã nghiệm thu', count: completedCount, color: '#22c55e' },
+    { label: 'Khác (Hủy/Chờ duyệt)', count: otherCount, color: '#94a3b8' }
+  ].filter(s => s.count > 0);
+
   const totalForRatio = Math.max(projects.length, 1);
-  const statusData = [
-    { label: 'Đang thực hiện', value: Math.round((stats.activeProjects / totalForRatio) * 100), color: '#3b82f6' },
-    { label: 'Trễ hạn', value: Math.round((stats.overdueProjects / totalForRatio) * 100), color: '#ef4444' },
-    { label: 'Đã nghiệm thu', value: Math.round((stats.completedProjects / totalForRatio) * 100), color: '#22c55e' },
-  ];
+  const statusData = statusDataRaw.map(s => ({
+    ...s,
+    value: Math.round((s.count / totalForRatio) * 100)
+  }));
 
   return (
     <div className="space-y-8">
@@ -91,16 +109,47 @@ const ResearchStaffDashboard: React.FC = () => {
         {/* Left column */}
         <div className="col-span-4 space-y-6">
           {/* Status chart */}
-          <div className="bg-white p-8 rounded-3xl shadow-card border border-slate-100">
-            <h2 className="text-lg font-bold text-slate-800 mb-6">Trạng thái Đề tài</h2>
-            <div className="space-y-3">
+          <div className="bg-white p-8 rounded-3xl shadow-card border border-slate-100 flex flex-col items-center">
+            <h2 className="text-lg font-bold text-slate-800 mb-2 w-full text-left">Trạng thái Đề tài</h2>
+            <div className="w-full max-w-[200px] mt-2 mb-4">
+              <Pie 
+                data={{
+                  labels: statusData.map(s => s.label),
+                  datasets: [{
+                    data: statusData.map(s => s.value),
+                    backgroundColor: statusData.map(s => s.color),
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 6
+                  }]
+                }}
+                options={{
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          return ` ${context.label}: ${context.raw}%`;
+                        }
+                      }
+                    }
+                  },
+                  cutout: '65%',
+                  animation: { animateScale: true }
+                }}
+              />
+            </div>
+            <div className="space-y-2 w-full mt-6">
               {statusData.map(s => (
-                <div key={s.label} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                  <div className="flex items-center">
-                    <span className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: s.color }} />
-                    <span className="text-xs font-semibold">{s.label}</span>
+                <div key={s.label} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition-shadow">
+                  <div className="flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-md shadow-sm" style={{ backgroundColor: s.color }} />
+                    <span className="text-sm font-bold text-slate-700">{s.label}</span>
                   </div>
-                  <span className="text-xs font-bold">{s.value}%</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-slate-400 border border-slate-100 px-2 py-0.5 rounded-md">{s.count} đề tài</span>
+                    <span className="text-sm font-black w-10 text-right" style={{ color: s.color }}>{s.value}%</span>
+                  </div>
                 </div>
               ))}
             </div>

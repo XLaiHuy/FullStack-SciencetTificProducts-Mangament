@@ -120,18 +120,18 @@ const ExtensionManagementPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="bg-white rounded-2xl shadow-card border border-gray-200 p-6 space-y-4">
-        <h2 className="text-lg font-bold text-gray-800">Tạo yêu cầu gia hạn</h2>
-        <div className="grid grid-cols-4 gap-4">
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="rounded-xl border-gray-300 text-sm">
+      <div className="bg-white rounded-2xl shadow-card border border-gray-200 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Tạo yêu cầu gia hạn</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="rounded-xl border-gray-300 text-sm w-full py-2.5">
             {projects.map((p) => <option key={p.id} value={p.id}>{p.code} - {p.title}</option>)}
           </select>
-          <input value={requestedDeadline} onChange={(e) => setRequestedDeadline(e.target.value)} type="date" className="rounded-xl border-gray-300 text-sm" />
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Lý do gia hạn" className="rounded-xl border-gray-300 text-sm" />
-          <input type="file" onChange={(e) => setSupportingDocument(e.target.files?.[0] ?? null)} className="rounded-xl border-gray-300 text-sm" />
+          <input value={requestedDeadline} onChange={(e) => setRequestedDeadline(e.target.value)} type="date" className="rounded-xl border-gray-300 text-sm w-full py-2.5" />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Lý do gia hạn" className="rounded-xl border-gray-300 text-sm w-full py-2.5" />
+          <input type="file" onChange={(e) => setSupportingDocument(e.target.files?.[0] ?? null)} className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" />
         </div>
-        <div className="flex justify-end">
-          <button onClick={handleCreate} className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold">Gửi yêu cầu</button>
+        <div className="flex justify-end mt-6">
+          <button onClick={handleCreate} className="bg-primary hover:bg-primary-dark shadow-md text-white px-6 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-colors">Gửi yêu cầu</button>
         </div>
       </div>
 

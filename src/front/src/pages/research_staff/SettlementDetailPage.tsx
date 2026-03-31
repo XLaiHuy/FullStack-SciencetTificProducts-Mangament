@@ -81,12 +81,88 @@ const SettlementDetailPage: React.FC = () => {
   };
 
   const handleExport = (type: 'excel' | 'word') => {
-    showToast(
-      type === 'excel'
-        ? 'Đang tạo file Excel: Bảng kê chứng từ thanh toán...'
-        : 'Đang tạo file Word: Giấy đề nghị thanh toán...',
-      'info'
-    );
+    if (type === 'excel') {
+      // Tạo CSV thực sự và tải xuống
+      const headers = ['Hạng mục', 'Dự toán (VNĐ)', 'Đã chi (VNĐ)', 'Còn lại (VNĐ)', 'Minh chứng', 'Trạng thái'];
+      const rows = budget.map(item => [
+        item.category,
+        item.planned.toString(),
+        item.spent.toString(),
+        (item.planned - item.spent).toString(),
+        item.evidenceFile ?? '',
+        statusConfig[item.status].label,
+      ]);
+      const totalsRow = ['TỔNG CỘNG', totalPlanned.toString(), totalSpent.toString(), totalRemaining.toString(), '', ''];
+      const escapeCell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const csv = [
+        headers.map(escapeCell).join(','),
+        ...rows.map(r => r.map(escapeCell).join(',')),
+        totalsRow.map(escapeCell).join(','),
+      ].join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BangKeChungTu_QT-${id?.padStart(4, '0')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Đã xuất Excel: Bảng kê chứng từ thanh toán.', 'success');
+    } else {
+      // Tạo Word (HTML blob)
+      const budgetHtml = budget.map(item => `
+        <tr>
+          <td>${item.category}</td>
+          <td style="text-align:right">${item.planned.toLocaleString('vi-VN')}</td>
+          <td style="text-align:right">${item.spent.toLocaleString('vi-VN')}</td>
+          <td style="text-align:right;color:${item.planned - item.spent < 0 ? 'red' : 'green'}">${(item.planned - item.spent).toLocaleString('vi-VN')}</td>
+          <td>${item.evidenceFile ?? 'Chưa có'}</td>
+          <td>${statusConfig[item.status].label}</td>
+        </tr>`).join('');
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+        <title>Giay de nghi thanh toan QT-${id?.padStart(4, '0')}</title>
+        <style>
+          body { font-family: "Times New Roman", serif; margin: 36px; }
+          h1 { text-align: center; font-size: 18px; text-transform: uppercase; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+          td, th { border: 1px solid #333; padding: 7px 10px; font-size: 12px; }
+          th { background: #f0f0f0; font-weight: bold; text-align: left; }
+          tfoot td { font-weight: bold; background: #fafafa; }
+        </style></head><body>
+        <h1>Giấy Đề Nghị Thanh Toán</h1>
+        <p><b>Mã quyết toán:</b> QT-${id?.padStart(4, '0')}</p>
+        <p><b>Đề tài:</b> Nghiên cứu ứng dụng AI trong giáo dục đại học</p>
+        <table>
+          <thead><tr>
+            <th>Hạng mục</th><th>Dự toán (VNĐ)</th><th>Đã chi (VNĐ)</th>
+            <th>Còn lại (VNĐ)</th><th>Minh chứng</th><th>Trạng thái</th>
+          </tr></thead>
+          <tbody>${budgetHtml}</tbody>
+          <tfoot><tr>
+            <td>TỔNG CỘNG</td>
+            <td style="text-align:right">${totalPlanned.toLocaleString('vi-VN')}</td>
+            <td style="text-align:right">${totalSpent.toLocaleString('vi-VN')}</td>
+            <td style="text-align:right">${totalRemaining.toLocaleString('vi-VN')}</td>
+            <td colspan="2"></td>
+          </tr></tfoot>
+        </table>
+        <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:40px;text-align:center">
+          <div><b>Kế toán trưởng</b><br/><i>(Ký, ghi rõ họ tên)</i><br/><br/><br/>_______________</div>
+          <div><b>Chủ nhiệm đề tài</b><br/><i>(Ký, ghi rõ họ tên)</i><br/><br/><br/>_______________</div>
+        </div>
+        </body></html>`;
+      const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GiayDeNghiThanhToan_QT-${id?.padStart(4, '0')}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Đã xuất Word: Giấy đề nghị thanh toán.', 'success');
+    }
   };
 
   const handleSendReminder = (entry: AuditEntry) => {

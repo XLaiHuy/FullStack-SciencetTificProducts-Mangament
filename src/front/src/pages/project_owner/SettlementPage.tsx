@@ -1,77 +1,107 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { projectService } from '../../services/api/projectService';
+import { axiosClient } from '../../services/api/axiosClient';
+import type { Project } from '../../types';
 
 const SETTLEMENT_DRAFT_KEY = 'project_owner_settlement_draft';
 
 const SettlementPage: React.FC = () => {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [content, setContent] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Thiết bị nghiên cứu');
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
+  // Load danh sách đề tài của GV
+  useEffect(() => {
+    projectService.getAll()
+      .then((list) => {
+        setProjects(list);
+        if (list.length > 0) setSelectedProjectId(list[0].id);
+      })
+      .catch((e) => showToast(typeof e === 'string' ? e : 'Không thể tải danh sách đề tài.', 'error'));
+  }, []);
+
+  // Restore draft
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SETTLEMENT_DRAFT_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw) as {
-        content?: string;
-        amount?: string;
-        category?: string;
-        evidenceFileName?: string;
+        content?: string; amount?: string; category?: string;
+        selectedProjectId?: string; evidenceFileName?: string;
       };
-      setContent(draft.content ?? '');
-      setAmount(draft.amount ?? '');
-      setCategory(draft.category ?? 'Thiết bị nghiên cứu');
+      if (draft.content) setContent(draft.content);
+      if (draft.amount) setAmount(draft.amount);
+      if (draft.category) setCategory(draft.category);
+      if (draft.selectedProjectId) setSelectedProjectId(draft.selectedProjectId);
       if (draft.evidenceFileName) {
-        showToast(`Da tai lai nhap, vui long chon lai tep: ${draft.evidenceFileName}.`, 'success');
+        showToast(`Đã tải lại nháp, vui lòng chọn lại tệp: ${draft.evidenceFileName}.`, 'success');
       }
     } catch {
-      // Ignore malformed draft data.
+      // Ignore malformed draft
     }
   }, []);
 
+  const selectedProject = projects.find((p) => p.id === selectedProjectId) ?? null;
+  const advanced = selectedProject?.advancedAmount ?? 0;
+  const total = selectedProject?.budget ?? 0;
+  const remaining = total - advanced;
+
   const handleSaveDraft = () => {
-    localStorage.setItem(
-      SETTLEMENT_DRAFT_KEY,
-      JSON.stringify({
-        content,
-        amount,
-        category,
-        evidenceFileName: evidenceFile?.name ?? '',
-        savedAt: new Date().toISOString(),
-      })
-    );
-    showToast('Da luu nhap ho so quyet toan.');
+    localStorage.setItem(SETTLEMENT_DRAFT_KEY, JSON.stringify({
+      content, amount, category,
+      selectedProjectId,
+      evidenceFileName: evidenceFile?.name ?? '',
+      savedAt: new Date().toISOString(),
+    }));
+    showToast('Đã lưu nháp hồ sơ quyết toán.');
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!content.trim()) {
-      showToast('Vui long nhap noi dung quyet toan.', 'error');
-      return;
-    }
+    if (!selectedProjectId) { showToast('Vui lòng chọn đề tài.', 'error'); return; }
+    if (!content.trim()) { showToast('Vui lòng nhập nội dung quyết toán.', 'error'); return; }
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      showToast('So tien quyet toan khong hop le.', 'error');
-      return;
-    }
-    if (!evidenceFile) {
-      showToast('Vui long tai len it nhat 1 tep chung tu.', 'error');
-      return;
+      showToast('Số tiền quyết toán không hợp lệ.', 'error'); return;
     }
 
-    localStorage.removeItem(SETTLEMENT_DRAFT_KEY);
-    setContent('');
-    setAmount('');
-    setCategory('Thiết bị nghiên cứu');
-    setEvidenceFile(null);
-    showToast('Da nop ho so quyet toan thanh cong! Phong NCKH se xem xet trong 5-7 ngay.');
+    setLoading(true);
+    try {
+      // Gọi API thực tạo settlement
+      await axiosClient.post('/project-owner/settlements', {
+        projectId: selectedProjectId,
+        content: content.trim(),
+        totalAmount: numericAmount,
+        budgetItems: [{
+          category,
+          planned: numericAmount,
+          spent: numericAmount,
+          status: 'khop',
+        }],
+      });
+      localStorage.removeItem(SETTLEMENT_DRAFT_KEY);
+      setContent('');
+      setAmount('');
+      setCategory('Thiết bị nghiên cứu');
+      setEvidenceFile(null);
+      showToast('Đã nộp hồ sơ quyết toán thành công! Phòng NCKH sẽ xem xét trong 5–7 ngày.');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? (typeof e === 'string' ? e : 'Nộp hồ sơ thất bại.');
+      showToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,8 +116,28 @@ const SettlementPage: React.FC = () => {
         <p className="text-slate-500 text-sm mt-1">Nộp hồ sơ quyết toán kinh phí nghiên cứu</p>
       </div>
 
+      {/* Chọn đề tài */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-card p-5">
+        <label className="block text-sm font-semibold text-slate-700 mb-2">Chọn đề tài cần quyết toán</label>
+        <select
+          value={selectedProjectId}
+          onChange={(e) => setSelectedProjectId(e.target.value)}
+          className="w-full rounded-xl border-slate-200 text-sm focus:ring-primary py-2.5"
+        >
+          <option value="">-- Chọn đề tài của bạn --</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Số liệu tài chính */}
       <div className="grid grid-cols-3 gap-6">
-        {[['Tổng kinh phí', '500.000.000 VNĐ', 'text-slate-800'], ['Đã tạm ứng', '200.000.000 VNĐ', 'text-primary'], ['Còn lại quyết toán', '300.000.000 VNĐ', 'text-amber-600']].map(([label, val, cls]) => (
+        {([
+          ['Tổng kinh phí', total.toLocaleString('vi-VN') + ' VNĐ', 'text-slate-800'],
+          ['Đã tạm ứng', advanced.toLocaleString('vi-VN') + ' VNĐ', 'text-primary'],
+          ['Còn lại quyết toán', remaining.toLocaleString('vi-VN') + ' VNĐ', 'text-amber-600'],
+        ] as [string, string, string][]).map(([label, val, cls]) => (
           <div key={label} className="bg-white border rounded-xl p-5 shadow-card">
             <p className="text-xs font-bold text-slate-500 uppercase mb-2">{label}</p>
             <p className={`text-xl font-black ${cls}`}>{val}</p>
@@ -151,10 +201,13 @@ const SettlementPage: React.FC = () => {
               className="w-full border-2 border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50 hover:border-primary hover:bg-blue-50 transition-all cursor-pointer"
             >
               <p className="text-sm font-bold text-slate-700">
-                {evidenceFile ? `Da chon: ${evidenceFile.name}` : 'Kéo thả hoặc chọn file'}
+                {evidenceFile ? `Đã chọn: ${evidenceFile.name}` : 'Kéo thả hoặc chọn file'}
               </p>
               <p className="text-xs text-slate-400 mt-1">PDF, DOCX, JPG (Max 20MB)</p>
             </button>
+            {evidenceFile && (
+              <p className="text-xs text-green-600 mt-1 font-semibold">✓ Đã chọn: {evidenceFile.name}</p>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <button
@@ -166,9 +219,10 @@ const SettlementPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-8 py-2.5 text-sm font-bold text-white bg-primary rounded-xl shadow-button hover:bg-primary-dark"
+              disabled={loading}
+              className="px-8 py-2.5 text-sm font-bold text-white bg-primary rounded-xl shadow-button hover:bg-primary-dark disabled:opacity-50"
             >
-              NỘP HỒ SƠ QUYẾT TOÁN
+              {loading ? 'ĐANG NỘP...' : 'NỘP HỒ SƠ QUYẾT TOÁN'}
             </button>
           </div>
         </form>

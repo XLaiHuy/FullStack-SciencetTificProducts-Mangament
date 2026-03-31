@@ -84,7 +84,13 @@ export const contractService = {
   },
 
   // POST /api/contracts
-  async create(data: { projectId: string; budget: number; notes?: string }): Promise<Contract> {
+  async create(data: { 
+    projectId: string; 
+    budget: number; 
+    agencyName?: string;
+    representative?: string;
+    notes?: string 
+  }): Promise<Contract> {
     const res = await axiosClient.post('/contracts', data);
     return mapContract(res.data);
   },
