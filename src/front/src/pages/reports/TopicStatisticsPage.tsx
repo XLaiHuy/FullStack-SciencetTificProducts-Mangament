@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockProjects } from '../../mock/mockData';
+import { projectService } from '../../services/api/projectService';
 import { StatusBadge } from '../../components/StatusBadge';
+import { reportService } from '../../services/api/reportService';
 
 const TopicStatisticsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -9,30 +10,42 @@ const TopicStatisticsPage: React.FC = () => {
   const [fieldFilter, setFieldFilter] = React.useState('');
   const [departmentFilter, setDepartmentFilter] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('');
-  const [rows, setRows] = React.useState(mockProjects);
+  const [rows, setRows] = React.useState<Awaited<ReturnType<typeof projectService.getAll>>>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
   const [toast, setToast] = React.useState('');
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 2500);
+    window.setTimeout(() => setToast(''), 2500);
   };
 
-  const applyFilter = () => {
-    const normalizedField = fieldFilter.trim().toLowerCase();
-    const normalizedDepartment = departmentFilter.trim().toLowerCase();
-    const filtered = mockProjects.filter((p) => {
-      if (schoolYear) {
-        const year = schoolYear.split('-')[0];
-        if (!p.code.includes(year)) return false;
-      }
-      if (normalizedField && !p.field.toLowerCase().includes(normalizedField)) return false;
-      if (normalizedDepartment && !p.department.toLowerCase().includes(normalizedDepartment)) return false;
-      if (statusFilter && p.status !== statusFilter) return false;
-      return true;
-    });
-    setRows(filtered);
-    showToast(`Da loc ${filtered.length}/${mockProjects.length} de tai.`);
-  };
+  const loadRows = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const all = await projectService.getAll();
+      const filtered = all.filter((p) => {
+        if (schoolYear) {
+          const year = schoolYear.split('-')[0];
+          if (!p.code.includes(year)) return false;
+        }
+        if (fieldFilter.trim() && !p.field.toLowerCase().includes(fieldFilter.trim().toLowerCase())) return false;
+        if (departmentFilter.trim() && !p.department.toLowerCase().includes(departmentFilter.trim().toLowerCase())) return false;
+        if (statusFilter && p.status !== statusFilter) return false;
+        return true;
+      });
+      setRows(filtered);
+    } catch (e) {
+      setError(typeof e === 'string' ? e : 'Khong the tai danh sach de tai.');
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolYear, fieldFilter, departmentFilter, statusFilter]);
+
+  React.useEffect(() => {
+    loadRows().catch(() => undefined);
+  }, [loadRows]);
 
   return (
     <div className="space-y-6">
@@ -43,67 +56,110 @@ const TopicStatisticsPage: React.FC = () => {
       )}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Thống kê Đề tài</h1>
-          <p className="text-gray-500 text-sm mt-1">Chi tiết thống kê theo lĩnh vực, khoa/viện và trạng thái</p>
+          <h1 className="text-2xl font-bold text-gray-800">Thong ke de tai</h1>
+          <p className="text-gray-500 text-sm mt-1">Chi tiet thong ke theo linh vuc, khoa/vien va trang thai</p>
         </div>
-        <button onClick={() => navigate('/reports/export')} className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-button hover:bg-primary-dark">Xuất báo cáo</button>
+        <button
+          onClick={() => {
+            reportService
+              .exportReport('topic-summary', 'excel', {
+                schoolYear: schoolYear || undefined,
+                field: fieldFilter || undefined,
+                department: departmentFilter || undefined,
+                status: statusFilter || undefined,
+              })
+              .then(() => showToast('Da xuat bao cao de tai.'))
+              .catch(() => setError('Khong the xuat bao cao de tai.'));
+          }}
+          className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-button hover:bg-primary-dark"
+        >
+          Xuat bao cao
+        </button>
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-card flex gap-3">
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
+          {error}
+        </div>
+      )}
+
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-card flex flex-wrap gap-3">
         <select value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 focus:ring-primary bg-white">
-          <option value="">Tất cả Năm học</option>
+          <option value="">Tat ca nam hoc</option>
+          <option value="2025-2026">2025-2026</option>
+          <option value="2024-2025">2024-2025</option>
           <option value="2023-2024">2023-2024</option>
-          <option value="2022-2023">2022-2023</option>
         </select>
         <input
           value={fieldFilter}
           onChange={(e) => setFieldFilter(e.target.value)}
-          placeholder="Lọc theo lĩnh vực"
+          placeholder="Loc theo linh vuc"
           className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 focus:ring-primary bg-white"
         />
         <input
           value={departmentFilter}
           onChange={(e) => setDepartmentFilter(e.target.value)}
-          placeholder="Lọc theo khoa/viện"
+          placeholder="Loc theo khoa/vien"
           className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 focus:ring-primary bg-white"
         />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 focus:ring-primary bg-white">
-          <option value="">Tất cả Trạng thái</option>
-          <option value="dang_thuc_hien">Đang thực hiện</option>
-          <option value="tre_han">Trễ hạn</option>
-          <option value="cho_nghiem_thu">Chờ nghiệm thu</option>
-          <option value="da_nghiem_thu">Đã nghiệm thu</option>
+          <option value="">Tat ca trang thai</option>
+          <option value="dang_thuc_hien">Dang thuc hien</option>
+          <option value="tre_han">Tre han</option>
+          <option value="cho_nghiem_thu">Cho nghiem thu</option>
+          <option value="da_nghiem_thu">Da nghiem thu</option>
+          <option value="da_thanh_ly">Da thanh ly</option>
+          <option value="huy_bo">Huy bo</option>
         </select>
-        <button onClick={applyFilter} className="px-5 py-2 bg-primary text-white text-sm font-bold rounded-xl">Lọc</button>
+        <button onClick={() => loadRows().then(() => showToast('Da cap nhat bo loc de tai.')).catch(() => undefined)} className="px-5 py-2 bg-primary text-white text-sm font-bold rounded-xl">
+          Loc
+        </button>
+        <button onClick={() => navigate('/reports/dashboard')} className="px-5 py-2 border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50">
+          Ve dashboard
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between">
-          <h2 className="font-bold text-gray-800">Danh sách đề tài theo bộ lọc</h2>
-          <span className="text-xs text-gray-400">{rows.length} kết quả</span>
+          <h2 className="font-bold text-gray-800">Danh sach de tai theo bo loc</h2>
+          <span className="text-xs text-gray-400">{rows.length} ket qua</span>
         </div>
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            <tr>
-              {['Mã', 'Tên đề tài', 'Chủ nhiệm', 'Lĩnh vực', 'Ngân sách', 'Trạng thái'].map(h => (
-                <th key={h} className="px-6 py-4">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {rows.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-bold text-primary">{p.code}</td>
-                <td className="px-6 py-4 text-gray-700 max-w-xs truncate">{p.title}</td>
-                <td className="px-6 py-4 text-gray-500">{p.owner}</td>
-                <td className="px-6 py-4 text-gray-500">{p.field}</td>
-                <td className="px-6 py-4 text-gray-600">{(p.budget / 1000000).toFixed(0)}tr VNĐ</td>
-                <td className="px-6 py-4"><StatusBadge status={p.status} /></td>
+        {loading ? (
+          <div className="px-6 py-6 text-sm text-gray-500">Dang tai du lieu...</div>
+        ) : (
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              <tr>
+                {['Ma', 'Ten de tai', 'Chu nhiem', 'Linh vuc', 'Ngan sach', 'Trang thai'].map((h) => (
+                  <th key={h} className="px-6 py-4">
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {rows.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 font-bold text-primary">{p.code}</td>
+                  <td className="px-6 py-4 text-gray-700 max-w-xs truncate">{p.title}</td>
+                  <td className="px-6 py-4 text-gray-500">{p.owner}</td>
+                  <td className="px-6 py-4 text-gray-500">{p.field}</td>
+                  <td className="px-6 py-4 text-gray-600">{(p.budget / 1_000_000).toFixed(0)}tr VND</td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={p.status} />
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-gray-400" colSpan={6}>
+                    Chua co du lieu phu hop bo loc.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

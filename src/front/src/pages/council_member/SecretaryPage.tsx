@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { councilService } from '../../services/api/councilService';
 import { projectService } from '../../services/api/projectService';
 import { templateService } from '../../services/api/templateService';
@@ -9,41 +9,66 @@ type DownloadItem =
   | { kind: 'minutes'; label: string }
   | { kind: 'report'; label: string; reportId: string };
 
+type ScoreRow = {
+  memberId: string;
+  memberName: string;
+  role: string;
+  score: number | null;
+  isSubmitted: boolean;
+  submittedAt?: string | null;
+  decisionStatus?: 'accepted' | 'rework' | null;
+  decisionNote?: string;
+};
+
 const normalizeText = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
+const roleLabel = (role: string) => {
+  if (role === 'chu_tich') return 'Chu tich';
+  if (role === 'phan_bien_1') return 'Phan bien 1';
+  if (role === 'phan_bien_2') return 'Phan bien 2';
+  if (role === 'thu_ky') return 'Thu ky';
+  if (role === 'uy_vien') return 'Uy vien';
+  return role;
+};
+
 const SecretaryPage: React.FC = () => {
-  const [toast, setToast] = useState('');
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const [councilId, setCouncilId] = useState('');
-  const [activeCouncil, setActiveCouncil] = useState<Council | null>(null);
-  const [scoreRows, setScoreRows] = useState<Array<{ name: string; role: string; score?: number }>>([]);
-  const [minutesContent, setMinutesContent] = useState('');
-  const [minutesFile, setMinutesFile] = useState<File | null>(null);
-  const [submittingMinutes, setSubmittingMinutes] = useState(false);
-  const [templateId, setTemplateId] = useState('');
-  const [loadingData, setLoadingData] = useState(false);
-  const [memberDecisions, setMemberDecisions] = useState<Record<string, 'accepted' | 'rework'>>({});
-  const minutesFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [toast, setToast] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const [polling, setPolling] = React.useState(false);
+  const [councilId, setCouncilId] = React.useState('');
+  const [activeCouncil, setActiveCouncil] = React.useState<Council | null>(null);
+  const [rows, setRows] = React.useState<ScoreRow[]>([]);
+  const [averageScore, setAverageScore] = React.useState(0);
+  const [minutesContent, setMinutesContent] = React.useState('');
+  const [minutesFile, setMinutesFile] = React.useState<File | null>(null);
+  const [submittingMinutes, setSubmittingMinutes] = React.useState(false);
+  const [templateId, setTemplateId] = React.useState('');
+  const minutesFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    window.setTimeout(() => setToast(''), 2500);
   };
 
-  const loadCouncilContext = async () => {
-    setLoadingData(true);
+  const loadBaseData = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const list = await councilService.getAll();
       if (!list.length) {
+        setCouncilId('');
         setActiveCouncil(null);
+        setRows([]);
+        setAverageScore(0);
         return;
       }
 
-      const id = list[0].id;
+      const id = councilId || list[0].id;
       setCouncilId(id);
 
       const [detail, summary, templates] = await Promise.all([
@@ -52,16 +77,22 @@ const SecretaryPage: React.FC = () => {
         templateService.getAll().catch(() => [] as Template[]),
       ]);
 
-      if (detail) setActiveCouncil(detail);
-
-      const reviews = summary?.items ?? [];
-      setScoreRows(
-        reviews.map((r: any) => ({
-          name: r.memberName ?? 'Thanh vien',
-          role: r.role ?? 'Thanh vien',
-          score: typeof r.score === 'number' ? r.score : undefined,
-        }))
+      if (detail) {
+        setActiveCouncil(detail);
+      }
+      setRows(
+        (summary?.items ?? []).map((item) => ({
+          memberId: item.memberId,
+          memberName: item.memberName,
+          role: item.role,
+          score: item.score,
+          isSubmitted: item.isSubmitted,
+          submittedAt: item.submittedAt,
+          decisionStatus: item.decisionStatus,
+          decisionNote: item.decisionNote,
+        })),
       );
+      setAverageScore(summary?.averageScore ?? 0);
 
       const secretaryTemplate = templates.find((t) => {
         const role = normalizeText(t.role);
@@ -74,24 +105,55 @@ const SecretaryPage: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      showToast('Khong the tai du lieu hoi dong.');
+      setError(typeof err === 'string' ? err : 'Khong the tai du lieu hoi dong.');
     } finally {
-      setLoadingData(false);
+      setLoading(false);
     }
-  };
+  }, [councilId]);
+
+  const refreshScoreBoard = React.useCallback(async () => {
+    if (!councilId) return;
+    try {
+      setPolling(true);
+      const summary = await councilService.getScoreSummary(councilId);
+      setRows(
+        (summary?.items ?? []).map((item) => ({
+          memberId: item.memberId,
+          memberName: item.memberName,
+          role: item.role,
+          score: item.score,
+          isSubmitted: item.isSubmitted,
+          submittedAt: item.submittedAt,
+          decisionStatus: item.decisionStatus,
+          decisionNote: item.decisionNote,
+        })),
+      );
+      setAverageScore(summary?.averageScore ?? 0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPolling(false);
+    }
+  }, [councilId]);
 
   React.useEffect(() => {
-    loadCouncilContext().catch(console.error);
-  }, []);
+    loadBaseData().catch(() => undefined);
+  }, [loadBaseData]);
 
-  const downloadableDocs = useMemo<DownloadItem[]>(() => {
+  React.useEffect(() => {
+    if (!councilId) return undefined;
+    const timer = window.setInterval(() => {
+      refreshScoreBoard().catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [councilId, refreshScoreBoard]);
+
+  const downloadableDocs = React.useMemo<DownloadItem[]>(() => {
     if (!activeCouncil) return [];
-
     const docs: DownloadItem[] = [
       { kind: 'decision', label: `Quyet dinh ${activeCouncil.decisionCode}.pdf` },
       { kind: 'minutes', label: `Bien ban ${activeCouncil.decisionCode}.pdf` },
     ];
-
     for (const report of activeCouncil.projectReports ?? []) {
       if (!report.fileUrl) continue;
       docs.push({
@@ -100,264 +162,282 @@ const SecretaryPage: React.FC = () => {
         label: report.type === 'final' ? 'Bao cao tong ket.pdf' : 'Bao cao giua ky.pdf',
       });
     }
-
     return docs;
   }, [activeCouncil]);
 
   const handleDownloadDoc = async (doc: DownloadItem) => {
-    if (!activeCouncil) {
-      showToast('Chua co hoi dong de tai tep.');
-      return;
-    }
-
+    if (!activeCouncil) return;
     try {
       if (doc.kind === 'decision') {
         await councilService.downloadDecision(activeCouncil.id, doc.label);
       } else if (doc.kind === 'minutes') {
         await councilService.downloadMinutes(activeCouncil.id, doc.label);
-      } else {
-        if (!activeCouncil.projectId) throw new Error('Khong xac dinh duoc de tai cua hoi dong.');
+      } else if (activeCouncil.projectId) {
         await projectService.downloadReportFile(activeCouncil.projectId, doc.reportId, doc.label);
       }
-
       showToast(`Da tai: ${doc.label}`);
     } catch (err) {
-      console.error(err);
-      showToast(typeof err === 'string' ? err : `Khong the tai ${doc.label}.`);
+      setError(typeof err === 'string' ? err : `Khong the tai ${doc.label}.`);
     }
   };
 
   const handleDownloadSummaryTemplate = async () => {
-    if (!activeCouncil?.projectId) {
-      showToast('Chua co de tai de tai bieu mau.');
+    if (!activeCouncil?.projectId || !templateId) {
+      setError('Chua cau hinh bieu mau Thu ky tren he thong.');
       return;
     }
-    if (!templateId) {
-      showToast('Chua cau hinh bieu mau Thu ky tren he thong.');
-      return;
-    }
-
     try {
       await templateService.fill(templateId, activeCouncil.projectId);
-      showToast('Da tai bieu mau Thu ky tu he thong.');
+      showToast('Da tai bieu mau Thu ky.');
     } catch (err) {
-      console.error(err);
-      showToast(typeof err === 'string' ? err : 'Khong the tai bieu mau Thu ky.');
+      setError(typeof err === 'string' ? err : 'Khong the tai bieu mau Thu ky.');
     }
   };
 
   const handleUploadMinutes = async () => {
     if (!councilId) {
-      showToast('Chua co hoi dong de gui bien ban.');
+      setError('Chua co hoi dong de gui bien ban.');
       return;
     }
     if (!minutesFile) {
-      showToast('Vui long chon file bien ban nghiem thu.');
+      setError('Vui long chon file bien ban nghiem thu.');
       return;
     }
-
     setSubmittingMinutes(true);
+    setError('');
     try {
       await councilService.submitMinutes(
         councilId,
         minutesContent.trim() || 'Thu ky gui bien ban nghiem thu chinh thuc.',
-        minutesFile
+        minutesFile,
       );
-      const updated = await councilService.getById(councilId);
-      if (updated) setActiveCouncil(updated);
-      showToast('Da tai len bien ban nghiem thu chinh thuc.');
+      showToast('Da tai len bien ban nghiem thu.');
       setMinutesFile(null);
-    } catch (e) {
-      console.error(e);
-      showToast(typeof e === 'string' ? e : 'Khong the tai len bien ban nghiem thu.');
+      const detail = await councilService.getById(councilId);
+      if (detail) setActiveCouncil(detail);
+    } catch (err) {
+      setError(typeof err === 'string' ? err : 'Khong the tai len bien ban nghiem thu.');
     } finally {
       setSubmittingMinutes(false);
+    }
+  };
+
+  const handleDecision = async (memberId: string, decision: 'accepted' | 'rework', memberName: string) => {
+    if (!councilId) return;
+    const note = window.prompt('Nhap ghi chu (co the de trong):', '') ?? '';
+    setError('');
+    try {
+      await councilService.submitScoreDecision(councilId, { memberId, decision, note: note.trim() || undefined });
+      await refreshScoreBoard();
+      showToast(
+        decision === 'accepted'
+          ? `Da xac nhan hop le cho ${memberName}.`
+          : `Da yeu cau ${memberName} nhap lai diem.`,
+      );
+    } catch (err) {
+      setError(typeof err === 'string' ? err : 'Khong the cap nhat quyet dinh diem.');
+    }
+  };
+
+  const finalizeCouncil = async () => {
+    if (!councilId) return;
+    setError('');
+    try {
+      await councilService.updateStatus(councilId, 'da_hoan_thanh', 'secretary');
+      showToast('Da xac nhan hoan thanh chinh sua.');
+      await loadBaseData();
+    } catch (err) {
+      setError(typeof err === 'string' ? err : 'Khong the cap nhat trang thai hoi dong.');
     }
   };
 
   return (
     <div className="flex flex-col h-full gap-6 max-w-7xl mx-auto w-full">
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
-      
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <aside className="lg:col-span-4 space-y-6">
-          <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Thông tin Đề tài</h2>
-            <div className="space-y-3">
-              <div><p className="text-xs text-gray-400">Mã đề tài</p><p className="text-sm font-semibold">{activeCouncil?.projectCode ?? 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400">Tên đề tài</p><p className="text-sm font-medium leading-relaxed">{activeCouncil?.projectTitle ?? 'Chua co du lieu'}</p></div>
-              <div><p className="text-xs text-gray-400">Mã hội đồng</p><p className="text-sm font-semibold">{activeCouncil?.decisionCode ?? 'N/A'}</p></div>
-            </div>
-          </section>
 
-          <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Kho Tài liệu</h2>
-            {downloadableDocs.length ? (
-              <ul className="space-y-2">
-                {downloadableDocs.map((doc, idx) => (
-                  <li key={`${doc.label}-${idx}`}>
-                    <button onClick={() => handleDownloadDoc(doc)} className="flex items-center text-sm text-blue-600 hover:underline py-1">{doc.label}</button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-gray-400">Chua co tai lieu san sang de tai xuong.</p>
-            )}
-          </section>
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold text-gray-900">Bang dieu khien Thu ky hoi dong</h2>
+        <p className="text-sm text-gray-500">Dong bo ket qua cham diem, tong hop bien ban va chot nghiem thu.</p>
+      </header>
 
-          <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Biểu mẫu của tôi</h2>
-            <button
-              onClick={handleDownloadSummaryTemplate}
-              disabled={!templateId || !activeCouncil?.projectId}
-              className="w-full bg-[#EFF6FF] text-[#1E40AF] border border-blue-200 font-medium py-3 px-4 rounded-md text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
-            >
-              Tải Phiếu tổng hợp điểm & Biên bản
-            </button>
-          </section>
-        </aside>
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
+          {error}
+        </div>
+      )}
 
-        <div className="lg:col-span-8 space-y-6">
-          <header className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Bảng điều khiển Thư ký Hội đồng</h2>
-            <p className="text-sm text-gray-500 mt-1">Quản lý phiên họp nghiệm thu và tổng hợp dữ liệu đánh giá.</p>
-          </header>
-
-          <section className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="font-semibold text-gray-800">Bảng Tổng hợp Real-time</h3>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Đang cập nhật</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">Thành viên</th>
-                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">Vai trò</th>
-                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b text-center">Điểm số</th>
-                    <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b text-right">Thao tác dữ liệu</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {(scoreRows.length ? scoreRows : [{ name: 'Chưa có dữ liệu', role: '-', score: undefined }]).map((row, idx) => (
-                  <tr key={`${row.name}-${idx}`}>
-                    <td className="px-6 py-4 text-sm font-medium">{row.name}</td><td className="px-6 py-4 text-sm text-gray-600">{row.role}</td><td className="px-6 py-4 text-sm font-bold text-center">{row.score ?? '...'}</td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button
-                        onClick={() => {
-                          const key = `${row.name}-${idx}`;
-                          setMemberDecisions((prev) => ({ ...prev, [key]: 'accepted' }));
-                          showToast(`Da xac nhan hop le cho ${row.name}`);
-                        }}
-                        className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                      >
-                        Xác nhận hợp lệ
-                      </button>
-                      <button
-                        onClick={() => {
-                          const key = `${row.name}-${idx}`;
-                          setMemberDecisions((prev) => ({ ...prev, [key]: 'rework' }));
-                          showToast(`Da yeu cau ${row.name} nhap lai diem.`);
-                        }}
-                        className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                      >
-                        Yêu cầu nhập lại
-                      </button>
-                      {memberDecisions[`${row.name}-${idx}`] === 'accepted' && (
-                        <span className="text-[10px] font-bold text-green-600">Đã xác nhận</span>
-                      )}
-                      {memberDecisions[`${row.name}-${idx}`] === 'rework' && (
-                        <span className="text-[10px] font-bold text-red-600">Chờ nhập lại</span>
-                      )}
-                    </td>
-                  </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-blue-50">
-                    <td className="px-6 py-4 text-sm font-bold text-[#1E40AF]" colSpan={2}>Điểm trung bình cộng</td>
-                    <td className="px-6 py-4 text-lg font-bold text-[#1E40AF] text-center">{scoreRows.length ? (scoreRows.filter(r => typeof r.score === 'number').reduce((a, r) => a + (r.score as number), 0) / Math.max(scoreRows.filter(r => typeof r.score === 'number').length, 1)).toFixed(1) : '0.0'}</td>
-                    <td className="px-6 py-4 text-sm italic text-[#1E40AF] text-right">Tự động tính toán</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="font-semibold text-gray-800 mb-4">Ghi chú kết luận & Yêu cầu chỉnh sửa</h3>
-            <textarea
-              value={minutesContent}
-              onChange={(e) => setMinutesContent(e.target.value)}
-              className="w-full border-gray-300 rounded-lg focus:ring-[#1E40AF] focus:border-[#1E40AF] text-sm p-4 h-48"
-              placeholder="Nhập các nội dung thảo luận và yêu cầu từ hội đồng tại đây..."
-            />
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-6">
-            <h3 className="font-semibold text-gray-800 mb-2">Quản lý sau nghiệm thu</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <input
-                  ref={minutesFileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="application/pdf,.pdf"
-                  onChange={(e) => setMinutesFile(e.target.files?.[0] ?? null)}
-                />
-                <button
-                  type="button"
-                  onClick={() => minutesFileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-[#1E40AF] cursor-pointer transition-colors bg-gray-50"
-                >
-                  <div className="mb-3 text-gray-400 text-3xl font-bold">+</div>
-                  <p className="text-sm font-medium text-gray-700">
-                    {minutesFile ? `Đã chọn: ${minutesFile.name}` : 'Tải lên Biên bản nghiệm thu chính thức'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">Định dạng hỗ trợ: PDF (Max 10MB)</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUploadMinutes}
-                  disabled={submittingMinutes || !minutesFile}
-                  className="mt-3 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-black disabled:opacity-50"
-                >
-                  {submittingMinutes ? 'ĐANG GỬI BIÊN BẢN...' : 'GỬI BIÊN BẢN CHÍNH THỨC'}
-                </button>
-                {loadingData && <p className="text-xs text-gray-400 mt-2">Dang dong bo du lieu hoi dong...</p>}
+      {loading ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai du lieu hoi dong...</div>
+      ) : !activeCouncil ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Ban chua duoc gan vao hoi dong nao.</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <aside className="lg:col-span-4 space-y-6">
+            <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Thong tin de tai</h3>
+              <div className="space-y-3 text-sm">
+                <div><p className="text-xs text-gray-400">Ma de tai</p><p className="font-semibold">{activeCouncil.projectCode}</p></div>
+                <div><p className="text-xs text-gray-400">Ten de tai</p><p className="font-medium leading-relaxed">{activeCouncil.projectTitle}</p></div>
+                <div><p className="text-xs text-gray-400">Ma hoi dong</p><p className="font-semibold">{activeCouncil.decisionCode}</p></div>
               </div>
-              
-              <div className="flex flex-col justify-center space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className="text-sm font-medium text-gray-700">Cấp quyền xem biên bản cho Chủ nhiệm</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setPermissionGranted(!permissionGranted)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:ring-offset-2 ${permissionGranted ? 'bg-[#1E40AF]' : 'bg-gray-200'}`}
+            </section>
+
+            <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Kho tai lieu</h3>
+              {downloadableDocs.length ? (
+                <ul className="space-y-2">
+                  {downloadableDocs.map((doc, idx) => (
+                    <li key={`${doc.label}-${idx}`}>
+                      <button onClick={() => handleDownloadDoc(doc).catch(() => undefined)} className="text-sm text-blue-600 hover:underline">
+                        {doc.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-400">Chua co tai lieu san sang de tai.</p>
+              )}
+            </section>
+
+            <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Bieu mau cua toi</h3>
+              <button
+                onClick={() => handleDownloadSummaryTemplate().catch(() => undefined)}
+                disabled={!templateId || !activeCouncil.projectId}
+                className="w-full bg-[#EFF6FF] text-[#1E40AF] border border-blue-200 font-medium py-3 px-4 rounded-md text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                Tai phieu tong hop diem va bien ban
+              </button>
+            </section>
+          </aside>
+
+          <div className="lg:col-span-8 space-y-6">
+            <section className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 className="font-semibold text-gray-800">Bang tong hop diem realtime</h3>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {polling ? 'Dang dong bo...' : 'Tu dong cap nhat 5s'}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">Thanh vien</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">Vai tro</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b text-center">Diem so</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">Trang thai nop</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b text-right">Thao tac thu ky</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rows.map((row) => (
+                      <tr key={row.memberId}>
+                        <td className="px-6 py-4 text-sm font-medium">{row.memberName}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{roleLabel(row.role)}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-center">{row.score ?? '-'}</td>
+                        <td className="px-6 py-4 text-sm">
+                          {row.isSubmitted ? (
+                            <span className="text-emerald-600 font-semibold">
+                              Da nop {row.submittedAt ? `(${new Date(row.submittedAt).toLocaleTimeString('vi-VN')})` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-semibold">Chua nop</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button
+                            disabled={!row.isSubmitted}
+                            onClick={() => handleDecision(row.memberId, 'accepted', row.memberName).catch(() => undefined)}
+                            className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50"
+                          >
+                            Xac nhan hop le
+                          </button>
+                          <button
+                            disabled={!row.isSubmitted}
+                            onClick={() => handleDecision(row.memberId, 'rework', row.memberName).catch(() => undefined)}
+                            className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50"
+                          >
+                            Yeu cau nhap lai
+                          </button>
+                          {row.decisionStatus === 'accepted' && <span className="text-[10px] font-bold text-green-600">Da xac nhan</span>}
+                          {row.decisionStatus === 'rework' && <span className="text-[10px] font-bold text-red-600">Cho nhap lai</span>}
+                        </td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 && (
+                      <tr>
+                        <td className="px-6 py-6 text-sm text-gray-400" colSpan={5}>
+                          Chua co du lieu diem.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-blue-50">
+                      <td className="px-6 py-4 text-sm font-bold text-[#1E40AF]" colSpan={2}>Diem trung binh cong</td>
+                      <td className="px-6 py-4 text-lg font-bold text-[#1E40AF] text-center">{averageScore.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm italic text-[#1E40AF]" colSpan={2}>Tu dong tinh toan</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+
+            <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <h3 className="font-semibold text-gray-800 mb-4">Ghi chu ket luan va yeu cau chinh sua</h3>
+              <textarea
+                value={minutesContent}
+                onChange={(e) => setMinutesContent(e.target.value)}
+                className="w-full border-gray-300 rounded-lg focus:ring-[#1E40AF] focus:border-[#1E40AF] text-sm p-4 h-40"
+                placeholder="Nhap noi dung thao luan va yeu cau tu hoi dong..."
+              />
+            </section>
+
+            <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-6">
+              <h3 className="font-semibold text-gray-800">Quan ly sau nghiem thu</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <input
+                    ref={minutesFileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf,.pdf"
+                    onChange={(e) => setMinutesFile(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => minutesFileInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-[#1E40AF] transition-colors bg-gray-50"
                   >
-                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${permissionGranted ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                    <div className="mb-3 text-gray-400 text-3xl font-bold">+</div>
+                    <p className="text-sm font-medium text-gray-700">
+                      {minutesFile ? `Da chon: ${minutesFile.name}` : 'Tai len bien ban nghiem thu chinh thuc'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Dinh dang ho tro: PDF</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUploadMinutes().catch(() => undefined)}
+                    disabled={submittingMinutes || !minutesFile}
+                    className="mt-3 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-black disabled:opacity-50"
+                  >
+                    {submittingMinutes ? 'DANG GUI BIEN BAN...' : 'GUI BIEN BAN CHINH THUC'}
                   </button>
                 </div>
-                <button onClick={async () => {
-                  if (!councilId) {
-                    showToast('Chua co hoi dong de cap nhat trang thai.');
-                    return;
-                  }
-                  try {
-                    await councilService.updateStatus(councilId, 'da_hoan_thanh', 'secretary');
-                    showToast('Đã xác nhận hoàn thành chỉnh sửa');
-                  } catch (e) {
-                    console.error(e);
-                    showToast(typeof e === 'string' ? e : 'Khong the cap nhat trang thai hoi dong.');
-                  }
-                }} className="w-full bg-[#1E40AF] text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md">
-                  Xác nhận hoàn thành chỉnh sửa
-                </button>
+                <div className="flex flex-col justify-end">
+                  <button
+                    onClick={() => finalizeCouncil().catch(() => undefined)}
+                    className="w-full bg-[#1E40AF] text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                  >
+                    Xac nhan hoan thanh chinh sua
+                  </button>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

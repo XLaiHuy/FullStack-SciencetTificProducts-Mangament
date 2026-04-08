@@ -34,6 +34,12 @@ export const CheckConflictSchema = z.object({
   projectId:   z.string(),
 });
 
+export const ScoreDecisionSchema = z.object({
+  memberId: z.string().cuid(),
+  decision: z.enum(['accepted', 'rework']),
+  note: z.string().max(1000).optional(),
+});
+
 type MemberInput = z.infer<typeof MemberSchema>;
 
 type CouncilDownloadPayload =
@@ -680,32 +686,152 @@ export const CouncilService = {
     });
   },
 
-  async getScoreSummary(councilId: string) {
-    const members = await prisma.councilMembership.findMany({ where: { councilId, is_deleted: false } });
-    const memberMap = new Map(members.map(m => [m.id, m]));
+  async submitScoreDecision(
+    councilId: string,
+    actorUserId: string,
+    actorRole: string,
+    payload: unknown,
+  ) {
+    const { memberId, decision, note } = ScoreDecisionSchema.parse(payload);
+    const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
+    if (!council) throw new Error('Hoi dong khong ton tai.');
 
-    const reviews = await prisma.councilReview.findMany({
-      where: { councilId },
-      orderBy: { createdAt: 'asc' },
+    const targetMember = await prisma.councilMembership.findFirst({
+      where: { id: memberId, councilId, is_deleted: false },
+    });
+    if (!targetMember) throw new Error('Thanh vien khong ton tai trong hoi dong nay.');
+
+    let decidedByName = 'System';
+    let decidedByMemberId: string | null = null;
+
+    if (actorRole === 'council_member') {
+      const actorMembership = await prisma.councilMembership.findFirst({
+        where: { councilId, userId: actorUserId, is_deleted: false },
+      });
+      if (!actorMembership || actorMembership.role !== 'thu_ky') {
+        throw new Error('Chi thu ky hoi dong moi duoc phep xac nhan hoac yeu cau nhap lai diem.');
+      }
+      decidedByName = actorMembership.name;
+      decidedByMemberId = actorMembership.id;
+    } else {
+      const actor = await prisma.user.findFirst({
+        where: { id: actorUserId, is_deleted: false },
+        select: { name: true },
+      });
+      if (actor?.name) decidedByName = actor.name;
+    }
+
+    const details = JSON.stringify({
+      decision,
+      note: note?.trim() ?? '',
+      decidedByName,
+      decidedByUserId: actorUserId,
+      decidedByMemberId,
+      decidedAt: new Date().toISOString(),
     });
 
-    const items = reviews
-      .filter(r => memberMap.has(r.memberId))
-      .map((r) => {
-        const m = memberMap.get(r.memberId)!;
-        return {
-          memberId: r.memberId,
-          memberName: m.name ?? 'Unknown',
-          role: m.role ?? 'uy_vien',
-          type: r.type,
-          score: r.score ? Number(r.score) : null,
-          comments: r.comments,
-          submittedAt: r.createdAt,
-        };
-      });
+    await prisma.councilReview.upsert({
+      where: {
+        councilId_memberId_type: { councilId, memberId: targetMember.id, type: 'decision' },
+      } as never,
+      create: {
+        councilId,
+        memberId: targetMember.id,
+        type: 'decision',
+        comments: details,
+        score: null,
+      },
+      update: {
+        comments: details,
+        score: null,
+      },
+    });
 
-    const scored = items.filter(i => typeof i.score === 'number' && i.score !== null);
-    const avg = scored.length ? scored.reduce((s, i) => s + (i.score ?? 0), 0) / scored.length : 0;
-    return { items, averageScore: Number(avg.toFixed(2)) };
+    await logBusiness(
+      actorUserId,
+      decidedByName,
+      `${decision === 'accepted' ? 'Xac nhan hop le' : 'Yeu cau nhap lai'} diem cho ${targetMember.name}`,
+      'Councils',
+    );
+
+    return {
+      memberId: targetMember.id,
+      decision,
+      note: note?.trim() ?? '',
+      decidedByName,
+    };
+  },
+
+  async getScoreSummary(councilId: string) {
+    const members = await prisma.councilMembership.findMany({
+      where: { councilId, is_deleted: false },
+      orderBy: { createdAt: 'asc' },
+    });
+    const reviews = await prisma.councilReview.findMany({
+      where: { councilId },
+      orderBy: [{ updatedAt: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    const parseDecision = (raw: string | null) => {
+      if (!raw) return { decision: null as 'accepted' | 'rework' | null, note: '', decidedByName: '', decidedAt: null as string | null };
+      try {
+        const parsed = JSON.parse(raw) as {
+          decision?: 'accepted' | 'rework';
+          note?: string;
+          decidedByName?: string;
+          decidedAt?: string;
+        };
+        if (parsed.decision !== 'accepted' && parsed.decision !== 'rework') {
+          return { decision: null, note: '', decidedByName: '', decidedAt: null };
+        }
+        return {
+          decision: parsed.decision,
+          note: parsed.note ?? '',
+          decidedByName: parsed.decidedByName ?? '',
+          decidedAt: parsed.decidedAt ?? null,
+        };
+      } catch {
+        return { decision: null, note: '', decidedByName: '', decidedAt: null };
+      }
+    };
+
+    const items = members.map((member) => {
+      const memberRows = reviews.filter((row) => row.memberId === member.id);
+      const scoreRows = memberRows.filter((row) => row.type === 'score' || row.type === 'review');
+      const decisionRows = memberRows.filter((row) => row.type === 'decision');
+      const scoreRow = scoreRows.length ? scoreRows[scoreRows.length - 1] : null;
+      const decisionRow = decisionRows.length ? decisionRows[decisionRows.length - 1] : null;
+      const parsedDecision = parseDecision(decisionRow?.comments ?? null);
+      const numericScore = scoreRow?.score !== null && scoreRow?.score !== undefined
+        ? Number(scoreRow.score)
+        : null;
+
+      return {
+        memberId: member.id,
+        memberName: member.name ?? 'Unknown',
+        role: member.role ?? 'uy_vien',
+        score: numericScore,
+        comments: scoreRow?.comments ?? null,
+        isSubmitted: numericScore !== null,
+        submittedAt: scoreRow?.updatedAt ?? scoreRow?.createdAt ?? null,
+        submittedType: scoreRow?.type ?? null,
+        decisionStatus: parsedDecision.decision,
+        decisionNote: parsedDecision.note,
+        decisionBy: parsedDecision.decidedByName,
+        decisionAt: parsedDecision.decidedAt ?? (decisionRow?.updatedAt?.toISOString() ?? null),
+      };
+    });
+
+    const scored = items.filter((item) => item.score !== null);
+    const average = scored.length
+      ? scored.reduce((sum, item) => sum + Number(item.score ?? 0), 0) / scored.length
+      : 0;
+
+    return {
+      items,
+      averageScore: Number(average.toFixed(2)),
+      submittedCount: scored.length,
+      totalMembers: members.length,
+    };
   },
 };

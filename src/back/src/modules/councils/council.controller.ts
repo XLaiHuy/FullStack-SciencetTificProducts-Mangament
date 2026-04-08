@@ -190,4 +190,16 @@ export const CouncilController = {
       R.ok(res, data);
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
+
+  async submitScoreDecision(req: Request, res: Response) {
+    try {
+      const result = await CouncilService.submitScoreDecision(
+        req.params.id,
+        req.user!.userId,
+        req.user!.role,
+        req.body,
+      );
+      R.ok(res, result, 'Da cap nhat quyet dinh cua thu ky.');
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
 };

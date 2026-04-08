@@ -4,6 +4,7 @@
  */
 import { axiosClient } from './axiosClient';
 import type { Project } from '../../types';
+import { downloadFromApi } from './downloadUtil';
 
 export interface SystemStats {
   totalProjects: number;
@@ -47,9 +48,24 @@ export const reportService = {
     return res.data;
   },
 
-  // GET /api/reports/export?type={type}&format={format}
-  async exportReport(type: string, format: 'pdf' | 'excel'): Promise<{ url: string }> {
-    const res = await axiosClient.get('/reports/export', { params: { type, format } });
-    return res.data;
+  async getContractsByStatus(): Promise<Array<{ status: string; count: number; totalBudget: number }>> {
+    const res = await axiosClient.get('/reports/contracts');
+    return res.data ?? [];
+  },
+
+  async exportReport(
+    type: string,
+    format: 'csv' | 'excel',
+    params?: { schoolYear?: string; field?: string; department?: string; status?: string },
+  ): Promise<void> {
+    const search = new URLSearchParams({
+      type,
+      format,
+      ...(params?.schoolYear ? { schoolYear: params.schoolYear } : {}),
+      ...(params?.field ? { field: params.field } : {}),
+      ...(params?.department ? { department: params.department } : {}),
+      ...(params?.status ? { status: params.status } : {}),
+    }).toString();
+    await downloadFromApi(`/reports/export?${search}`, `report_${type}.${format === 'csv' ? 'csv' : 'xlsx'}`);
   },
 };

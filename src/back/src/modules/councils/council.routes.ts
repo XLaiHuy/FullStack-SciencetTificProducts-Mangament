@@ -98,5 +98,9 @@ router.get('/:id/score-summary',
   requireRole('council_member', 'research_staff', 'superadmin'),
   CouncilController.getScoreSummary
 );
+router.post('/:id/score-decisions',
+  requireRole('council_member', 'research_staff', 'superadmin'),
+  CouncilController.submitScoreDecision
+);
 
 export default router;

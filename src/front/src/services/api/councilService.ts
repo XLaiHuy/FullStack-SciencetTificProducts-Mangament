@@ -166,9 +166,34 @@ export const councilService = {
     await axiosClient.post(`/councils/${councilId}/minutes`, form);
   },
 
-  async getScoreSummary(councilId: string): Promise<{ items: Array<{ memberName: string; role: string; score?: number }>; averageScore: number }> {
+  async getScoreSummary(councilId: string): Promise<{
+    items: Array<{
+      memberId: string;
+      memberName: string;
+      role: string;
+      score: number | null;
+      comments?: string | null;
+      isSubmitted: boolean;
+      submittedAt?: string | null;
+      submittedType?: string | null;
+      decisionStatus?: 'accepted' | 'rework' | null;
+      decisionNote?: string;
+      decisionBy?: string;
+      decisionAt?: string | null;
+    }>;
+    averageScore: number;
+    submittedCount?: number;
+    totalMembers?: number;
+  }> {
     const res = await axiosClient.get(`/council/${councilId}/score-summary`);
     return res.data;
+  },
+
+  async submitScoreDecision(
+    councilId: string,
+    payload: { memberId: string; decision: 'accepted' | 'rework'; note?: string },
+  ): Promise<void> {
+    await axiosClient.post(`/council/${councilId}/score-decisions`, payload);
   },
 
   async approveRevision(revisionId: string): Promise<void> {
