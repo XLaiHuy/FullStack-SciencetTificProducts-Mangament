@@ -59,6 +59,12 @@ export const councilService = {
     return (res.data ?? []).map(mapCouncil);
   },
 
+  // GET /api/councils/mine
+  async getMine(): Promise<Council[]> {
+    const res = await axiosClient.get('/councils/mine');
+    return (res.data ?? []).map(mapCouncil);
+  },
+
   // GET /api/councils/{id}
   async getById(id: string): Promise<Council | undefined> {
     const res = await axiosClient.get(`/councils/${id}`);
@@ -139,16 +145,11 @@ export const councilService = {
    * POST /api/councils/check-conflict
    */
   async checkConflict(member: CouncilMember, projectCode: string): Promise<boolean> {
-    try {
-      const res = await axiosClient.post('/councils/check-conflict', {
-        memberEmail: member.email,
-        projectId: projectCode,
-      });
-      return res.data.hasConflict ?? false;
-    } catch (err) {
-      console.warn('COI Check error:', err);
-      return false; // Safely bypass on mock errors or API issues
-    }
+    const res = await axiosClient.post('/councils/check-conflict', {
+      memberEmail: member.email,
+      projectId: projectCode,
+    });
+    return res.data.hasConflict ?? false;
   },
 
   async submitReview(councilId: string, score: number, comments: string): Promise<void> {

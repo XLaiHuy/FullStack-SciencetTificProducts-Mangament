@@ -13,7 +13,12 @@ router.put('/:id/approve',
   requireRole('council_member', 'research_staff', 'superadmin'),
   async (req: Request, res: Response) => {
     try {
-      const result = await CouncilService.complete(req.params.id, req.user!.userId, req.user!.name);
+      const result = await CouncilService.complete(
+        req.params.id,
+        req.user!.userId,
+        req.user!.name,
+        req.user!.role,
+      );
       R.ok(res, result, 'Đã phê duyệt bản sửa cuối.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   }

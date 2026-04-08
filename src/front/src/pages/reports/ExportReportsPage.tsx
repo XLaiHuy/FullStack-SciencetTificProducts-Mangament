@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { reportService } from '../../services/api/reportService';
 
+const STATUS_LABELS: Record<string, string> = {
+  dang_thuc_hien: 'Dang thuc hien',
+  tre_han: 'Tre han',
+  cho_nghiem_thu: 'Cho nghiem thu',
+  da_nghiem_thu: 'Da nghiem thu',
+  da_thanh_ly: 'Da thanh ly',
+  huy_bo: 'Huy bo',
+};
+
 const ExportReportsPage: React.FC = () => {
   const [format, setFormat] = useState<'csv' | 'excel'>('excel');
   const [reportType, setReportType] = useState('topic-summary');
@@ -11,6 +20,19 @@ const ExportReportsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [error, setError] = useState('');
+  const [filterOptions, setFilterOptions] = useState<{
+    schoolYears: string[];
+    fields: string[];
+    departments: string[];
+    statuses: string[];
+  }>({ schoolYears: [], fields: [], departments: [], statuses: [] });
+
+  React.useEffect(() => {
+    reportService
+      .getFilterOptions()
+      .then((options) => setFilterOptions(options))
+      .catch(() => undefined);
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -104,26 +126,46 @@ const ExportReportsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Nam hoc</label>
-                <input value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} placeholder="VD: 2025-2026" className="w-full rounded-xl border-gray-200 text-sm py-2.5" />
+                <select value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
+                  <option value="">Tat ca nam hoc</option>
+                  {filterOptions.schoolYears.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Linh vuc</label>
-                <input value={field} onChange={(e) => setField(e.target.value)} placeholder="Loc theo linh vuc" className="w-full rounded-xl border-gray-200 text-sm py-2.5" />
+                <select value={field} onChange={(e) => setField(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
+                  <option value="">Tat ca linh vuc</option>
+                  {filterOptions.fields.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Don vi</label>
-                <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Loc theo khoa/vien" className="w-full rounded-xl border-gray-200 text-sm py-2.5" />
+                <select value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
+                  <option value="">Tat ca don vi</option>
+                  {filterOptions.departments.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Trang thai de tai</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
                   <option value="">Tat ca</option>
-                  <option value="dang_thuc_hien">Dang thuc hien</option>
-                  <option value="tre_han">Tre han</option>
-                  <option value="cho_nghiem_thu">Cho nghiem thu</option>
-                  <option value="da_nghiem_thu">Da nghiem thu</option>
-                  <option value="da_thanh_ly">Da thanh ly</option>
-                  <option value="huy_bo">Huy bo</option>
+                  {filterOptions.statuses.map((option) => (
+                    <option key={option} value={option}>
+                      {STATUS_LABELS[option] ?? option}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

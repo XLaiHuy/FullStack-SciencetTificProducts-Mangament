@@ -11,19 +11,21 @@ import * as R from '../../utils/apiResponse';
 const router = Router();
 router.use(authenticate, requireRole('superadmin'));
 
+const AdminRoleValues = [
+  'research_staff',
+  'project_owner',
+  'council_member',
+  'accounting',
+  'archive_staff',
+  'report_viewer',
+  'superadmin',
+] as const;
+
 const CreateUserSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum([
-    'research_staff',
-    'project_owner',
-    'council_member',
-    'accounting',
-    'archive_staff',
-    'report_viewer',
-    'superadmin',
-  ]),
+  role: z.enum(AdminRoleValues),
   councilRole: z.enum(['chairman', 'reviewer', 'secretary', 'member']).optional(),
   title: z.string().optional(),
   department: z.string().optional(),
@@ -34,6 +36,21 @@ const UpdateUserSchema = CreateUserSchema.omit({ password: true }).partial();
 const ResetPasswordSchema = z.object({
   temporaryPassword: z.string().min(6),
 });
+
+const CategoryCreateSchema = z.object({
+  type: z.string().trim().min(1).max(100),
+  value: z.string().trim().min(1).max(200),
+  label: z.string().trim().min(1).max(200),
+  sortOrder: z.number().int().min(0).max(10_000).optional(),
+}).strict();
+
+const CategoryUpdateSchema = CategoryCreateSchema.partial().strict();
+
+const ConfigItemSchema = z.object({
+  key: z.string().trim().min(1).max(100),
+  value: z.string().trim().max(2_000),
+  label: z.string().trim().min(1).max(200).optional(),
+}).strict();
 
 router.get('/dashboard', async (_req: Request, res: Response) => {
   try {
@@ -80,7 +97,13 @@ router.get('/users', async (req: Request, res: Response) => {
     const limitNum = Math.max(parseInt(limit as string, 10) || 30, 1);
 
     const where: Record<string, unknown> = { is_deleted: false };
-    if (role) where.role = role;
+    if (role) {
+      if (typeof role !== 'string' || !AdminRoleValues.includes(role as (typeof AdminRoleValues)[number])) {
+        R.badRequest(res, 'Vai tro loc khong hop le.');
+        return;
+      }
+      where.role = role;
+    }
     if (search) {
       where.OR = [{ name: { contains: search } }, { email: { contains: search } }];
     }
@@ -122,7 +145,8 @@ router.get('/users', async (req: Request, res: Response) => {
 router.post('/users', async (req: Request, res: Response) => {
   try {
     const body = CreateUserSchema.parse(req.body);
-    const existing = await prisma.user.findFirst({ where: { email: body.email } });
+    const normalizedEmail = body.email.trim().toLowerCase();
+    const existing = await prisma.user.findFirst({ where: { email: normalizedEmail } });
     if (existing) {
       R.conflict(res, 'Email da duoc su dung.');
       return;
@@ -131,7 +155,7 @@ router.post('/users', async (req: Request, res: Response) => {
     const created = await prisma.user.create({
       data: {
         name: body.name.trim(),
-        email: body.email.trim().toLowerCase(),
+        email: normalizedEmail,
         passwordHash: await hashPassword(body.password),
         role: body.role,
         councilRole: body.role === 'council_member' ? body.councilRole ?? 'member' : null,
@@ -169,6 +193,18 @@ router.put('/users/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    const normalizedEmail = body.email?.trim().toLowerCase();
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      const dup = await prisma.user.findFirst({
+        where: { email: normalizedEmail, is_deleted: false, NOT: { id: req.params.id } },
+        select: { id: true },
+      });
+      if (dup) {
+        R.conflict(res, 'Email da duoc su dung boi tai khoan khac.');
+        return;
+      }
+    }
+
     const nextRole = body.role ?? user.role;
     const nextCouncilRole =
       nextRole === 'council_member'
@@ -179,7 +215,7 @@ router.put('/users/:id', async (req: Request, res: Response) => {
       where: { id: req.params.id },
       data: {
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-        ...(body.email !== undefined ? { email: body.email.trim().toLowerCase() } : {}),
+        ...(normalizedEmail !== undefined ? { email: normalizedEmail } : {}),
         ...(body.role !== undefined ? { role: body.role } : {}),
         councilRole: nextCouncilRole,
         ...(body.title !== undefined ? { title: body.title?.trim() || null } : {}),
@@ -231,6 +267,11 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response) => 
 
 router.put('/users/:id/lock', async (req: Request, res: Response) => {
   try {
+    if (req.params.id === req.user!.userId) {
+      R.badRequest(res, 'Khong the tu khoa tai khoan dang dang nhap.');
+      return;
+    }
+
     const user = await prisma.user.findFirst({ where: { id: req.params.id, is_deleted: false } });
     if (!user) {
       R.notFound(res, 'Nguoi dung khong ton tai.');
@@ -294,7 +335,16 @@ router.get('/categories', async (req: Request, res: Response) => {
 
 router.post('/categories', async (req: Request, res: Response) => {
   try {
-    const cat = await prisma.category.create({ data: req.body });
+    const payload = CategoryCreateSchema.parse(req.body);
+    const cat = await prisma.category.create({
+      data: {
+        type: payload.type,
+        value: payload.value,
+        label: payload.label,
+        sortOrder: payload.sortOrder ?? 0,
+        isActive: true,
+      },
+    });
     await logBusiness(req.user!.userId, req.user!.name, `Tao danh muc ${cat.type}:${cat.value}`, 'Admin');
     R.created(res, cat, 'Tao danh muc thanh cong.');
   } catch (err) {
@@ -304,7 +354,16 @@ router.post('/categories', async (req: Request, res: Response) => {
 
 router.put('/categories/:id', async (req: Request, res: Response) => {
   try {
-    const cat = await prisma.category.update({ where: { id: req.params.id }, data: req.body });
+    const payload = CategoryUpdateSchema.parse(req.body);
+    const cat = await prisma.category.update({
+      where: { id: req.params.id },
+      data: {
+        ...(payload.type !== undefined ? { type: payload.type } : {}),
+        ...(payload.value !== undefined ? { value: payload.value } : {}),
+        ...(payload.label !== undefined ? { label: payload.label } : {}),
+        ...(payload.sortOrder !== undefined ? { sortOrder: payload.sortOrder } : {}),
+      },
+    });
     await logBusiness(req.user!.userId, req.user!.name, `Cap nhat danh muc ${cat.type}:${cat.value}`, 'Admin');
     R.ok(res, cat, 'Cap nhat danh muc thanh cong.');
   } catch (err) {
@@ -336,7 +395,7 @@ router.get('/config', async (_req: Request, res: Response) => {
 
 router.put('/config', async (req: Request, res: Response) => {
   try {
-    const updates = req.body as Array<{ key: string; value: string; label?: string }>;
+    const updates = z.array(ConfigItemSchema).parse(req.body);
     if (!Array.isArray(updates)) {
       R.badRequest(res, 'Body phai la mang [{ key, value, label? }].');
       return;

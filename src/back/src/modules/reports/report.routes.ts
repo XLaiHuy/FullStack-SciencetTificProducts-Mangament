@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import prisma from '../../prisma';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
@@ -8,6 +9,48 @@ import * as R from '../../utils/apiResponse';
 
 const router = Router();
 router.use(authenticate);
+
+const ProjectStatusSchema = z.enum([
+  'dang_thuc_hien',
+  'tre_han',
+  'cho_nghiem_thu',
+  'da_nghiem_thu',
+  'da_thanh_ly',
+  'huy_bo',
+]);
+
+const ExportTypeSchema = z.enum([
+  'topic-summary',
+  'contract-list',
+  'budget-report',
+  'completion-rate',
+  'overdue-list',
+]);
+
+const QueryStringSchema = z.preprocess(
+  (value) => (Array.isArray(value) ? value[0] : value),
+  z.string().trim().min(1),
+);
+
+const OptionalQueryStringSchema = QueryStringSchema.optional();
+
+const ExportQuerySchema = z.object({
+  type: z.preprocess(
+    (value) => (Array.isArray(value) ? value[0] : value),
+    ExportTypeSchema.default('topic-summary'),
+  ),
+  format: z.preprocess(
+    (value) => (Array.isArray(value) ? value[0] : value),
+    z.enum(['csv', 'excel', 'xlsx']).default('excel'),
+  ),
+  schoolYear: OptionalQueryStringSchema,
+  field: OptionalQueryStringSchema,
+  department: OptionalQueryStringSchema,
+  status: z.preprocess(
+    (value) => (Array.isArray(value) ? value[0] : value),
+    ProjectStatusSchema.optional(),
+  ),
+});
 
 const toIsoDate = (value: Date | string | null | undefined) => {
   if (!value) return '';
@@ -29,15 +72,20 @@ const parseSchoolYearRange = (schoolYear?: string) => {
   };
 };
 
-const buildProjectWhere = (query: Request['query']): Prisma.ProjectWhereInput => {
+const buildProjectWhere = (query: {
+  status?: z.infer<typeof ProjectStatusSchema>;
+  field?: string;
+  department?: string;
+  schoolYear?: string;
+}): Prisma.ProjectWhereInput => {
   const where: Prisma.ProjectWhereInput = { is_deleted: false };
 
-  const status = typeof query.status === 'string' ? query.status : undefined;
-  const field = typeof query.field === 'string' ? query.field : undefined;
-  const department = typeof query.department === 'string' ? query.department : undefined;
-  const schoolYear = typeof query.schoolYear === 'string' ? query.schoolYear : undefined;
+  const status = query.status;
+  const field = query.field;
+  const department = query.department;
+  const schoolYear = query.schoolYear;
 
-  if (status) where.status = status as never;
+  if (status) where.status = status;
   if (field) where.field = { contains: field };
   if (department) where.department = { contains: department };
 
@@ -236,23 +284,79 @@ router.get(
   },
 );
 
+/** GET /api/reports/filter-options */
+router.get(
+  '/filter-options',
+  requireRole('report_viewer', 'research_staff', 'superadmin', 'accounting'),
+  async (_req: Request, res: Response) => {
+    try {
+      const [yearCategories, fieldCategories, projectDistinct] = await Promise.all([
+        prisma.category.findMany({
+          where: { type: 'academic_year', isActive: true },
+          select: { value: true, sortOrder: true },
+          orderBy: [{ sortOrder: 'asc' }, { value: 'desc' }],
+        }),
+        prisma.category.findMany({
+          where: { type: 'field', isActive: true },
+          select: { value: true, sortOrder: true },
+          orderBy: [{ sortOrder: 'asc' }, { value: 'asc' }],
+        }),
+        prisma.project.findMany({
+          where: { is_deleted: false },
+          select: { field: true, department: true, status: true, startDate: true },
+        }),
+      ]);
+
+      const schoolYearsFromProjects = Array.from(
+        new Set(
+          projectDistinct
+            .map((item) => item.startDate?.getUTCFullYear())
+            .filter((value): value is number => typeof value === 'number')
+            .map((year) => `${year}-${year + 1}`),
+        ),
+      ).sort((a, b) => b.localeCompare(a));
+
+      const schoolYears = yearCategories.length
+        ? yearCategories.map((item) => item.value)
+        : schoolYearsFromProjects;
+
+      const fields = fieldCategories.length
+        ? fieldCategories.map((item) => item.value)
+        : Array.from(new Set(projectDistinct.map((item) => item.field).filter(Boolean))).sort();
+
+      const departments = Array.from(
+        new Set(projectDistinct.map((item) => item.department).filter(Boolean)),
+      ).sort();
+
+      const statuses = ProjectStatusSchema.options;
+
+      R.ok(res, { schoolYears, fields, departments, statuses });
+    } catch (err) {
+      R.serverError(res, (err as Error).message);
+    }
+  },
+);
+
 /** GET /api/reports/export?type=&format= */
 router.get(
   '/export',
   requireRole('report_viewer', 'research_staff', 'superadmin'),
   async (req: Request, res: Response) => {
     try {
-      const type = String(req.query.type ?? 'topic-summary');
-      const rawFormat = String(req.query.format ?? 'excel').toLowerCase();
-      const format = rawFormat === 'csv' ? 'csv' : 'xlsx';
+      const query = ExportQuerySchema.parse(req.query);
+      const type = query.type;
+      const format = query.format === 'csv' ? 'csv' : 'xlsx';
 
       let columns: string[] = [];
       let rows: Array<Record<string, unknown>> = [];
-      const projectWhere = buildProjectWhere(req.query);
+      const projectWhere = buildProjectWhere(query);
 
       if (type === 'contract-list') {
         const contracts = await prisma.contract.findMany({
-          where: { is_deleted: false },
+          where: {
+            is_deleted: false,
+            project: { is: projectWhere },
+          },
           include: { project: { include: { owner: true } } },
           orderBy: { createdAt: 'desc' },
         });
@@ -361,6 +465,10 @@ router.get(
       }
       await sendXlsx(res, baseName, columns, rows);
     } catch (err) {
+      if (err instanceof z.ZodError) {
+        R.badRequest(res, err.issues.map((issue) => issue.message).join('; '));
+        return;
+      }
       R.serverError(res, (err as Error).message);
     }
   },

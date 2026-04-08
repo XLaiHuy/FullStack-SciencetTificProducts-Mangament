@@ -150,7 +150,12 @@ export const CouncilController = {
   /** PUT /api/councils/:id/complete */
   async complete(req: Request, res: Response) {
     try {
-      const result = await CouncilService.complete(req.params.id, req.user!.userId, req.user!.name);
+      const result = await CouncilService.complete(
+        req.params.id,
+        req.user!.userId,
+        req.user!.name,
+        req.user!.role,
+      );
       R.ok(res, result, 'Hoàn thành nghiệm thu. Đề tài đã được nghiệm thu thành công.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
@@ -158,8 +163,7 @@ export const CouncilController = {
   /** POST /api/councils/:id/review */
   async submitReview(req: Request, res: Response) {
     try {
-      const { score, comments } = req.body;
-      const result = await CouncilService.submitReview(req.params.id, req.user!.userId, score, comments);
+      const result = await CouncilService.submitReview(req.params.id, req.user!.userId, req.body);
       R.ok(res, result, 'Đã gửi nhận xét phản biện.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
@@ -170,7 +174,13 @@ export const CouncilController = {
       const { content } = req.body;
       const file = (req as Request & { file?: Express.Multer.File }).file;
       const fileUrl = file ? `/uploads/councils/${file.filename}` : undefined;
-      const result = await CouncilService.recordMinutes(req.params.id, content, fileUrl, req.user!.name);
+      const result = await CouncilService.recordMinutes(
+        req.params.id,
+        req.user!.userId,
+        req.user!.role,
+        req.user!.name,
+        { content, fileUrl },
+      );
       R.ok(res, result, 'Đã ghi biên bản họp Hội đồng.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
@@ -178,15 +188,14 @@ export const CouncilController = {
   /** POST /api/councils/:id/score */
   async submitScore(req: Request, res: Response) {
     try {
-      const { score, comments } = req.body;
-      const result = await CouncilService.submitScore(req.params.id, req.user!.userId, score, comments);
+      const result = await CouncilService.submitScore(req.params.id, req.user!.userId, req.body);
       R.ok(res, result, 'Đã chấm điểm.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
 
   async getScoreSummary(req: Request, res: Response) {
     try {
-      const data = await CouncilService.getScoreSummary(req.params.id);
+      const data = await CouncilService.getScoreSummary(req.params.id, req.user!.userId, req.user!.role);
       R.ok(res, data);
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },

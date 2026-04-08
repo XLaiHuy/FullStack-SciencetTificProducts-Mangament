@@ -36,7 +36,7 @@ const ReviewerPage: React.FC = () => {
       setLoading(true);
       setError('');
       try {
-        const councils = await councilService.getAll();
+        const councils = await councilService.getMine();
         if (!councils.length) return;
         const id = councils[0].id;
         setCouncilId(id);
@@ -212,3 +212,4 @@ const ReviewerPage: React.FC = () => {
 };
 
 export default ReviewerPage;
+

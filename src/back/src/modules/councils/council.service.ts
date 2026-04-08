@@ -40,6 +40,21 @@ export const ScoreDecisionSchema = z.object({
   note: z.string().max(1000).optional(),
 });
 
+const ScorePayloadSchema = z.object({
+  score: z.coerce.number().min(0).max(100),
+  comments: z.string().trim().max(3000).optional().default(''),
+}).strict();
+
+const ReviewPayloadSchema = z.object({
+  score: z.coerce.number().min(0).max(100),
+  comments: z.string().trim().max(3000).optional().default(''),
+}).strict();
+
+const MinutesPayloadSchema = z.object({
+  content: z.string().trim().max(5000).optional(),
+  fileUrl: z.string().trim().min(1).optional(),
+}).strict();
+
 type MemberInput = z.infer<typeof MemberSchema>;
 
 type CouncilDownloadPayload =
@@ -627,9 +642,19 @@ export const CouncilService = {
   },
 
   /** PUT /api/councils/:id/complete */
-  async complete(id: string, actorId: string, actorName: string) {
+  async complete(id: string, actorId: string, actorName: string, actorRole: string) {
     const council = await prisma.council.findFirst({ where: { id, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
+
+    if (actorRole === 'council_member') {
+      const member = await prisma.councilMembership.findFirst({
+        where: { councilId: id, userId: actorId, is_deleted: false },
+        select: { role: true },
+      });
+      if (!member || (member.role !== 'thu_ky' && member.role !== 'chu_tich')) {
+        throw new Error('Chi thu ky hoac chu tich hoi dong moi duoc phep hoan thanh nghiem thu.');
+      }
+    }
 
     const [updatedCouncil] = await prisma.$transaction([
       prisma.council.update({ where: { id }, data: { status: 'da_hoan_thanh' } }),
@@ -644,7 +669,8 @@ export const CouncilService = {
   },
 
   /** POST /api/councils/:id/review */
-  async submitReview(councilId: string, userId: string, score: number, comments: string) {
+  async submitReview(councilId: string, userId: string, payload: unknown) {
+    const { score, comments } = ReviewPayloadSchema.parse(payload);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
 
@@ -652,6 +678,9 @@ export const CouncilService = {
       where: { councilId, userId, is_deleted: false },
     });
     if (!member) throw new Error('Bạn không phải thành viên hợp lệ của Hội đồng này.');
+    if (member.role !== 'phan_bien_1' && member.role !== 'phan_bien_2') {
+      throw new Error('Chi thanh vien phan bien moi duoc gui nhan xet phan bien.');
+    }
 
     return prisma.councilReview.upsert({
       where: { councilId_memberId_type: { councilId, memberId: member.id, type: 'review' } } as never,
@@ -661,16 +690,37 @@ export const CouncilService = {
   },
 
   /** POST /api/councils/:id/minutes */
-  async recordMinutes(councilId: string, content: string, fileUrl: string | undefined, recordedBy: string) {
+  async recordMinutes(
+    councilId: string,
+    actorUserId: string,
+    actorRole: string,
+    actorName: string,
+    payload: unknown,
+  ) {
+    const { content, fileUrl } = MinutesPayloadSchema.parse(payload);
+    const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
+    if (!council) throw new Error('Hoi dong khong ton tai.');
+
+    if (actorRole === 'council_member') {
+      const member = await prisma.councilMembership.findFirst({
+        where: { councilId, userId: actorUserId, is_deleted: false },
+        select: { role: true },
+      });
+      if (!member || (member.role !== 'thu_ky' && member.role !== 'chu_tich')) {
+        throw new Error('Chi thu ky hoac chu tich hoi dong moi duoc cap nhat bien ban.');
+      }
+    }
+
     return prisma.councilMinutes.upsert({
-      where:  { councilId },
-      create: { councilId, content, fileUrl, recordedBy },
-      update: { content, fileUrl },
+      where: { councilId },
+      create: { councilId, content, fileUrl, recordedBy: actorName },
+      update: { content, fileUrl, recordedBy: actorName },
     });
   },
 
   /** POST /api/councils/:id/score */
-  async submitScore(councilId: string, userId: string, score: number, comments: string) {
+  async submitScore(councilId: string, userId: string, payload: unknown) {
+    const { score, comments } = ScorePayloadSchema.parse(payload);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
 
@@ -678,6 +728,9 @@ export const CouncilService = {
       where: { councilId, userId, is_deleted: false },
     });
     if (!member) throw new Error('Bạn không phải thành viên hợp lệ của Hội đồng này.');
+    if (member.role === 'thu_ky') {
+      throw new Error('Thu ky hoi dong khong thuc hien cham diem.');
+    }
 
     return prisma.councilReview.upsert({
       where: { councilId_memberId_type: { councilId, memberId: member.id, type: 'score' } } as never,
@@ -762,15 +815,34 @@ export const CouncilService = {
     };
   },
 
-  async getScoreSummary(councilId: string) {
-    const members = await prisma.councilMembership.findMany({
-      where: { councilId, is_deleted: false },
-      orderBy: { createdAt: 'asc' },
+  async getScoreSummary(councilId: string, userId: string, userRole: string) {
+    const roleFilter = userRole === 'council_member'
+      ? { members: { some: { userId, is_deleted: false } } }
+      : userRole === 'project_owner'
+        ? { project: { ownerId: userId } }
+        : {};
+    const council = await prisma.council.findFirst({
+      where: {
+        OR: [{ id: councilId }, { decisionCode: councilId }],
+        is_deleted: false,
+        ...roleFilter,
+      },
+      select: { id: true },
     });
-    const reviews = await prisma.councilReview.findMany({
-      where: { councilId },
-      orderBy: [{ updatedAt: 'asc' }, { createdAt: 'asc' }],
-    });
+    if (!council) {
+      throw new Error('Hoi dong khong ton tai hoac ban khong co quyen xem bang tong hop diem.');
+    }
+
+    const [members, reviews] = await Promise.all([
+      prisma.councilMembership.findMany({
+        where: { councilId: council.id, is_deleted: false },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.councilReview.findMany({
+        where: { councilId: council.id },
+        orderBy: [{ updatedAt: 'asc' }, { createdAt: 'asc' }],
+      }),
+    ]);
 
     const parseDecision = (raw: string | null) => {
       if (!raw) return { decision: null as 'accepted' | 'rework' | null, note: '', decidedByName: '', decidedAt: null as string | null };
@@ -795,12 +867,20 @@ export const CouncilService = {
       }
     };
 
+    const latestByMember = new Map<string, { scoreRow: (typeof reviews)[number] | null; decisionRow: (typeof reviews)[number] | null }>();
+    for (const row of reviews) {
+      const current = latestByMember.get(row.memberId) ?? { scoreRow: null, decisionRow: null };
+      if (row.type === 'decision') {
+        current.decisionRow = row;
+      } else if (row.type === 'score' || row.type === 'review') {
+        current.scoreRow = row;
+      }
+      latestByMember.set(row.memberId, current);
+    }
+
     const items = members.map((member) => {
-      const memberRows = reviews.filter((row) => row.memberId === member.id);
-      const scoreRows = memberRows.filter((row) => row.type === 'score' || row.type === 'review');
-      const decisionRows = memberRows.filter((row) => row.type === 'decision');
-      const scoreRow = scoreRows.length ? scoreRows[scoreRows.length - 1] : null;
-      const decisionRow = decisionRows.length ? decisionRows[decisionRows.length - 1] : null;
+      const latest = latestByMember.get(member.id) ?? { scoreRow: null, decisionRow: null };
+      const { scoreRow, decisionRow } = latest;
       const parsedDecision = parseDecision(decisionRow?.comments ?? null);
       const numericScore = scoreRow?.score !== null && scoreRow?.score !== undefined
         ? Number(scoreRow.score)

@@ -4,6 +4,15 @@ import { projectService } from '../../services/api/projectService';
 import { StatusBadge } from '../../components/StatusBadge';
 import { reportService } from '../../services/api/reportService';
 
+const STATUS_LABELS: Record<string, string> = {
+  dang_thuc_hien: 'Dang thuc hien',
+  tre_han: 'Tre han',
+  cho_nghiem_thu: 'Cho nghiem thu',
+  da_nghiem_thu: 'Da nghiem thu',
+  da_thanh_ly: 'Da thanh ly',
+  huy_bo: 'Huy bo',
+};
+
 const TopicStatisticsPage: React.FC = () => {
   const navigate = useNavigate();
   const [schoolYear, setSchoolYear] = React.useState('');
@@ -14,6 +23,10 @@ const TopicStatisticsPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [toast, setToast] = React.useState('');
+  const [filterOptions, setFilterOptions] = React.useState<{
+    schoolYears: string[];
+    statuses: string[];
+  }>({ schoolYears: [], statuses: [] });
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -46,6 +59,18 @@ const TopicStatisticsPage: React.FC = () => {
   React.useEffect(() => {
     loadRows().catch(() => undefined);
   }, [loadRows]);
+
+  React.useEffect(() => {
+    reportService
+      .getFilterOptions()
+      .then((options) => {
+        setFilterOptions({
+          schoolYears: options.schoolYears,
+          statuses: options.statuses,
+        });
+      })
+      .catch(() => undefined);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -86,9 +111,11 @@ const TopicStatisticsPage: React.FC = () => {
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-card flex flex-wrap gap-3">
         <select value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 focus:ring-primary bg-white">
           <option value="">Tat ca nam hoc</option>
-          <option value="2025-2026">2025-2026</option>
-          <option value="2024-2025">2024-2025</option>
-          <option value="2023-2024">2023-2024</option>
+          {filterOptions.schoolYears.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
         </select>
         <input
           value={fieldFilter}
@@ -104,12 +131,11 @@ const TopicStatisticsPage: React.FC = () => {
         />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 focus:ring-primary bg-white">
           <option value="">Tat ca trang thai</option>
-          <option value="dang_thuc_hien">Dang thuc hien</option>
-          <option value="tre_han">Tre han</option>
-          <option value="cho_nghiem_thu">Cho nghiem thu</option>
-          <option value="da_nghiem_thu">Da nghiem thu</option>
-          <option value="da_thanh_ly">Da thanh ly</option>
-          <option value="huy_bo">Huy bo</option>
+          {filterOptions.statuses.map((status) => (
+            <option key={status} value={status}>
+              {STATUS_LABELS[status] ?? status}
+            </option>
+          ))}
         </select>
         <button onClick={() => loadRows().then(() => showToast('Da cap nhat bo loc de tai.')).catch(() => undefined)} className="px-5 py-2 bg-primary text-white text-sm font-bold rounded-xl">
           Loc

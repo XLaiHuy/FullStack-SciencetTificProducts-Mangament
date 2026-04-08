@@ -18,6 +18,13 @@ export interface SystemStats {
   contractsPending: number;
 }
 
+export interface ReportFilterOptions {
+  schoolYears: string[];
+  fields: string[];
+  departments: string[];
+  statuses: string[];
+}
+
 export const reportService = {
   // GET /api/reports/dashboard
   async getStats(): Promise<SystemStats> {
@@ -51,6 +58,16 @@ export const reportService = {
   async getContractsByStatus(): Promise<Array<{ status: string; count: number; totalBudget: number }>> {
     const res = await axiosClient.get('/reports/contracts');
     return res.data ?? [];
+  },
+
+  async getFilterOptions(): Promise<ReportFilterOptions> {
+    const res = await axiosClient.get('/reports/filter-options');
+    return {
+      schoolYears: res.data?.schoolYears ?? [],
+      fields: res.data?.fields ?? [],
+      departments: res.data?.departments ?? [],
+      statuses: res.data?.statuses ?? [],
+    };
   },
 
   async exportReport(

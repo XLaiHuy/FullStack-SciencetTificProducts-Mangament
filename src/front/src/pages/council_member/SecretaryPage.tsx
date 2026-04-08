@@ -48,6 +48,13 @@ const SecretaryPage: React.FC = () => {
   const [minutesFile, setMinutesFile] = React.useState<File | null>(null);
   const [submittingMinutes, setSubmittingMinutes] = React.useState(false);
   const [templateId, setTemplateId] = React.useState('');
+  const [decisionDialog, setDecisionDialog] = React.useState<{
+    memberId: string;
+    memberName: string;
+    decision: 'accepted' | 'rework';
+    note: string;
+  } | null>(null);
+  const [submittingDecision, setSubmittingDecision] = React.useState(false);
   const minutesFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const showToast = (msg: string) => {
@@ -59,7 +66,7 @@ const SecretaryPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const list = await councilService.getAll();
+      const list = await councilService.getMine();
       if (!list.length) {
         setCouncilId('');
         setActiveCouncil(null);
@@ -222,20 +229,37 @@ const SecretaryPage: React.FC = () => {
     }
   };
 
-  const handleDecision = async (memberId: string, decision: 'accepted' | 'rework', memberName: string) => {
+  const openDecisionDialog = (memberId: string, decision: 'accepted' | 'rework', memberName: string) => {
+    setDecisionDialog({
+      memberId,
+      memberName,
+      decision,
+      note: '',
+    });
+  };
+
+  const submitDecision = async () => {
     if (!councilId) return;
-    const note = window.prompt('Nhap ghi chu (co the de trong):', '') ?? '';
+    if (!decisionDialog) return;
+    setSubmittingDecision(true);
     setError('');
     try {
-      await councilService.submitScoreDecision(councilId, { memberId, decision, note: note.trim() || undefined });
+      await councilService.submitScoreDecision(councilId, {
+        memberId: decisionDialog.memberId,
+        decision: decisionDialog.decision,
+        note: decisionDialog.note.trim() || undefined,
+      });
       await refreshScoreBoard();
       showToast(
-        decision === 'accepted'
-          ? `Da xac nhan hop le cho ${memberName}.`
-          : `Da yeu cau ${memberName} nhap lai diem.`,
+        decisionDialog.decision === 'accepted'
+          ? `Da xac nhan hop le cho ${decisionDialog.memberName}.`
+          : `Da yeu cau ${decisionDialog.memberName} nhap lai diem.`,
       );
+      setDecisionDialog(null);
     } catch (err) {
       setError(typeof err === 'string' ? err : 'Khong the cap nhat quyet dinh diem.');
+    } finally {
+      setSubmittingDecision(false);
     }
   };
 
@@ -348,14 +372,14 @@ const SecretaryPage: React.FC = () => {
                         <td className="px-6 py-4 text-right space-x-2">
                           <button
                             disabled={!row.isSubmitted}
-                            onClick={() => handleDecision(row.memberId, 'accepted', row.memberName).catch(() => undefined)}
+                            onClick={() => openDecisionDialog(row.memberId, 'accepted', row.memberName)}
                             className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50"
                           >
                             Xac nhan hop le
                           </button>
                           <button
                             disabled={!row.isSubmitted}
-                            onClick={() => handleDecision(row.memberId, 'rework', row.memberName).catch(() => undefined)}
+                            onClick={() => openDecisionDialog(row.memberId, 'rework', row.memberName)}
                             className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50"
                           >
                             Yeu cau nhap lai
@@ -438,8 +462,59 @@ const SecretaryPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {decisionDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">
+                {decisionDialog.decision === 'accepted' ? 'Xac nhan hop le' : 'Yeu cau nhap lai'}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Thanh vien: <span className="font-semibold text-gray-700">{decisionDialog.memberName}</span>
+              </p>
+            </div>
+            <div className="px-6 py-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ghi chu (tuy chon)
+              </label>
+              <textarea
+                value={decisionDialog.note}
+                onChange={(e) =>
+                  setDecisionDialog((prev) => (prev ? { ...prev, note: e.target.value } : prev))
+                }
+                className="w-full rounded-lg border-gray-300 text-sm"
+                rows={4}
+                placeholder="Nhap ghi chu cho thanh vien..."
+              />
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDecisionDialog(null)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700"
+              >
+                Huy
+              </button>
+              <button
+                type="button"
+                onClick={() => submitDecision().catch(() => undefined)}
+                disabled={submittingDecision}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${
+                  decisionDialog.decision === 'accepted'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                {submittingDecision ? 'Dang luu...' : 'Xac nhan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default SecretaryPage;
+

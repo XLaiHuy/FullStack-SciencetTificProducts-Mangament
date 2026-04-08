@@ -14,7 +14,7 @@ const CouncilMemberDashboard: React.FC = () => {
       setLoading(true);
       setError('');
       try {
-        const rows = await councilService.getAll();
+        const rows = await councilService.getMine();
         setCouncils(rows);
       } catch (e) {
         setError(typeof e === 'string' ? e : 'Khong the tai danh sach hoi dong.');

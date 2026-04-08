@@ -79,7 +79,7 @@ router.post('/:id/review',
 );
 
 router.post('/:id/minutes',
-  requireRole('council_member'),
+  requireRole('council_member', 'research_staff', 'superadmin'),
   uploadDecision.single('file'),
   CouncilController.recordMinutes
 );
@@ -95,7 +95,7 @@ router.post('/:id/score-reviews',
   CouncilController.submitScore
 );
 router.get('/:id/score-summary',
-  requireRole('council_member', 'research_staff', 'superadmin'),
+  requireRole('council_member', 'research_staff', 'superadmin', 'project_owner'),
   CouncilController.getScoreSummary
 );
 router.post('/:id/score-decisions',
