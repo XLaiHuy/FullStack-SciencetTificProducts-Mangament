@@ -24,17 +24,17 @@ const ResetPasswordPage: React.FC = () => {
     setLoading(true);
     try {
       await authService.resetPassword(token, newPassword);
-      setSuccess('Dat lai mat khau thanh cong. Ban co the dang nhap lai.');
+      setSuccess('Đặt lại mật khẩu thành công. Bạn có thể đăng nhập lại.');
       window.setTimeout(() => navigate('/login'), 1200);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Dat lai mat khau that bai');
+      setError(err instanceof Error ? err.message : 'Đặt lại mật khẩu thất bại');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell title="Dat lai mat khau" subtitle="Nhap token va mat khau moi">
+    <AuthShell title="Đặt lại mật khẩu" subtitle="Nhập token và mật khẩu mới">
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">{error}</div>}
       {success && <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-xl text-sm text-green-700 font-medium">{success}</div>}
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -50,7 +50,7 @@ const ResetPasswordPage: React.FC = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="reset-new-password">Mat khau moi</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="reset-new-password">Mật khẩu mới</label>
           <input
             id="reset-new-password"
             type="password"
@@ -66,10 +66,10 @@ const ResetPasswordPage: React.FC = () => {
           disabled={loading}
           className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl shadow-button transition-all uppercase tracking-wide disabled:opacity-50"
         >
-          {loading ? 'Dang cap nhat...' : 'Dat lai mat khau'}
+          {loading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
         </button>
         <button type="button" className="w-full text-sm text-gray-500 hover:text-primary" onClick={() => navigate('/login')}>
-          Quay lai dang nhap
+          Quay lại đăng nhập
         </button>
       </form>
     </AuthShell>

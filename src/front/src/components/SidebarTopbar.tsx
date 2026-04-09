@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { getUser, logout } from '../hooks/useAuth';
+import { prefetchRouteByPath } from '../utils/routePrefetch';
 
 interface SidebarItem { label: string; path: string; }
 
@@ -24,55 +25,57 @@ export const Sidebar: React.FC<SidebarProps> = ({ items, roleLabel, logoLetters 
     : 'NV';
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-50" style={{ boxShadow: '4px 0px 24px 0px rgba(0,0,0,0.02)' }}>
+    <aside className="w-72 bg-gradient-to-b from-primary-50 via-white to-info-50/40 border-r border-primary-100 flex flex-col fixed h-full z-50 shadow-sidebar">
       {/* Logo */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white text-[10px] font-black">
-          {logoLetters}
+      <div className="p-6 border-b border-primary-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center text-white text-sm font-black shadow-lg">
+            {logoLetters}
+          </div>
+          <div>
+            <h1 className="font-bold text-primary-dark text-sm">NCKH 2026</h1>
+            <p className="text-xs text-primary-700">Cổng NCKH</p>
+          </div>
         </div>
-        <h2 className="font-bold text-slate-800 text-base">He thong NCKH</h2>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-grow px-4 space-y-1">
+      <nav className="flex-grow px-3 py-4 space-y-1 overflow-y-auto">
         {items.map(item => (
           <NavLink
             key={item.path}
             to={item.path}
+            onMouseEnter={() => prefetchRouteByPath(item.path)}
+            onFocus={() => prefetchRouteByPath(item.path)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
+              `flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                 isActive
-                  ? 'bg-primary text-white shadow-button'
-                  : 'text-slate-500 hover:bg-slate-50'
+                  ? 'bg-gradient-primary text-white shadow-md'
+                  : 'text-gray-700 hover:bg-primary-50 hover:text-primary-dark'
               }`
             }
           >
-            {({ isActive }) => (
-              <>
-                <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-slate-300'}`} />
-                <span>{item.label}</span>
-              </>
-            )}
+            {item.label}
           </NavLink>
         ))}
       </nav>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-gray-100 bg-gray-50">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-sm font-bold text-primary">
+      <div className="p-4 border-t border-primary-100 bg-white/95">
+        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 cursor-pointer transition-colors">
+          <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-slate-800 truncate">{user?.name || 'Nguoi dung'}</p>
-            <p className="text-[11px] text-slate-500 font-medium truncate">{roleLabel}</p>
+            <p className="text-sm font-semibold text-primary-dark truncate">{user?.name || 'Người dùng'}</p>
+            <p className="text-xs text-primary-700 truncate">{roleLabel}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="mt-3 w-full py-1.5 text-xs font-bold text-red-600 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
+          className="mt-3 w-full py-2 text-xs font-bold text-primary-dark border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
         >
-          Dang xuat
+          Đăng xuất
         </button>
       </div>
     </aside>
@@ -86,49 +89,44 @@ interface TopbarProps {
   searchPlaceholder?: string;
 }
 
-export const Topbar: React.FC<TopbarProps> = ({ searchPlaceholder = 'Tim kiem...' }) => {
+export const Topbar: React.FC<TopbarProps> = ({ searchPlaceholder = 'Tìm kiếm...' }) => {
   const [showNotifs, setShowNotifs] = useState(false);
   const unread = 0;
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-40">
+    <header className="h-16 bg-white/95 border-b border-primary-100 flex items-center justify-between px-8 sticky top-0 z-40">
       <div className="flex-1 max-w-md">
         <div className="relative">
-          <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">?</span>
+          <span className="absolute inset-y-0 left-4 flex items-center text-primary-400 text-lg">🔍</span>
           <input
-            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-primary-100 rounded-lg text-sm font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary transition-all"
             placeholder={searchPlaceholder}
             type="text"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 ml-8">
         <div className="relative">
           <button
             onClick={() => setShowNotifs(!showNotifs)}
-            className="relative px-3 py-1.5 text-[11px] font-bold text-gray-500 hover:text-primary transition-colors bg-gray-50 border border-gray-200 rounded-xl uppercase"
+            className="relative px-4 py-2 text-xs font-bold text-primary-700 hover:text-primary-dark transition-colors bg-primary-50 border border-primary-100 rounded-lg uppercase tracking-wider"
           >
-            Thong bao
+            🔔 Thông báo
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full border-2 border-white">
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-error-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
                 {unread}
               </span>
             )}
           </button>
 
           {showNotifs && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-2xl shadow-lg z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Thong bao moi</p>
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-primary-100 rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-primary-100 bg-primary-50">
+                <p className="text-xs font-bold text-primary-700 uppercase tracking-wider">Thông báo mới</p>
               </div>
-              <div className="px-4 py-6 text-center text-xs text-gray-500 bg-white">
-                Chua co thong bao he thong.
-              </div>
-              <div className="p-3 border-t border-gray-100 bg-gray-50/30 text-center">
-                <button className="text-[10px] font-bold text-gray-400 uppercase tracking-wider cursor-not-allowed" disabled>
-                  Chua co du lieu thong bao
-                </button>
+              <div className="px-4 py-8 text-center text-sm text-gray-500 bg-white">
+                Chưa có thông báo hệ thống.
               </div>
             </div>
           )}

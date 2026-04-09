@@ -47,13 +47,13 @@ const MidtermReportPage: React.FC = () => {
         savedAt: new Date().toISOString(),
       })
     );
-    showToast('Da luu nhap bao cao giua ky.', 'success');
+    showToast('Đã lưu nháp báo cáo giữa kỳ.', 'success');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !file) {
-      showToast('Vui long chon de tai va tai len file bao cao.', 'error');
+      showToast('Vui lòng chọn đề tài và tải lên file báo cáo.', 'error');
       return;
     }
     setLoading(true);
@@ -62,9 +62,9 @@ const MidtermReportPage: React.FC = () => {
       setSubmitted(true);
       await projectService.getAll().then(setProjects);
       localStorage.removeItem(MIDTERM_DRAFT_KEY);
-      showToast('Da nop bao cao giua ky thanh cong.', 'success');
+      showToast('Đã nộp báo cáo giữa kỳ thành công.', 'success');
     } catch (e) {
-      showToast(typeof e === 'string' ? e : 'Khong the nop bao cao giua ky.', 'error');
+      showToast(typeof e === 'string' ? e : 'Không thể nộp báo cáo giữa kỳ.', 'error');
     } finally {
       setLoading(false);
     }

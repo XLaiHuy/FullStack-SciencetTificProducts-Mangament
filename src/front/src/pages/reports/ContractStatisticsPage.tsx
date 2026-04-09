@@ -21,7 +21,7 @@ const ContractStatisticsPage: React.FC = () => {
         setContracts(contractRows);
         setGroups(groupRows);
       } catch (e) {
-        setError(typeof e === 'string' ? e : 'Khong the tai thong ke hop dong.');
+        setError(typeof e === 'string' ? e : 'Không thể tải thống kê hợp đồng.');
       } finally {
         setLoading(false);
       }
@@ -34,8 +34,8 @@ const ContractStatisticsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Thong ke hop dong</h1>
-        <p className="text-gray-500 text-sm mt-1">Tong hop trang thai hop dong nghien cuu khoa hoc</p>
+        <h1 className="text-2xl font-bold text-gray-800">Thống kê hợp đồng</h1>
+        <p className="text-gray-500 text-sm mt-1">Tổng hợp trạng thái hợp đồng nghiên cứu khoa học</p>
       </div>
 
       {error && (
@@ -46,10 +46,10 @@ const ContractStatisticsPage: React.FC = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
         {[
-          ['Tong hop dong', contracts.length, 'text-gray-900'],
-          ['Da ky', countByStatus('da_ky'), 'text-emerald-600'],
-          ['Cho duyet', countByStatus('cho_duyet'), 'text-amber-600'],
-          ['Hoan thanh', countByStatus('hoan_thanh'), 'text-primary'],
+          ['Tổng hợp đồng', contracts.length, 'text-gray-900'],
+          ['Đã ký', countByStatus('da_ky'), 'text-emerald-600'],
+          ['Chờ duyệt', countByStatus('cho_duyet'), 'text-amber-600'],
+          ['Hoàn thành', countByStatus('hoan_thanh'), 'text-primary'],
         ].map(([label, val, cls]) => (
           <div key={label as string} className="bg-white p-5 rounded-xl border border-gray-100 shadow-card">
             <p className="text-xs font-bold text-gray-400 uppercase mb-2">{label}</p>
@@ -60,15 +60,15 @@ const ContractStatisticsPage: React.FC = () => {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-bold text-gray-800">Chi tiet hop dong</h2>
+          <h2 className="font-bold text-gray-800">Chi tiết hợp đồng</h2>
         </div>
         {loading ? (
-          <div className="px-6 py-6 text-sm text-gray-500">Dang tai du lieu...</div>
+          <div className="px-6 py-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
         ) : (
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase">
               <tr>
-                {['Ma HD', 'De tai', 'Chu nhiem', 'Kinh phi', 'Ngay ky', 'Trang thai'].map((h) => (
+                {['Mã HĐ', 'Đề tài', 'Chủ nhiệm', 'Kinh phí', 'Ngày ký', 'Trạng thái'].map((h) => (
                   <th key={h} className="px-6 py-4">
                     {h}
                   </th>
@@ -91,7 +91,7 @@ const ContractStatisticsPage: React.FC = () => {
               {contracts.length === 0 && (
                 <tr>
                   <td className="px-6 py-6 text-sm text-gray-400" colSpan={6}>
-                    Chua co du lieu hop dong.
+                    Chưa có dữ liệu hợp đồng.
                   </td>
                 </tr>
               )}

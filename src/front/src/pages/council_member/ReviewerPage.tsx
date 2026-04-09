@@ -53,7 +53,7 @@ const ReviewerPage: React.FC = () => {
         });
         if (reviewerTemplate) setTemplateId(reviewerTemplate.id);
       } catch (e) {
-        setError(typeof e === 'string' ? e : 'Khong the tai du lieu hoi dong.');
+        setError(typeof e === 'string' ? e : 'Không thể tải dữ liệu hội đồng.');
       } finally {
         setLoading(false);
       }
@@ -64,15 +64,15 @@ const ReviewerPage: React.FC = () => {
   const docs = React.useMemo<DownloadItem[]>(() => {
     if (!activeCouncil) return [];
     const rows: DownloadItem[] = [
-      { kind: 'decision', label: `Quyet dinh ${activeCouncil.decisionCode}.pdf` },
-      { kind: 'minutes', label: `Bien ban ${activeCouncil.decisionCode}.pdf` },
+      { kind: 'decision', label: `Quyết định ${activeCouncil.decisionCode}.pdf` },
+      { kind: 'minutes', label: `Biên bản ${activeCouncil.decisionCode}.pdf` },
     ];
     for (const report of activeCouncil.projectReports ?? []) {
       if (!report.fileUrl) continue;
       rows.push({
         kind: 'report',
         reportId: report.id,
-        label: report.type === 'final' ? 'Bao cao tong ket.pdf' : 'Bao cao giua ky.pdf',
+        label: report.type === 'final' ? 'Báo cáo tổng kết.pdf' : 'Báo cáo giữa kỳ.pdf',
       });
     }
     return rows;
@@ -88,9 +88,9 @@ const ReviewerPage: React.FC = () => {
       } else if (activeCouncil.projectId) {
         await projectService.downloadReportFile(activeCouncil.projectId, doc.reportId, doc.label);
       }
-      showToast(`Da tai: ${doc.label}`);
+      showToast(`Đã tải: ${doc.label}`);
     } catch (e) {
-      setError(typeof e === 'string' ? e : `Khong the tai ${doc.label}.`);
+      setError(typeof e === 'string' ? e : `Không thể tải ${doc.label}.`);
     }
   };
 
@@ -101,22 +101,22 @@ const ReviewerPage: React.FC = () => {
       await councilService.submitReview(councilId, Number(score), comments);
       const now = new Date().toISOString();
       setSubmittedAt(now);
-      showToast('Da gui phieu diem va nhan xet.');
+      showToast('Đã gửi phiếu điểm và nhận xét.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the gui phieu nhan xet.');
+      setError(typeof e === 'string' ? e : 'Không thể gửi phiếu nhận xét.');
     }
   };
 
   const downloadTemplate = async () => {
     if (!templateId || !activeCouncil?.projectId) {
-      setError('Chua co bieu mau phan bien tren he thong.');
+      setError('Chưa có biểu mẫu phản biện trên hệ thống.');
       return;
     }
     try {
       await templateService.fill(templateId, activeCouncil.projectId);
-      showToast('Da tai phieu nhan xet phan bien.');
+      showToast('Đã tải phiếu nhận xét phản biện.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai phieu nhan xet.');
+      setError(typeof e === 'string' ? e : 'Không thể tải phiếu nhận xét.');
     }
   };
 
@@ -125,8 +125,8 @@ const ReviewerPage: React.FC = () => {
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
 
       <header className="space-y-1">
-        <h2 className="text-2xl font-bold text-slate-900">Khong gian lam viec phan bien</h2>
-        <p className="text-sm text-slate-500">Cham diem va gui nhan xet cho hoi dong nghiem thu.</p>
+        <h2 className="text-2xl font-bold text-slate-900">Không gian làm việc phản biện</h2>
+        <p className="text-sm text-slate-500">Chấm điểm và gửi nhận xét cho hội đồng nghiệm thu.</p>
       </header>
 
       {error && (
@@ -136,23 +136,23 @@ const ReviewerPage: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai du lieu...</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
       ) : !activeCouncil ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Ban chua duoc phan cong hoi dong.</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Bạn chưa được phân công hội đồng.</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <aside className="lg:col-span-4 space-y-6">
             <section className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Thong tin de tai</h3>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Thông tin đề tài</h3>
               <div className="space-y-2 text-sm">
-                <p><span className="text-slate-500">Ma de tai:</span> <span className="font-semibold">{activeCouncil.projectCode}</span></p>
-                <p><span className="text-slate-500">Ma hoi dong:</span> <span className="font-semibold">{activeCouncil.decisionCode}</span></p>
-                <p><span className="text-slate-500">Ten de tai:</span> <span className="font-medium">{activeCouncil.projectTitle}</span></p>
+                <p><span className="text-slate-500">Mã đề tài:</span> <span className="font-semibold">{activeCouncil.projectCode}</span></p>
+                <p><span className="text-slate-500">Mã hội đồng:</span> <span className="font-semibold">{activeCouncil.decisionCode}</span></p>
+                <p><span className="text-slate-500">Tên đề tài:</span> <span className="font-medium">{activeCouncil.projectTitle}</span></p>
               </div>
             </section>
 
             <section className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Kho tai lieu</h3>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Kho tài liệu</h3>
               <ul className="space-y-2">
                 {docs.map((doc, idx) => (
                   <li key={`${doc.label}-${idx}`}>
@@ -165,25 +165,25 @@ const ReviewerPage: React.FC = () => {
             </section>
 
             <section className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Bieu mau cua toi</h3>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Biểu mẫu của tôi</h3>
               <button onClick={() => downloadTemplate().catch(() => undefined)} className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-md transition-colors text-center">
-                Tai phieu nhan xet phan bien
+                Tải phiếu nhận xét phản biện
               </button>
             </section>
           </aside>
 
           <article className="lg:col-span-8 bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-5">
-            <h3 className="text-lg font-bold text-slate-800">Soan nhan xet phan bien</h3>
+            <h3 className="text-lg font-bold text-slate-800">Soạn nhận xét phản biện</h3>
             <textarea
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               disabled={Boolean(submittedAt)}
               className="w-full min-h-[260px] p-4 text-sm leading-relaxed border border-slate-200 rounded-lg"
-              placeholder="Nhap noi dung nhan xet chi tiet..."
+              placeholder="Nhập nội dung nhận xét chi tiết..."
             />
             <div className="flex items-end justify-between gap-4">
               <label className="block text-sm font-semibold text-slate-700">
-                Diem chuyen mon (0-100)
+                Điểm chuyên môn (0-100)
                 <input
                   disabled={Boolean(submittedAt)}
                   value={score}
@@ -200,10 +200,10 @@ const ReviewerPage: React.FC = () => {
                 disabled={Boolean(submittedAt) || !score}
                 className="px-8 py-2.5 text-sm font-semibold text-white bg-[#2563eb] border border-[#1d4ed8] rounded-md hover:bg-[#1d4ed8] transition-colors shadow-md disabled:opacity-50"
               >
-                Gui phieu diem va nhan xet
+                Gửi phiếu điểm và nhận xét
               </button>
             </div>
-            {submittedAt && <p className="text-xs font-semibold text-emerald-600">Da gui luc {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
+            {submittedAt && <p className="text-xs font-semibold text-emerald-600">Đã gửi lúc {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
           </article>
         </div>
       )}

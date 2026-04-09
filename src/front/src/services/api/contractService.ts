@@ -5,6 +5,7 @@
 import { axiosClient } from './axiosClient';
 import type { Contract } from '../../types';
 import { downloadFromApi } from './downloadUtil';
+import { normalizeUploadPath } from '../../utils/urlUtil';
 
 export type ParsedContractProposal = {
   sourceType: 'pdf' | 'docx' | 'text';
@@ -20,22 +21,6 @@ export type ParsedContractProposal = {
   textExcerpt: string;
 };
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
-
-const normalizeUploadPath = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  if (value.startsWith('/uploads/')) return `${API_ORIGIN}${value}`;
-
-  const normalized = value.replace(/\\/g, '/');
-  const uploadsIndex = normalized.toLowerCase().indexOf('/uploads/');
-  if (uploadsIndex >= 0) {
-    return `${API_ORIGIN}${normalized.slice(uploadsIndex)}`;
-  }
-  return undefined;
-};
-
 const mapContract = (c: any): Contract => ({
   id: c.id,
   code: c.code,
@@ -48,6 +33,8 @@ const mapContract = (c: any): Contract => ({
   signedDate: c.signedDate ? new Date(c.signedDate).toISOString().split('T')[0] : undefined,
   status: c.status,
   budget: Number(c.budget ?? 0),
+  agencyName: c.agencyName,
+  representative: c.representative,
   pdfUrl: normalizeUploadPath(c.pdfUrl),
   notes: c.notes,
 });

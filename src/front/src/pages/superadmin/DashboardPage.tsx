@@ -4,11 +4,11 @@ import { adminService, type AdminDashboard, type AuditLogItem, type SystemConfig
 
 const ROLE_LABELS: Record<string, string> = {
   research_staff: 'Phong NCKH',
-  project_owner: 'Chu nhiem',
-  council_member: 'Hoi dong',
-  accounting: 'Ke toan',
-  archive_staff: 'Luu tru',
-  report_viewer: 'Bao cao',
+  project_owner: 'Chủ nhiệm',
+  council_member: 'Hội đồng',
+  accounting: 'Kế toán',
+  archive_staff: 'Lưu trữ',
+  report_viewer: 'Báo cáo',
   superadmin: 'Superadmin',
 };
 
@@ -33,7 +33,7 @@ const SuperAdminDashboard: React.FC = () => {
       setAuditLogs(auditData.items);
       setConfigs(configData);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai dashboard he thong.');
+      setError(typeof e === 'string' ? e : 'Không thể tải dashboard hệ thống.');
     } finally {
       setLoading(false);
     }
@@ -50,18 +50,18 @@ const SuperAdminDashboard: React.FC = () => {
   }, [configs]);
 
   const kpis = [
-    { label: 'Tong tai khoan', value: dashboard?.totalUsers ?? 0, className: 'text-slate-900' },
-    { label: 'Dang hoat dong', value: dashboard?.activeUsers ?? 0, className: 'text-emerald-600' },
-    { label: 'Bi khoa', value: dashboard?.lockedUsers ?? 0, className: 'text-rose-600' },
-    { label: 'Audit hom nay', value: dashboard?.auditLogsToday ?? 0, className: 'text-indigo-600' },
+    { label: 'Tổng tài khoản', value: dashboard?.totalUsers ?? 0, className: 'text-slate-900' },
+    { label: 'Đang hoạt động', value: dashboard?.activeUsers ?? 0, className: 'text-emerald-600' },
+    { label: 'Bị khóa', value: dashboard?.lockedUsers ?? 0, className: 'text-rose-600' },
+    { label: 'Audit hôm nay', value: dashboard?.auditLogsToday ?? 0, className: 'text-indigo-600' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Quan ly he thong</h1>
-          <p className="text-gray-500 mt-1">Tong quan va cau hinh tham so van hanh</p>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Quản lý hệ thống</h1>
+          <p className="text-gray-500 mt-1">Tổng quan và cấu hình tham số vận hành</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -69,14 +69,14 @@ const SuperAdminDashboard: React.FC = () => {
             onClick={() => loadData().catch(() => undefined)}
             className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Tai lai
+            Tải lại
           </button>
           <button
             type="button"
             onClick={() => navigate('/superadmin/account-management?action=create')}
             className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-button hover:bg-primary-dark text-sm"
           >
-            + Tao tai khoan moi
+            + Tạo tài khoản mới
           </button>
         </div>
       </div>
@@ -88,11 +88,11 @@ const SuperAdminDashboard: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai du lieu...</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
       ) : (
         <>
           <section>
-            <h2 className="font-bold text-lg mb-4">Thong ke tai khoan he thong</h2>
+            <h2 className="font-bold text-lg mb-4">Thống kê tài khoản hệ thống</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               {kpis.map((kpi) => (
                 <div key={kpi.label} className="bg-white p-6 rounded-xl border border-gray-200 shadow-card">
@@ -106,13 +106,13 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">Co cau tai khoan theo vai tro</h3>
+                <h3 className="font-bold text-lg">Cơ cấu tài khoản theo vai trò</h3>
                 <button
                   type="button"
                   onClick={() => navigate('/superadmin/account-management')}
                   className="text-sm font-bold text-primary hover:underline"
                 >
-                  Quan ly tai khoan
+                  Quản lý tài khoản
                 </button>
               </div>
               <div className="space-y-3">
@@ -127,26 +127,26 @@ const SuperAdminDashboard: React.FC = () => {
 
             <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">Cau hinh he thong</h3>
+                <h3 className="font-bold text-lg">Cấu hình hệ thống</h3>
                 <button
                   type="button"
                   onClick={() => navigate('/superadmin/system-config')}
                   className="text-sm font-bold text-primary hover:underline"
                 >
-                  Sua cau hinh
+                  Sửa cấu hình
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-                  <p className="text-xs font-bold text-gray-500 uppercase mb-1">Thang diem toi da</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase mb-1">Thang điểm tối đa</p>
                   <p className="font-semibold text-gray-900">{configByKey.get('MAX_SCORE') ?? '100'}</p>
                 </div>
                 <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-                  <p className="text-xs font-bold text-gray-500 uppercase mb-1">File toi da (MB)</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase mb-1">File tối đa (MB)</p>
                   <p className="font-semibold text-gray-900">{configByKey.get('MAX_FILE_SIZE_MB') ?? '20'}</p>
                 </div>
                 <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 md:col-span-2">
-                  <p className="text-xs font-bold text-gray-500 uppercase mb-1">Dinh dang cho phep</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase mb-1">Định dạng cho phép</p>
                   <p className="font-semibold text-gray-900">{configByKey.get('ALLOWED_FILE_FORMATS') ?? '.pdf,.docx,.xlsx'}</p>
                 </div>
               </div>
@@ -155,21 +155,21 @@ const SuperAdminDashboard: React.FC = () => {
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-bold text-lg">Nhat ky he thong gan day</h3>
+              <h3 className="font-bold text-lg">Nhật ký hệ thống gần đây</h3>
               <button
                 type="button"
                 onClick={() => navigate('/superadmin/audit-log')}
                 className="text-sm font-bold text-primary hover:underline"
               >
-                Xem tat ca
+                Xem tất cả
               </button>
             </div>
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-3">Thoi gian</th>
-                  <th className="px-6 py-3">Nguoi thuc hien</th>
-                  <th className="px-6 py-3">Thao tac</th>
+                  <th className="px-6 py-3">Thời gian</th>
+                  <th className="px-6 py-3">Người thực hiện</th>
+                  <th className="px-6 py-3">Thao tác</th>
                   <th className="px-6 py-3">Module</th>
                 </tr>
               </thead>
@@ -177,7 +177,7 @@ const SuperAdminDashboard: React.FC = () => {
                 {auditLogs.length === 0 ? (
                   <tr>
                     <td className="px-6 py-6 text-gray-400 text-sm" colSpan={4}>
-                      Chua co du lieu audit log.
+                      Chưa có dữ liệu audit log.
                     </td>
                   </tr>
                 ) : (

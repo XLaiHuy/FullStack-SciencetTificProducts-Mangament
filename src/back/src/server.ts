@@ -7,7 +7,7 @@ import path from 'path';
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
 // ─── Ensure upload directories exist ─────────────────────────────────────────
-const UPLOAD_DIRS = ['contracts', 'products', 'councils', 'templates', 'archive', 'extensions'];
+const UPLOAD_DIRS = ['contracts', 'products', 'councils', 'templates', 'archive', 'extensions', 'settlements'];
 UPLOAD_DIRS.forEach(dir => {
   const dirPath = path.join(process.cwd(), 'uploads', dir);
   if (!fs.existsSync(dirPath)) {

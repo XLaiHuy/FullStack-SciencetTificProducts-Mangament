@@ -51,7 +51,7 @@ const ExtensionManagementPage: React.FC = () => {
   const handleDownloadSupportingDoc = (ext: LocalExtension) => {
     triggerDownload(
       `GiaiTrinhGiaHan_${ext.projectCode}.doc`,
-      `De tai: ${ext.projectCode}\nChu nhiem: ${ext.projectOwner}\nLy do gia han: ${ext.reason}`
+      `De tai: ${ext.projectCode}\nChủ nhiệm: ${ext.projectOwner}\nLy do gia han: ${ext.reason}`
     );
     showToast(`Da tai file giai trinh cua ${ext.projectCode}.`);
   };
@@ -72,7 +72,7 @@ const ExtensionManagementPage: React.FC = () => {
       showToast(`Đã ${newStatus === 'approved' ? 'phê duyệt' : 'cập nhật'} yêu cầu gia hạn`);
     } catch (e) {
       console.error(e);
-      showToast(typeof e === 'string' ? e : 'Khong the cap nhat trang thai yeu cau gia han.');
+      showToast(typeof e === 'string' ? e : 'Không thể cập nhật trạng thái yêu cầu gia hạn.');
     }
   };
 
@@ -96,7 +96,7 @@ const ExtensionManagementPage: React.FC = () => {
       showToast('Đã tạo yêu cầu gia hạn mới.');
     } catch (e) {
       console.error(e);
-      showToast(typeof e === 'string' ? e : 'Khong the tao yeu cau gia han.');
+      showToast(typeof e === 'string' ? e : 'Không thể tạo yêu cầu gia hạn.');
     }
   };
 

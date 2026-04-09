@@ -76,118 +76,122 @@ const ResearchStaffDashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {toast && (
-        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">
+        <div className="fixed top-4 right-4 bg-success-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 text-sm font-bold">
           {toast}
         </div>
       )}
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Tổng quan hệ thống</h1>
-        <p className="text-slate-500 mt-1">Hệ thống Quản lý Nghiên cứu Khoa học — Năm học 2023-2024</p>
+        <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Tổng quan hệ thống</h1>
+        <p className="text-gray-600 mt-2">Hệ thống Quản lý Nghiên cứu Khoa học — Năm học 2023-2024</p>
       </div>
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-          {error}
+        <div className="card border-error-200 bg-error-50">
+          <div className="text-sm font-semibold text-error-700 p-6">
+            {error}
+          </div>
         </div>
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Tổng đề tài', value: stats.totalProjects.toLocaleString(), color: 'blue' },
-          { label: 'Đang thực hiện', value: stats.activeProjects.toString(), color: 'blue' },
-          { label: 'Chờ nghiệm thu', value: pendingCouncil.length.toString(), color: 'amber' },
-          { label: 'Trễ hạn', value: overdue.length.toString(), color: 'red' },
+          { label: 'Tổng đề tài', value: stats.totalProjects.toLocaleString(), badge: 'badge-neutral' },
+          { label: 'Đang thực hiện', value: stats.activeProjects.toString(), badge: 'badge-info' },
+          { label: 'Chờ nghiệm thu', value: pendingCouncil.length.toString(), badge: 'badge-warning' },
+          { label: 'Trễ hạn', value: overdue.length.toString(), badge: 'badge-error' },
         ].map((s, i) => (
-          <div key={i} className={`bg-white p-6 rounded-2xl border border-gray-100 shadow-card ${i > 0 ? `border-l-4 border-l-${s.color}-500` : ''}`}>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{s.label}</p>
-            <p className={`text-3xl font-bold ${i === 0 ? 'text-gray-900' : i === 1 ? 'text-primary' : i === 2 ? 'text-amber-500' : 'text-red-600'}`}>{s.value}</p>
+          <div key={i} className="card">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">{s.label}</p>
+            <p className="text-4xl font-bold text-gray-900">{s.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left column */}
-        <div className="col-span-4 space-y-6">
+        <div className="space-y-6">
           {/* Status chart */}
-          <div className="bg-white p-8 rounded-3xl shadow-card border border-slate-100 flex flex-col items-center">
-            <h2 className="text-lg font-bold text-slate-800 mb-2 w-full text-left">Trạng thái Đề tài</h2>
-            <div className="w-full max-w-[200px] mt-2 mb-4">
-              <Pie 
-                data={{
-                  labels: statusData.map(s => s.label),
-                  datasets: [{
-                    data: statusData.map(s => s.value),
-                    backgroundColor: statusData.map(s => s.color),
-                    borderWidth: 2,
-                    borderColor: '#ffffff',
-                    hoverOffset: 6
-                  }]
-                }}
-                options={{
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      callbacks: {
-                        label: function(context) {
-                          return ` ${context.label}: ${context.raw}%`;
+          <div className="card">
+            <h2 className="text-lg font-bold text-gray-900 mb-6 px-6 py-4 border-b border-gray-200">Trạng thái Đề tài</h2>
+            <div className="flex flex-col items-center px-6 pb-6">
+              <div className="w-full max-w-[200px]">
+                <Pie 
+                  data={{
+                    labels: statusData.map(s => s.label),
+                    datasets: [{
+                      data: statusData.map(s => s.value),
+                      backgroundColor: statusData.map(s => s.color),
+                      borderWidth: 2,
+                      borderColor: '#ffffff',
+                      hoverOffset: 6
+                    }]
+                  }}
+                  options={{
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            return ` ${context.label}: ${context.raw}%`;
+                          }
                         }
                       }
-                    }
-                  },
-                  cutout: '65%',
-                  animation: { animateScale: true }
-                }}
-              />
-            </div>
-            <div className="space-y-2 w-full mt-6">
-              {statusData.map(s => (
-                <div key={s.label} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition-shadow">
-                  <div className="flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-md shadow-sm" style={{ backgroundColor: s.color }} />
-                    <span className="text-sm font-bold text-slate-700">{s.label}</span>
+                    },
+                    cutout: '65%',
+                    animation: { animateScale: true }
+                  }}
+                />
+              </div>
+              <div className="space-y-2 w-full mt-6">
+                {statusData.map(s => (
+                  <div key={s.label} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded" style={{ backgroundColor: s.color }} />
+                      <span className="text-sm font-semibold text-gray-700">{s.label}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">{s.count}</span>
+                      <span className="text-sm font-bold w-10 text-right" style={{ color: s.color }}>{s.value}%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold text-slate-400 border border-slate-100 px-2 py-0.5 rounded-md">{s.count} đề tài</span>
-                    <span className="text-sm font-black w-10 text-right" style={{ color: s.color }}>{s.value}%</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Notifications */}
-          <div className="bg-white p-8 rounded-3xl shadow-card border border-slate-100">
-            <h2 className="text-lg font-bold text-slate-800 mb-6">Thông báo mới</h2>
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
-                <p className="text-sm font-bold text-slate-800">Báo cáo quý II đã nộp</p>
-                <p className="text-[11px] text-slate-500 mt-1">10 phút trước</p>
+          <div className="card">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 px-6 py-4 border-b border-gray-200">Thông báo mới</h2>
+            <div className="space-y-3 px-6 pb-6">
+              <div className="p-4 rounded-lg bg-info-50 border border-info-200">
+                <p className="text-sm font-semibold text-gray-900">Báo cáo quý II đã nộp</p>
+                <p className="text-xs text-gray-600 mt-1">10 phút trước</p>
               </div>
-              <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100">
-                <p className="text-sm font-bold text-slate-800">Nhắc nhở hạn quyết toán</p>
-                <p className="text-[11px] text-slate-500 mt-1">1 giờ trước</p>
+              <div className="p-4 rounded-lg bg-warning-50 border border-warning-200">
+                <p className="text-sm font-semibold text-gray-900">Nhắc nhở hạn quyết toán</p>
+                <p className="text-xs text-gray-600 mt-1">1 giờ trước</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Right column */}
-        <div className="col-span-8 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           {/* Overdue warning */}
           {overdue.length > 0 && (
-            <div className="bg-white p-8 rounded-3xl shadow-card border border-slate-100">
-              <h2 className="text-lg font-bold text-slate-800 mb-6">Đề tài sắp trễ hạn</h2>
-              <div className="grid grid-cols-2 gap-6">
+            <div className="card">
+              <h2 className="text-lg font-bold text-gray-900 mb-6 px-6 py-4 border-b border-gray-200">Đề tài sắp trễ hạn</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 pb-6">
                 {overdue.slice(0, 2).map(p => (
-                  <div key={p.id} className="p-6 rounded-3xl border-2 border-red-500 bg-red-50 relative">
-                    <span className="text-[10px] font-black uppercase text-white bg-red-600 px-3 py-1 rounded-lg">CẢnh BÁO KHẨN CẤP</span>
-                    <h3 className="text-sm font-extrabold text-red-900 mt-4">{p.title}</h3>
-                    <p className="text-xs text-red-700 mt-1 font-bold">Mã: {p.code}</p>
+                  <div key={p.id} className="p-4 rounded-lg border-2 border-error-300 bg-error-50 relative">
+                    <span className="text-[10px] font-bold uppercase text-white bg-error-600 px-2 py-1 rounded inline-block">Cảnh báo</span>
+                    <h3 className="text-sm font-bold text-error-900 mt-3">{p.title}</h3>
+                    <p className="text-xs text-error-700 mt-1 font-semibold">Mã: {p.code}</p>
                     <button
-                      onClick={() => showToast(`Da gui nhac nho tien do cho de tai ${p.code}.`)}
-                      className="absolute bottom-4 right-6 text-[11px] font-bold text-red-600 hover:underline"
+                      onClick={() => showToast(`Đã gửi nhắc nhở tiến độ cho đề tài ${p.code}.`)}
+                      className="mt-3 text-xs font-semibold text-error-700 hover:text-error-900 transition-colors"
                     >
-                      Gửi nhắc nhở
+                      → Gửi nhắc nhở
                     </button>
                   </div>
                 ))}
@@ -196,29 +200,29 @@ const ResearchStaffDashboard: React.FC = () => {
           )}
 
           {/* Pending council table */}
-          <div className="bg-white rounded-3xl shadow-card border border-slate-100 overflow-hidden">
-            <div className="px-8 py-5 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-800">Danh sách Chờ nghiệm thu</h2>
+          <div className="card overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-900">Danh sách Chờ nghiệm thu</h2>
             </div>
             <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr className="text-[10px] uppercase font-bold text-slate-400">
-                  <th className="px-8 py-4 text-left">Mã</th>
-                  <th className="px-8 py-4 text-left">Tên đề tài</th>
-                  <th className="px-8 py-4 text-left">Trạng thái</th>
-                  <th className="px-8 py-4 text-right">Thao tác</th>
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-xs uppercase font-bold text-gray-600">
+                  <th className="px-6 py-3 text-left">Mã</th>
+                  <th className="px-6 py-3 text-left">Tên đề tài</th>
+                  <th className="px-6 py-3 text-left">Trạng thái</th>
+                  <th className="px-6 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-gray-100">
                 {pendingCouncil.map(p => (
-                  <tr key={p.id} className="text-sm hover:bg-slate-50">
-                    <td className="px-8 py-5 font-bold text-primary">{p.code}</td>
-                    <td className="px-8 py-5 font-medium text-slate-700">{p.title}</td>
-                    <td className="px-8 py-5"><StatusBadge status={p.status} /></td>
-                    <td className="px-8 py-5 text-right">
+                  <tr key={p.id} className="text-sm hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-semibold text-gray-900">{p.code}</td>
+                    <td className="px-6 py-4 text-gray-700">{p.title}</td>
+                    <td className="px-6 py-4"><StatusBadge status={p.status} /></td>
+                    <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => navigate('/research-staff/council-creation')}
-                        className="text-xs font-bold text-primary border border-primary bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors"
+                        className="btn-secondary text-xs"
                       >
                         Thành lập HĐ
                       </button>
@@ -226,14 +230,14 @@ const ResearchStaffDashboard: React.FC = () => {
                   </tr>
                 ))}
                 {pendingCouncil.length === 0 && (
-                  <tr><td colSpan={4} className="px-8 py-8 text-center text-sm text-slate-400">Không có đề tài chờ nghiệm thu</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">Không có đề tài chờ nghiệm thu</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
-      {loading && <p className="text-xs text-slate-400">Đang đồng bộ dữ liệu từ hệ thống...</p>}
+      {loading && <p className="text-xs text-gray-500 text-center py-4">Đang đồng bộ dữ liệu từ hệ thống...</p>}
     </div>
   );
 };

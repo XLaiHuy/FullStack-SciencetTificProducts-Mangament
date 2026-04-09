@@ -17,7 +17,7 @@ const CouncilMemberDashboard: React.FC = () => {
         const rows = await councilService.getMine();
         setCouncils(rows);
       } catch (e) {
-        setError(typeof e === 'string' ? e : 'Khong the tai danh sach hoi dong.');
+        setError(typeof e === 'string' ? e : 'Không thể tải danh sách hội đồng.');
       } finally {
         setLoading(false);
       }
@@ -35,61 +35,63 @@ const CouncilMemberDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard hoi dong nghiem thu</h1>
-        <p className="text-gray-500 text-sm mt-1">Danh sach de tai duoc phan cong danh gia</p>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard hội đồng nghiệm thu</h1>
+        <p className="text-gray-600 text-sm mt-2">Danh sách đề tài được phân công đánh giá</p>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
-          {error}
+        <div className="card border-error-200 bg-error-50">
+          <div className="px-6 py-4 text-sm font-semibold text-error-700">
+            {error}
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          ['Hoi dong duoc giao', stats.total, 'text-primary'],
-          ['Cho danh gia', stats.pending, 'text-amber-600'],
-          ['Dang danh gia', stats.inProgress, 'text-sky-600'],
-          ['Da hoan thanh', stats.completed, 'text-emerald-600'],
-        ].map(([label, val, cls]) => (
-          <div key={label as string} className="bg-white border border-gray-200 rounded-xl p-5 shadow-card">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">{label}</p>
-            <p className={`text-3xl font-bold ${cls}`}>{String(val)}</p>
+          ['Hội đồng được giao', stats.total, 'badge-primary'],
+          ['Chờ đánh giá', stats.pending, 'badge-warning'],
+          ['Đang đánh giá', stats.inProgress, 'badge-info'],
+          ['Đã hoàn thành', stats.completed, 'badge-success'],
+        ].map(([label, val, badge]) => (
+          <div key={label as string} className="card">
+            <p className="text-xs font-bold text-gray-600 uppercase mb-2">{label}</p>
+            <p className="text-4xl font-bold text-gray-900">{String(val)}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-800">Hoi dong duoc phan cong</h2>
+      <div className="card overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <h2 className="text-lg font-bold text-gray-900">Hội đồng được phân công</h2>
         </div>
         {loading ? (
-          <div className="p-6 text-sm text-gray-500">Dang tai du lieu...</div>
+          <div className="p-6 text-sm text-gray-600">Đang tải dữ liệu...</div>
         ) : councils.length === 0 ? (
-          <div className="p-6 text-sm text-gray-500">Ban chua duoc phan cong hoi dong nao.</div>
+          <div className="p-6 text-sm text-gray-600">Bạn chưa được phân công hội đồng nào.</div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-100">
             {councils.map((council) => (
               <div key={council.id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{council.decisionCode}</span>
+                    <span className="text-[10px] font-bold text-primary-700 bg-primary-100 px-2 py-1 rounded">{council.decisionCode}</span>
                     <h3 className="font-bold text-gray-900 mt-2">{council.projectTitle}</h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Ma de tai: {council.projectCode} • Thanh vien: {council.members.length}
+                    <p className="text-xs text-gray-600 mt-1">
+                      Mã đề tài: {council.projectCode} • Thành viên: {council.members.length}
                     </p>
                   </div>
                   <StatusBadge status={council.status} />
                 </div>
                 <div className="flex gap-3 mt-4">
-                  <button onClick={() => navigate('/council-member/member')} className="px-4 py-2 text-xs font-bold bg-primary text-white rounded-xl shadow-card hover:bg-primary-dark">
-                    Khong gian uy vien
+                  <button onClick={() => navigate('/council-member/member')} className="btn-primary text-xs">
+                    Không gian ủy viên
                   </button>
-                  <button onClick={() => navigate('/council-member/reviewer')} className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
-                    Khong gian phan bien
+                  <button onClick={() => navigate('/council-member/reviewer')} className="btn-secondary text-xs">
+                    Không gian phản biện
                   </button>
-                  <button onClick={() => navigate('/council-member/secretary')} className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
-                    Khong gian thu ky
+                  <button onClick={() => navigate('/council-member/secretary')} className="btn-secondary text-xs">
+                    Không gian thư ký
                   </button>
                 </div>
               </div>

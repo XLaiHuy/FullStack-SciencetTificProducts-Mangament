@@ -55,7 +55,7 @@ const ChairmanPage: React.FC = () => {
         });
         if (chairmanTemplate) setTemplateId(chairmanTemplate.id);
       } catch (e) {
-        setError(typeof e === 'string' ? e : 'Khong the tai du lieu hoi dong.');
+        setError(typeof e === 'string' ? e : 'Không thể tải dữ liệu hội đồng.');
       } finally {
         setLoading(false);
       }
@@ -66,15 +66,15 @@ const ChairmanPage: React.FC = () => {
   const docs = React.useMemo<DownloadItem[]>(() => {
     if (!activeCouncil) return [];
     const rows: DownloadItem[] = [
-      { kind: 'decision', label: `Quyet dinh ${activeCouncil.decisionCode}.pdf` },
-      { kind: 'minutes', label: `Bien ban ${activeCouncil.decisionCode}.pdf` },
+      { kind: 'decision', label: `Quyết định ${activeCouncil.decisionCode}.pdf` },
+      { kind: 'minutes', label: `Biên bản ${activeCouncil.decisionCode}.pdf` },
     ];
     for (const report of activeCouncil.projectReports ?? []) {
       if (!report.fileUrl) continue;
       rows.push({
         kind: 'report',
         reportId: report.id,
-        label: report.type === 'final' ? 'Bao cao tong ket.pdf' : 'Bao cao giua ky.pdf',
+        label: report.type === 'final' ? 'Báo cáo tổng kết.pdf' : 'Báo cáo giữa kỳ.pdf',
       });
     }
     return rows;
@@ -90,9 +90,9 @@ const ChairmanPage: React.FC = () => {
       } else if (activeCouncil.projectId) {
         await projectService.downloadReportFile(activeCouncil.projectId, doc.reportId, doc.label);
       }
-      showToast(`Da tai: ${doc.label}`);
+      showToast(`Đã tải: ${doc.label}`);
     } catch (e) {
-      setError(typeof e === 'string' ? e : `Khong the tai ${doc.label}.`);
+      setError(typeof e === 'string' ? e : `Không thể tải ${doc.label}.`);
     }
   };
 
@@ -103,22 +103,22 @@ const ChairmanPage: React.FC = () => {
       await councilService.submitScore(councilId, Number(score), comments);
       const now = new Date().toISOString();
       setSubmittedAt(now);
-      showToast('Da gui ket qua va ket thuc nghiem thu.');
+      showToast('Đã gửi kết quả và kết thúc nghiệm thu.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the gui diem chu tich.');
+      setError(typeof e === 'string' ? e : 'Không thể gửi điểm chủ tịch.');
     }
   };
 
   const downloadTemplate = async () => {
     if (!templateId || !activeCouncil?.projectId) {
-      setError('Chua co bieu mau chu tich tren he thong.');
+      setError('Chưa có biểu mẫu chủ tịch trên hệ thống.');
       return;
     }
     try {
       await templateService.fill(templateId, activeCouncil.projectId);
-      showToast('Da tai bieu mau chu tich.');
+      showToast('Đã tải biểu mẫu chủ tịch.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai bieu mau chu tich.');
+      setError(typeof e === 'string' ? e : 'Không thể tải biểu mẫu chủ tịch.');
     }
   };
 
@@ -126,11 +126,11 @@ const ChairmanPage: React.FC = () => {
     if (!councilId || !minutesFile) return;
     setError('');
     try {
-      await councilService.submitMinutes(councilId, comments || 'Chu tich gui bien ban ket luan.', minutesFile);
-      showToast('Da tai bien ban nghiem thu da ky.');
+      await councilService.submitMinutes(councilId, comments || 'Chủ tịch gửi biên bản kết luận.', minutesFile);
+      showToast('Đã tải biên bản nghiệm thu đã ký.');
       setMinutesFile(null);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai bien ban da ky.');
+      setError(typeof e === 'string' ? e : 'Không thể tải biên bản đã ký.');
     }
   };
 
@@ -138,14 +138,14 @@ const ChairmanPage: React.FC = () => {
     <div className="flex flex-col h-full gap-6">
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
       <header className="bg-white border border-slate-200 rounded-xl flex items-center justify-between px-6 py-4 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-800">Khong gian lam viec chu tich hoi dong</h2>
+        <h2 className="text-xl font-bold text-slate-800">Không gian làm việc chủ tịch hội đồng</h2>
         <button
           type="button"
           onClick={() => submitScore().catch(() => undefined)}
           disabled={Boolean(submittedAt) || !score}
           className="bg-[#1E40AF] text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-800 transition-all shadow-sm disabled:opacity-50"
         >
-          Gui ket qua va ket thuc nghiem thu
+          Gửi kết quả và kết thúc nghiệm thu
         </button>
       </header>
 
@@ -156,29 +156,29 @@ const ChairmanPage: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai du lieu...</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
       ) : !activeCouncil ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Ban chua duoc phan cong hoi dong.</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Bạn chưa được phân công hội đồng.</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="space-y-6">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Thong tin de tai</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Thông tin đề tài</h3>
               <div className="space-y-3 text-sm">
-                <div><p className="text-xs text-slate-500">Ma de tai</p><p className="font-semibold">{activeCouncil.projectCode}</p></div>
-                <div><p className="text-xs text-slate-500">Ten de tai</p><p className="font-medium">{activeCouncil.projectTitle}</p></div>
-                <div><p className="text-xs text-slate-500">Ma hoi dong</p><p className="font-semibold">{activeCouncil.decisionCode}</p></div>
+                <div><p className="text-xs text-slate-500">Mã đề tài</p><p className="font-semibold">{activeCouncil.projectCode}</p></div>
+                <div><p className="text-xs text-slate-500">Tên đề tài</p><p className="font-medium">{activeCouncil.projectTitle}</p></div>
+                <div><p className="text-xs text-slate-500">Mã hội đồng</p><p className="font-semibold">{activeCouncil.decisionCode}</p></div>
               </div>
             </div>
 
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Kho tai lieu</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Kho tài liệu</h3>
               <ul className="space-y-2">
                 {docs.map((doc, idx) => (
                   <li key={`${doc.label}-${idx}`} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
                     <span className="text-sm text-slate-700 truncate pr-2">{doc.label}</span>
                     <button onClick={() => downloadDoc(doc).catch(() => undefined)} className="text-xs text-[#1E40AF] font-semibold hover:underline">
-                      Tai
+                      Tải
                     </button>
                   </li>
                 ))}
@@ -186,17 +186,17 @@ const ChairmanPage: React.FC = () => {
             </div>
 
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Bieu mau cua toi</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Biểu mẫu của tôi</h3>
               <button onClick={() => downloadTemplate().catch(() => undefined)} className="w-full px-4 py-3 bg-white border border-[#1E40AF] text-[#1E40AF] text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors">
-                Tai mau chu tich
+                Tải mẫu chủ tịch
               </button>
             </div>
           </section>
 
           <section className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
-            <h3 className="text-lg font-bold text-slate-800">Cham diem va nhan xet</h3>
+            <h3 className="text-lg font-bold text-slate-800">Chấm điểm và nhận xét</h3>
             <label className="block text-sm font-semibold text-slate-700">
-              Diem cua chu tich
+              Điểm của chủ tịch
               <input
                 value={score}
                 onChange={(e) => setScore(e.target.value)}
@@ -208,7 +208,7 @@ const ChairmanPage: React.FC = () => {
               />
             </label>
             <label className="block text-sm font-semibold text-slate-700">
-              Nhan xet chi tiet
+              Nhận xét chi tiết
               <textarea
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
@@ -220,17 +220,17 @@ const ChairmanPage: React.FC = () => {
             <div className="rounded-xl border border-dashed border-slate-300 p-5 bg-slate-50">
               <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => setMinutesFile(e.target.files?.[0] ?? null)} />
               <button onClick={() => fileInputRef.current?.click()} className="w-full border border-slate-200 bg-white rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                {minutesFile ? `Da chon: ${minutesFile.name}` : 'Chon bien ban nghiem thu da ky (PDF)'}
+                {minutesFile ? `Đã chọn: ${minutesFile.name}` : 'Chọn biên bản nghiệm thu đã ký (PDF)'}
               </button>
               <button
                 onClick={() => uploadMinutes().catch(() => undefined)}
                 disabled={!minutesFile}
                 className="mt-3 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-black disabled:opacity-50"
               >
-                Tai bien ban da ky
+                Tải biên bản đã ký
               </button>
             </div>
-            {submittedAt && <p className="text-xs font-semibold text-emerald-600">Da gui luc {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
+            {submittedAt && <p className="text-xs font-semibold text-emerald-600">Đã gửi lúc {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
           </section>
         </div>
       )}

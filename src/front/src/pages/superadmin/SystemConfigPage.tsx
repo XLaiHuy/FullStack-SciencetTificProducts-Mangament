@@ -6,8 +6,17 @@ type ConfigState = {
   maxFileSize: string;
   allowedFormats: string;
   reminderDays: string;
+  emailMock: boolean;
   smtpServer: string;
+  smtpPort: string;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPass: string;
+  emailFrom: string;
+  emailRetryCount: string;
+  emailRetryDelayMs: string;
   systemEmail: string;
+  councilDefaultPassword: string;
   notifyProgress: boolean;
   notifyExtension: boolean;
   notifyAcceptance: boolean;
@@ -19,8 +28,17 @@ const DEFAULT_STATE: ConfigState = {
   maxFileSize: '20',
   allowedFormats: '.pdf,.docx,.xlsx',
   reminderDays: '7',
+  emailMock: false,
   smtpServer: '',
+  smtpPort: '587',
+  smtpSecure: false,
+  smtpUser: '',
+  smtpPass: '',
+  emailFrom: '',
+  emailRetryCount: '3',
+  emailRetryDelayMs: '1000',
   systemEmail: '',
+  councilDefaultPassword: '',
   notifyProgress: true,
   notifyExtension: true,
   notifyAcceptance: true,
@@ -28,10 +46,10 @@ const DEFAULT_STATE: ConfigState = {
 };
 
 const NOTIFY_ITEMS: Array<{ key: 'notifyProgress' | 'notifyExtension' | 'notifyAcceptance' | 'notifySettlement'; label: string }> = [
-  { key: 'notifyProgress', label: 'Nhac nho nop bao cao tien do' },
-  { key: 'notifyExtension', label: 'Thong bao gia han de tai' },
-  { key: 'notifyAcceptance', label: 'Thong bao nghiem thu' },
-  { key: 'notifySettlement', label: 'Thong bao quyet toan' },
+  { key: 'notifyProgress', label: 'Nhắc nhở nộp báo cáo tiến độ' },
+  { key: 'notifyExtension', label: 'Thông báo gia hạn đề tài' },
+  { key: 'notifyAcceptance', label: 'Thông báo nghiệm thu' },
+  { key: 'notifySettlement', label: 'Thông báo quyết toán' },
 ];
 
 const SystemConfigPage: React.FC = () => {
@@ -57,15 +75,24 @@ const SystemConfigPage: React.FC = () => {
         maxFileSize: byKey.get('MAX_FILE_SIZE_MB') ?? DEFAULT_STATE.maxFileSize,
         allowedFormats: byKey.get('ALLOWED_FILE_FORMATS') ?? DEFAULT_STATE.allowedFormats,
         reminderDays: byKey.get('REMINDER_DAYS') ?? DEFAULT_STATE.reminderDays,
+        emailMock: (byKey.get('EMAIL_MOCK') ?? String(DEFAULT_STATE.emailMock)) === 'true',
         smtpServer: byKey.get('SMTP_SERVER') ?? DEFAULT_STATE.smtpServer,
+        smtpPort: byKey.get('SMTP_PORT') ?? DEFAULT_STATE.smtpPort,
+        smtpSecure: (byKey.get('SMTP_SECURE') ?? String(DEFAULT_STATE.smtpSecure)) === 'true',
+        smtpUser: byKey.get('SMTP_USER') ?? DEFAULT_STATE.smtpUser,
+        smtpPass: byKey.get('SMTP_PASS') ?? DEFAULT_STATE.smtpPass,
+        emailFrom: byKey.get('EMAIL_FROM') ?? DEFAULT_STATE.emailFrom,
+        emailRetryCount: byKey.get('EMAIL_RETRY_COUNT') ?? DEFAULT_STATE.emailRetryCount,
+        emailRetryDelayMs: byKey.get('EMAIL_RETRY_DELAY_MS') ?? DEFAULT_STATE.emailRetryDelayMs,
         systemEmail: byKey.get('SYSTEM_EMAIL') ?? DEFAULT_STATE.systemEmail,
+        councilDefaultPassword: byKey.get('COUNCIL_DEFAULT_PASSWORD') ?? DEFAULT_STATE.councilDefaultPassword,
         notifyProgress: (byKey.get('EMAIL_NOTIFY_PROGRESS') ?? String(DEFAULT_STATE.notifyProgress)) === 'true',
         notifyExtension: (byKey.get('EMAIL_NOTIFY_EXTENSION') ?? String(DEFAULT_STATE.notifyExtension)) === 'true',
         notifyAcceptance: (byKey.get('EMAIL_NOTIFY_ACCEPTANCE') ?? String(DEFAULT_STATE.notifyAcceptance)) === 'true',
         notifySettlement: (byKey.get('EMAIL_NOTIFY_SETTLEMENT') ?? String(DEFAULT_STATE.notifySettlement)) === 'true',
       });
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai cau hinh he thong.');
+      setError(typeof e === 'string' ? e : 'Không thể tải cấu hình hệ thống.');
     } finally {
       setLoading(false);
     }
@@ -80,20 +107,29 @@ const SystemConfigPage: React.FC = () => {
     setError('');
     try {
       await adminService.saveConfig([
-        { key: 'MAX_SCORE', value: state.maxScore, label: 'Thang diem toi da' },
-        { key: 'MAX_FILE_SIZE_MB', value: state.maxFileSize, label: 'Dung luong file toi da (MB)' },
-        { key: 'ALLOWED_FILE_FORMATS', value: state.allowedFormats, label: 'Dinh dang file cho phep' },
-        { key: 'REMINDER_DAYS', value: state.reminderDays, label: 'So ngay nhac truoc han nop' },
+        { key: 'MAX_SCORE', value: state.maxScore, label: 'Thang điểm tối đa' },
+        { key: 'MAX_FILE_SIZE_MB', value: state.maxFileSize, label: 'Dung lượng file tối đa (MB)' },
+        { key: 'ALLOWED_FILE_FORMATS', value: state.allowedFormats, label: 'Định dạng file cho phép' },
+        { key: 'REMINDER_DAYS', value: state.reminderDays, label: 'Số ngày nhắc trước hạn nộp' },
         { key: 'SMTP_SERVER', value: state.smtpServer, label: 'SMTP Server' },
-        { key: 'SYSTEM_EMAIL', value: state.systemEmail, label: 'Email gui di' },
-        { key: 'EMAIL_NOTIFY_PROGRESS', value: String(state.notifyProgress), label: 'Thong bao tien do' },
-        { key: 'EMAIL_NOTIFY_EXTENSION', value: String(state.notifyExtension), label: 'Thong bao gia han' },
-        { key: 'EMAIL_NOTIFY_ACCEPTANCE', value: String(state.notifyAcceptance), label: 'Thong bao nghiem thu' },
-        { key: 'EMAIL_NOTIFY_SETTLEMENT', value: String(state.notifySettlement), label: 'Thong bao quyet toan' },
+        { key: 'SMTP_PORT', value: state.smtpPort, label: 'SMTP Port' },
+        { key: 'SMTP_SECURE', value: String(state.smtpSecure), label: 'SMTP Secure' },
+        { key: 'SMTP_USER', value: state.smtpUser, label: 'SMTP User' },
+        { key: 'SMTP_PASS', value: state.smtpPass, label: 'SMTP Password' },
+        { key: 'EMAIL_FROM', value: state.emailFrom, label: 'Email From' },
+        { key: 'EMAIL_MOCK', value: String(state.emailMock), label: 'Email Mock' },
+        { key: 'EMAIL_RETRY_COUNT', value: state.emailRetryCount, label: 'Email Retry Count' },
+        { key: 'EMAIL_RETRY_DELAY_MS', value: state.emailRetryDelayMs, label: 'Email Retry Delay (ms)' },
+        { key: 'SYSTEM_EMAIL', value: state.systemEmail, label: 'Email gửi đi' },
+        { key: 'COUNCIL_DEFAULT_PASSWORD', value: state.councilDefaultPassword, label: 'Mật khẩu tạm mặc định hội đồng' },
+        { key: 'EMAIL_NOTIFY_PROGRESS', value: String(state.notifyProgress), label: 'Thông báo tiến độ' },
+        { key: 'EMAIL_NOTIFY_EXTENSION', value: String(state.notifyExtension), label: 'Thông báo gia hạn' },
+        { key: 'EMAIL_NOTIFY_ACCEPTANCE', value: String(state.notifyAcceptance), label: 'Thông báo nghiệm thu' },
+        { key: 'EMAIL_NOTIFY_SETTLEMENT', value: String(state.notifySettlement), label: 'Thông báo quyết toán' },
       ]);
-      showToast('Da luu cau hinh he thong.');
+      showToast('Đã lưu cấu hình hệ thống.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the luu cau hinh.');
+      setError(typeof e === 'string' ? e : 'Không thể lưu cấu hình.');
     } finally {
       setSaving(false);
     }
@@ -109,8 +145,8 @@ const SystemConfigPage: React.FC = () => {
 
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cau hinh he thong</h1>
-          <p className="text-gray-500 text-sm mt-1">Quan ly tham so van hanh cua he thong NCKH</p>
+          <h1 className="text-2xl font-bold text-gray-900">Cấu hình hệ thống</h1>
+          <p className="text-gray-500 text-sm mt-1">Quản lý tham số vận hành của hệ thống NCKH</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -118,7 +154,7 @@ const SystemConfigPage: React.FC = () => {
             onClick={() => loadConfig().catch(() => undefined)}
             className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Tai lai
+            Tải lại
           </button>
           <button
             type="button"
@@ -126,7 +162,7 @@ const SystemConfigPage: React.FC = () => {
             disabled={saving || loading}
             className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black disabled:opacity-50"
           >
-            {saving ? 'Dang luu...' : 'Luu cau hinh'}
+            {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
           </button>
         </div>
       </div>
@@ -138,14 +174,14 @@ const SystemConfigPage: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai cau hinh...</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải cấu hình...</div>
       ) : (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6 space-y-5">
-              <h2 className="font-bold text-lg text-gray-900">Tham so chung</h2>
+              <h2 className="font-bold text-lg text-gray-900">Tham số chung</h2>
               <label className="block text-sm font-medium text-gray-700">
-                Thang diem toi da
+                Thang điểm tối đa
                 <input
                   type="number"
                   value={state.maxScore}
@@ -154,7 +190,7 @@ const SystemConfigPage: React.FC = () => {
                 />
               </label>
               <label className="block text-sm font-medium text-gray-700">
-                Dung luong file toi da (MB)
+                Dung lượng file tối đa (MB)
                 <input
                   type="number"
                   value={state.maxFileSize}
@@ -163,7 +199,7 @@ const SystemConfigPage: React.FC = () => {
                 />
               </label>
               <label className="block text-sm font-medium text-gray-700">
-                Dinh dang file cho phep
+                Định dạng file cho phép
                 <input
                   type="text"
                   value={state.allowedFormats}
@@ -172,7 +208,7 @@ const SystemConfigPage: React.FC = () => {
                 />
               </label>
               <label className="block text-sm font-medium text-gray-700">
-                So ngay nhac truoc han nop bao cao
+                Số ngày nhắc trước hạn nộp báo cáo
                 <input
                   type="number"
                   value={state.reminderDays}
@@ -183,7 +219,16 @@ const SystemConfigPage: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6 space-y-5">
-              <h2 className="font-bold text-lg text-gray-900">Thong bao Email</h2>
+              <h2 className="font-bold text-lg text-gray-900">Thông báo Email</h2>
+              <label className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                <span className="text-sm font-medium text-gray-700">Bật chế độ giả lập email (EMAIL_MOCK)</span>
+                <input
+                  type="checkbox"
+                  checked={state.emailMock}
+                  onChange={(e) => updateField('emailMock', e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+              </label>
               <label className="block text-sm font-medium text-gray-700">
                 SMTP Server
                 <input
@@ -194,12 +239,89 @@ const SystemConfigPage: React.FC = () => {
                 />
               </label>
               <label className="block text-sm font-medium text-gray-700">
-                Email gui di
+                SMTP Port
+                <input
+                  type="number"
+                  value={state.smtpPort}
+                  onChange={(e) => updateField('smtpPort', e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                />
+              </label>
+              <label className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                <span className="text-sm font-medium text-gray-700">SMTP Secure</span>
+                <input
+                  type="checkbox"
+                  checked={state.smtpSecure}
+                  onChange={(e) => updateField('smtpSecure', e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                SMTP User (email đăng nhập)
+                <input
+                  type="text"
+                  value={state.smtpUser}
+                  onChange={(e) => updateField('smtpUser', e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                SMTP Password / App Password
+                <input
+                  type="password"
+                  value={state.smtpPass}
+                  onChange={(e) => updateField('smtpPass', e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                EMAIL_FROM
+                <input
+                  type="text"
+                  value={state.emailFrom}
+                  onChange={(e) => updateField('emailFrom', e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                />
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Số lần retry email
+                  <input
+                    type="number"
+                    min={1}
+                    value={state.emailRetryCount}
+                    onChange={(e) => updateField('emailRetryCount', e.target.value)}
+                    className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Delay retry (ms)
+                  <input
+                    type="number"
+                    min={0}
+                    value={state.emailRetryDelayMs}
+                    onChange={(e) => updateField('emailRetryDelayMs', e.target.value)}
+                    className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                  />
+                </label>
+              </div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email gửi đi
                 <input
                   type="email"
                   value={state.systemEmail}
                   onChange={(e) => updateField('systemEmail', e.target.value)}
                   className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Mật khẩu tạm mặc định cho thành viên hội đồng mới
+                <input
+                  type="password"
+                  value={state.councilDefaultPassword}
+                  onChange={(e) => updateField('councilDefaultPassword', e.target.value)}
+                  className="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                  placeholder="Để trống để hệ thống tự random"
                 />
               </label>
               <div className="space-y-3">

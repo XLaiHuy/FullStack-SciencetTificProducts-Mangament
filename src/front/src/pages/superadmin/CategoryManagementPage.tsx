@@ -27,7 +27,7 @@ const CategoryManagementPage: React.FC = () => {
       setYears(yearRows);
       setFields(fieldRows);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai danh muc.');
+      setError(typeof e === 'string' ? e : 'Không thể tải danh mục.');
     } finally {
       setLoading(false);
     }
@@ -45,14 +45,14 @@ const CategoryManagementPage: React.FC = () => {
       await adminService.createCategory({
         type: 'academic_year',
         value: newYear.trim(),
-        label: `Nam hoc ${newYear.trim()}`,
+        label: `Năm học ${newYear.trim()}`,
         sortOrder: years.length,
       });
       setNewYear('');
       await loadCategories();
-      showToast('Da them nam hoc moi.');
+      showToast('Đã thêm năm học mới.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the them nam hoc.');
+      setError(typeof e === 'string' ? e : 'Không thể thêm năm học.');
     } finally {
       setSaving(false);
     }
@@ -71,9 +71,9 @@ const CategoryManagementPage: React.FC = () => {
       });
       setNewField('');
       await loadCategories();
-      showToast('Da them linh vuc nghien cuu.');
+      showToast('Đã thêm lĩnh vực nghiên cứu.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the them linh vuc.');
+      setError(typeof e === 'string' ? e : 'Không thể thêm lĩnh vực.');
     } finally {
       setSaving(false);
     }
@@ -85,9 +85,9 @@ const CategoryManagementPage: React.FC = () => {
     try {
       await adminService.deleteCategory(row.id);
       await loadCategories();
-      showToast(`Da an danh muc ${row.label}.`);
+      showToast(`Đã ẩn danh mục ${row.label}.`);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the cap nhat danh muc.');
+      setError(typeof e === 'string' ? e : 'Không thể cập nhật danh mục.');
     } finally {
       setSaving(false);
     }
@@ -99,15 +99,15 @@ const CategoryManagementPage: React.FC = () => {
 
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quan ly danh muc</h1>
-          <p className="text-gray-500 text-sm mt-1">Cau hinh danh muc nam hoc va linh vuc nghien cuu</p>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý danh mục</h1>
+          <p className="text-gray-500 text-sm mt-1">Cấu hình danh mục năm học và lĩnh vực nghiên cứu</p>
         </div>
         <button
           type="button"
           onClick={() => loadCategories().catch(() => undefined)}
           className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
         >
-          Tai lai
+          Tải lại
         </button>
       </div>
 
@@ -118,11 +118,11 @@ const CategoryManagementPage: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai danh muc...</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải danh mục...</div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Danh muc nam hoc</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Danh mục năm học</h2>
             <div className="flex gap-2 mb-4">
               <input
                 value={newYear}
@@ -136,7 +136,7 @@ const CategoryManagementPage: React.FC = () => {
                 disabled={saving}
                 className="px-4 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark disabled:opacity-50"
               >
-                Them
+                Thêm
               </button>
             </div>
             <div className="space-y-3">
@@ -149,21 +149,21 @@ const CategoryManagementPage: React.FC = () => {
                     onClick={() => removeCategory(row).catch(() => undefined)}
                     className="text-xs font-bold text-rose-500 hover:text-rose-700 disabled:opacity-50"
                   >
-                    An
+                    Ẩn
                   </button>
                 </div>
               ))}
-              {years.length === 0 && <p className="text-sm text-gray-400">Chua co nam hoc nao.</p>}
+              {years.length === 0 && <p className="text-sm text-gray-400">Chưa có năm học nào.</p>}
             </div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Linh vuc nghien cuu</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Lĩnh vực nghiên cứu</h2>
             <div className="flex gap-2 mb-4">
               <input
                 value={newField}
                 onChange={(e) => setNewField(e.target.value)}
-                placeholder="Nhap linh vuc moi..."
+                placeholder="Nhập lĩnh vực mới..."
                 className="flex-1 rounded-xl border-gray-200 text-sm"
               />
               <button
@@ -172,7 +172,7 @@ const CategoryManagementPage: React.FC = () => {
                 disabled={saving}
                 className="px-4 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark disabled:opacity-50"
               >
-                Them
+                Thêm
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -192,7 +192,7 @@ const CategoryManagementPage: React.FC = () => {
                   </button>
                 </span>
               ))}
-              {fields.length === 0 && <p className="text-sm text-gray-400">Chua co linh vuc nao.</p>}
+              {fields.length === 0 && <p className="text-sm text-gray-400">Chưa có lĩnh vực nào.</p>}
             </div>
           </div>
         </div>

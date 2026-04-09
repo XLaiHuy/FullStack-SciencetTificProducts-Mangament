@@ -21,22 +21,22 @@ const AcceptanceMinutesPage: React.FC = () => {
         if (detail) setCouncil(detail);
       } catch (err) {
         console.error(err);
-        showToast('Khong the tai du lieu bien ban nghiem thu.');
+        showToast('Không thể tải dữ liệu biên bản nghiệm thu.');
       }
     };
     loadCouncil();
   }, []);
 
   const statusLabel = useMemo(() => {
-    if (!council) return 'Khong co du lieu';
-    if (council.status === 'cho_danh_gia') return 'Cho danh gia';
-    if (council.status === 'dang_danh_gia') return 'Dang danh gia';
-    return 'Da hoan thanh';
+    if (!council) return 'Không có dữ liệu';
+    if (council.status === 'cho_danh_gia') return 'Chờ đánh giá';
+    if (council.status === 'dang_danh_gia') return 'Đang đánh giá';
+    return 'Đã hoàn thành';
   }, [council]);
 
   const handleDownloadPdf = async () => {
     if (!council) {
-      showToast('Chua co hoi dong de tai bien ban.');
+      showToast('Chưa có hội đồng để tải biên bản.');
       return;
     }
 
@@ -44,10 +44,10 @@ const AcceptanceMinutesPage: React.FC = () => {
     try {
       const fallbackName = `BienBanNghiemThu_${council.decisionCode.replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`;
       await councilService.downloadMinutes(council.id, fallbackName);
-      showToast('Da tai bien ban nghiem thu tu he thong.');
+      showToast('Đã tải biên bản nghiệm thu từ hệ thống.');
     } catch (err) {
       console.error(err);
-      showToast(typeof err === 'string' ? err : 'Khong the tai bien ban nghiem thu.');
+      showToast(typeof err === 'string' ? err : 'Không thể tải biên bản nghiệm thu.');
     } finally {
       setDownloading(false);
     }
@@ -92,7 +92,7 @@ const AcceptanceMinutesPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {(council?.members?.length ? council.members : [
-                  { name: 'Chua co du lieu', institution: '-', role: 'uy_vien' as const },
+                  { name: 'Chưa có dữ liệu', institution: '-', role: 'uy_vien' as const },
                 ]).map((member, i) => {
                   const roleLabel = member.role === 'chu_tich'
                     ? 'Chủ tịch'
@@ -121,7 +121,7 @@ const AcceptanceMinutesPage: React.FC = () => {
             disabled={downloading || !council}
             className="px-5 py-2 text-sm font-semibold text-primary border border-primary rounded-xl hover:bg-blue-50"
           >
-            {downloading ? 'Dang tai...' : 'Tải xuống PDF'}
+            {downloading ? 'Đang tải...' : 'Tải xuống PDF'}
           </button>
         </div>
       </div>

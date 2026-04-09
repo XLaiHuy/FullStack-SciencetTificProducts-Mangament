@@ -77,11 +77,11 @@ const SettlementTrackingPage: React.FC = () => {
 
   const exportFilteredRows = () => {
     if (!filtered.length) {
-      showToast('Khong co du lieu de xuat.');
+      showToast('Không có dữ liệu để xuất.');
       return;
     }
 
-    const headers = ['Ma ho so', 'Noi dung', 'De tai', 'So tien', 'Trang thai'];
+    const headers = ['Mã hồ sơ', 'Noi dung', 'De tai', 'So tien', 'Trạng thái'];
     const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const body = filtered.map((s) => [
       s.code,
@@ -102,7 +102,7 @@ const SettlementTrackingPage: React.FC = () => {
     a.remove();
     URL.revokeObjectURL(url);
 
-    showToast('Da xuat Excel (CSV) cho danh sach hien tai.');
+    showToast('Đã xuất Excel (CSV) cho danh sách hiện tại.');
   };
 
   return (

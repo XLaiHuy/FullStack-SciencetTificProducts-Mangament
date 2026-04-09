@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-03-31T12:32:33.499Z",
-  "finishedAt": "2026-03-31T12:36:27.152Z",
+  "startedAt": "2026-04-08T11:52:39.638Z",
+  "finishedAt": "2026-04-08T11:55:34.504Z",
   "frontendUrl": "http://localhost:5173",
   "roles": [
     {
@@ -11,7 +11,7 @@
         "/research-staff/dashboard",
         "/research-staff/council-creation"
       ],
-      "buttonsClicked": 19,
+      "buttonsClicked": 21,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -23,7 +23,7 @@
         },
         {
           "url": "http://localhost:5173/research-staff/council-creation",
-          "message": "Vui lòng chọn file đề xuất để nhận diện."
+          "message": "Invalid PDF structure."
         },
         {
           "url": "http://localhost:5173/research-staff/council-creation",
@@ -31,7 +31,7 @@
         },
         {
           "url": "http://localhost:5173/research-staff/council-creation",
-          "message": "Vui lòng chọn file đề xuất để nhận diện."
+          "message": "Invalid PDF structure."
         }
       ],
       "error": "page.evaluate: Execution context was destroyed, most likely because of a navigation"
@@ -101,7 +101,7 @@
         "/reports/progress-statistics",
         "/reports/export"
       ],
-      "buttonsClicked": 16,
+      "buttonsClicked": 19,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -120,7 +120,7 @@
         "/superadmin/audit-log",
         "/superadmin/category-management"
       ],
-      "buttonsClicked": 22,
+      "buttonsClicked": 28,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -136,7 +136,7 @@
         "/council-member/dashboard",
         "/council-member/chairman"
       ],
-      "buttonsClicked": 21,
+      "buttonsClicked": 17,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -152,7 +152,7 @@
         "/council-member/dashboard",
         "/council-member/reviewer"
       ],
-      "buttonsClicked": 21,
+      "buttonsClicked": 15,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -168,7 +168,7 @@
         "/council-member/dashboard",
         "/council-member/secretary"
       ],
-      "buttonsClicked": 17,
+      "buttonsClicked": 2,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -197,7 +197,7 @@
     "roles": 10,
     "loginFailed": 0,
     "totalRoutesVisited": 32,
-    "totalButtonsClicked": 186,
+    "totalButtonsClicked": 172,
     "totalButtonFailures": 0,
     "totalJsErrors": 4,
     "totalUploadChecks": 1,

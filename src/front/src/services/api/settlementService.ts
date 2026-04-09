@@ -25,6 +25,24 @@ export const settlementService = {
     return (res.data ?? []).map(mapSettlement);
   },
 
+  async create(payload: {
+    projectId: string;
+    content: string;
+    totalAmount: number;
+    category: string;
+    evidenceFile?: File | null;
+  }): Promise<void> {
+    const form = new FormData();
+    form.append('projectId', payload.projectId);
+    form.append('content', payload.content);
+    form.append('totalAmount', String(payload.totalAmount));
+    form.append('category', payload.category);
+    if (payload.evidenceFile) {
+      form.append('evidenceFile', payload.evidenceFile);
+    }
+    await axiosClient.post('/settlements', form);
+  },
+
   async requestSupplement(id: string, reasons: string[]): Promise<void> {
     await axiosClient.post(`/settlements/${id}/supplement-request`, { reasons });
   },

@@ -78,6 +78,15 @@ const mapMemberRoleToCouncilRole = (role: MemberInput['role']) => {
 
 const generateTemporaryPassword = () => `NCKH@${Math.random().toString(36).slice(-6)}A1`;
 
+const getConfiguredCouncilDefaultPassword = async () => {
+  const row = await prisma.systemConfig.findUnique({
+    where: { key: 'COUNCIL_DEFAULT_PASSWORD' },
+    select: { value: true },
+  });
+  const value = row?.value?.trim();
+  return value && value.length >= 6 ? value : undefined;
+};
+
 const buildCouncilPdfBuffer = async (title: string, lines: string[]) => {
   const toPdfText = (value: string) =>
     value
@@ -128,7 +137,7 @@ const buildCouncilPdfBuffer = async (title: string, lines: string[]) => {
   return Buffer.from(bytes);
 };
 
-const ensureCouncilUserAccount = async (member: MemberInput) => {
+const ensureCouncilUserAccount = async (member: MemberInput, defaultTemporaryPassword?: string) => {
   const byId = member.userId
     ? await prisma.user.findFirst({ where: { id: member.userId, is_deleted: false } })
     : null;
@@ -153,7 +162,7 @@ const ensureCouncilUserAccount = async (member: MemberInput) => {
     };
   }
 
-  const temporaryPassword = generateTemporaryPassword();
+  const temporaryPassword = defaultTemporaryPassword ?? generateTemporaryPassword();
   const created = await prisma.user.create({
     data: {
       name: member.name,
@@ -391,9 +400,11 @@ export const CouncilService = {
 
     const decisionCode = await nextCouncilCode();
 
+    const defaultTemporaryPassword = await getConfiguredCouncilDefaultPassword();
+
     const preparedMembers = await Promise.all(
       data.members.map(async (m) => {
-        const account = await ensureCouncilUserAccount(m);
+        const account = await ensureCouncilUserAccount(m, defaultTemporaryPassword);
         const isOwner = m.email === project.owner.email;
         const isMember = project.members.some(pm => pm.user.email === m.email && !pm.is_deleted);
         return {
@@ -418,9 +429,9 @@ export const CouncilService = {
       include: { members: true, project: { select: { code: true, title: true } } },
     });
 
-    // Send invitations with account credentials for newly-created members.
-    await Promise.all(
-      preparedMembers.map(m =>
+    // Keep council creation successful even when some invitation emails fail.
+    const invitationAttempts = await Promise.allSettled(
+      preparedMembers.map((m) =>
         sendCouncilInvitation(m.email, m.name, project.title, decisionCode, {
           loginEmail: m.loginEmail,
           temporaryPassword: m.temporaryPassword,
@@ -429,12 +440,30 @@ export const CouncilService = {
       )
     );
 
+    const invitationFailures = invitationAttempts
+      .map((attempt, index) => {
+        if (attempt.status === 'fulfilled') return null;
+        const reason = attempt.reason instanceof Error ? attempt.reason.message : 'Unknown email error';
+        return {
+          email: preparedMembers[index]?.email,
+          reason,
+        };
+      })
+      .filter((value): value is { email: string; reason: string } => Boolean(value));
+
     await logBusiness(actorId, actorName,
       `Thành lập Hội đồng ${decisionCode} cho đề tài ${project.code}`,
       'Councils'
     );
 
-    return council;
+    return {
+      ...council,
+      invitationSummary: {
+        sent: invitationAttempts.length - invitationFailures.length,
+        failed: invitationFailures.length,
+        failures: invitationFailures,
+      },
+    };
   },
 
   /** POST /api/councils/:id/members */
@@ -452,7 +481,8 @@ export const CouncilService = {
     });
     if (existingMember) throw new Error('Thành viên đã tồn tại trong Hội đồng.');
 
-    const account = await ensureCouncilUserAccount(member);
+    const defaultTemporaryPassword = await getConfiguredCouncilDefaultPassword();
+    const account = await ensureCouncilUserAccount(member, defaultTemporaryPassword);
     const isOwner = member.email === council.project.owner.email;
     const isMember = council.project.members.some(pm => pm.user.email === member.email && !pm.is_deleted);
 
@@ -574,7 +604,7 @@ export const CouncilService = {
     if (!council) throw new Error('Hội đồng không tồn tại.');
     if (!council.members.length) throw new Error('Hội đồng chưa có thành viên để gửi email.');
 
-    await Promise.all(
+    const attempts = await Promise.allSettled(
       council.members.map((m) =>
         sendCouncilInvitation(m.email, m.name, council.project.title, council.decisionCode, {
           loginEmail: m.user?.email ?? m.email,
@@ -583,8 +613,28 @@ export const CouncilService = {
       )
     );
 
+    const failures = attempts
+      .map((attempt, index) => ({ attempt, member: council.members[index] }))
+      .filter((row): row is { attempt: PromiseRejectedResult; member: (typeof council.members)[number] } => row.attempt.status === 'rejected')
+      .map((row) => ({
+        email: row.member.email,
+        reason: row.attempt.reason instanceof Error ? row.attempt.reason.message : String(row.attempt.reason),
+      }));
+
+    const sent = attempts.length - failures.length;
+
+    if (sent === 0) {
+      const detail = failures.map((f) => `${f.email}: ${f.reason}`).join(' | ');
+      throw new Error(`Không thể gửi lại thư mời cho bất kỳ thành viên nào. ${detail}`);
+    }
+
     await logBusiness(actorId, actorName, `Gửi lại thư mời Hội đồng ${council.decisionCode}`, 'Councils');
-    return { sent: council.members.length, councilCode: council.decisionCode };
+    return {
+      sent,
+      failed: failures.length,
+      failures,
+      councilCode: council.decisionCode,
+    };
   },
 
   /** DELETE /api/councils/:id/members/:memberId */

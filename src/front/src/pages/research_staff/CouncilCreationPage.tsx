@@ -4,6 +4,7 @@ import { councilService } from '../../services/api/councilService';
 import { projectService } from '../../services/api/projectService';
 import { contractService, type ParsedContractProposal } from '../../services/api/contractService';
 import type { Council, CouncilMember, Project } from '../../types';
+import { buildRoleCounts, canAssignUniqueRole, findMissingRequiredRoles, validateCouncilComposition } from '../../utils/councilRules';
 
 type ToastType = 'success' | 'error';
 type ProposalSuggestionSource = 'principal_investigator' | 'role_placeholder' | 'parsed_candidate';
@@ -48,6 +49,13 @@ const ROLE_SUGGESTION_TEMPLATE: Array<Pick<ProposalSuggestion, 'role' | 'roleDis
   { role: 'uy_vien', roleDisplay: 'UY VIEN' },
 ];
 
+type ActivityEvent = {
+  id: string;
+  at: string;
+  category: 'user' | 'system';
+  message: string;
+};
+
 const CouncilCreationPage: React.FC = () => {
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [councils, setCouncils] = useState<Council[]>([]);
@@ -66,6 +74,7 @@ const CouncilCreationPage: React.FC = () => {
   const [proposalParsed, setProposalParsed] = useState<ParsedContractProposal | null>(null);
   const [proposalParseLoading, setProposalParseLoading] = useState(false);
   const [proposalCandidates, setProposalCandidates] = useState<ProposalSuggestion[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityEvent[]>([]);
   const [newMember, setNewMember] = useState<CouncilMember>({ name: '', role: 'uy_vien', email: '', phone: '', affiliation: '', title: '' });
 
   const decisionInputRef = useRef<HTMLInputElement | null>(null);
@@ -81,21 +90,40 @@ const CouncilCreationPage: React.FC = () => {
     [projects, activeProjectId],
   );
 
+  const roleCounts = useMemo(() => buildRoleCounts(activeMembers), [activeMembers]);
+
+  const missingRoles = useMemo(
+    () => findMissingRequiredRoles(roleCounts),
+    [roleCounts],
+  );
+
   const showToast = (msg: string, type: ToastType = 'success') => {
     setToast({ message: msg, type });
     window.setTimeout(() => setToast(null), 3000);
   };
 
+  const pushActivity = (message: string, category: ActivityEvent['category'] = 'user') => {
+    setActivityLogs((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        at: new Date().toISOString(),
+        category,
+        message,
+      },
+      ...prev,
+    ].slice(0, 20));
+  };
+
   const buildPlaceholderSuggestions = (): ProposalSuggestion[] =>
     ROLE_SUGGESTION_TEMPLATE.map(({ role, roleDisplay }) => ({
       id: `placeholder-${role}`,
-      name: 'Chua co ung vien tu file',
+      name: 'Chưa có ứng viên từ file',
       role,
       roleDisplay,
       source: 'role_placeholder',
       selectable: false,
       hasConflict: false,
-      institution: 'Goi y mem cho hoi dong',
+      institution: 'Gợi ý mềm cho hội đồng',
       affiliation: 'Bo sung thu cong sau khi kiem tra COI',
     }));
 
@@ -115,7 +143,7 @@ const CouncilCreationPage: React.FC = () => {
       })
       .catch((error) => {
         console.error(error);
-        showToast(typeof error === 'string' ? error : 'Khong the tai du lieu hoi dong.', 'error');
+        showToast(typeof error === 'string' ? error : 'Không thể tải dữ liệu hội đồng.', 'error');
       });
   }, []);
 
@@ -144,7 +172,43 @@ const CouncilCreationPage: React.FC = () => {
     setActiveCouncilId(null);
     setActiveProjectSnapshot({ id: project.id, code: project.code, title: project.title, owner: project.owner });
     setWizardStep(2);
+    pushActivity(`Chọn đề tài ${project.code} để lập hội đồng.`, 'user');
     document.getElementById('council-details-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const auditTrail = useMemo(() => {
+    const systemEvents: ActivityEvent[] = councils.slice(0, 8).map((council) => ({
+      id: `sys-${council.id}`,
+      at: council.createdDate,
+      category: 'system',
+      message: `Hội đồng ${council.decisionCode} được tạo cho đề tài ${council.projectCode}.`,
+    }));
+
+    return [...activityLogs, ...systemEvents]
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 12);
+  }, [activityLogs, councils]);
+
+  const handleExportAuditTrail = () => {
+    const toCsvCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const lines = auditTrail.map((event, idx) => [
+      String(idx + 1),
+      new Date(event.at).toLocaleString('vi-VN'),
+      event.category,
+      event.message,
+    ].map(toCsvCell).join(','));
+
+    const csv = ['"STT","ThoiGian","Loai","NoiDung"', ...lines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `AuditTrail_HoiDong_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('Đã xuất audit trail CSV.', 'success');
   };
 
   const loadCouncilDetail = async (councilId: string, editMode: boolean) => {
@@ -152,7 +216,7 @@ const CouncilCreationPage: React.FC = () => {
     try {
       const council = await councilService.getById(councilId);
       if (!council) {
-        showToast('Khong tim thay hoi dong.', 'error');
+        showToast('Không tìm thấy hội đồng.', 'error');
         return;
       }
 
@@ -163,10 +227,10 @@ const CouncilCreationPage: React.FC = () => {
       setRemovedMemberIndexes([]);
       setWizardStep(3);
       document.getElementById('council-details-section')?.scrollIntoView({ behavior: 'smooth' });
-      showToast(editMode ? 'Da mo che do sua hoi dong.' : 'Da mo chi tiet hoi dong.', 'success');
+      showToast(editMode ? 'Đã mở chế độ sửa hội đồng.' : 'Đã mở chi tiết hội đồng.', 'success');
     } catch (error) {
       console.error(error);
-      showToast(typeof error === 'string' ? error : 'Khong the tai chi tiet hoi dong.', 'error');
+      showToast(typeof error === 'string' ? error : 'Không thể tải chi tiết hội đồng.', 'error');
     } finally {
       setLoading(false);
     }
@@ -192,7 +256,7 @@ const CouncilCreationPage: React.FC = () => {
 
     if (parsed.ownerName || parsed.ownerEmail) {
       let hasConflict = true;
-      let conflictReason = 'Chu nhiem de tai khong the tham gia hoi dong nghiem thu.';
+      let conflictReason = 'Chủ nhiệm đề tài không thể tham gia hội đồng nghiệm thu.';
 
       if (matchedProjectId && parsed.ownerEmail) {
         const conflict = await councilService.checkConflict({
@@ -205,16 +269,16 @@ const CouncilCreationPage: React.FC = () => {
         hasConflict = conflict;
         if (!conflict) {
           hasConflict = true;
-          conflictReason = 'Chu nhiem de tai luon duoc danh dau COI tren khu goi y.';
+          conflictReason = 'Chủ nhiệm de tai luon duoc danh dau COI tren khu goi y.';
         }
       }
 
       suggestions.push({
         id: 'principal-investigator',
-        name: parsed.ownerName || 'Chua ro chu nhiem de tai',
+        name: parsed.ownerName || 'Chưa rõ chủ nhiệm đề tài',
         title: parsed.ownerTitle || '',
-        institution: parsed.projectTitle || 'Thong tin nhan dien tu file de xuat',
-        affiliation: 'Chu nhiem de tai',
+        institution: parsed.projectTitle || 'Thông tin nhận diện từ file đề xuất',
+        affiliation: 'Chủ nhiệm de tai',
         email: parsed.ownerEmail || '',
         role: 'uy_vien',
         roleDisplay: 'CHU NHIEM DE TAI',
@@ -232,11 +296,11 @@ const CouncilCreationPage: React.FC = () => {
   const handleParseProposal = async () => {
     const fileToParse = proposalFile ?? proposalInputRef.current?.files?.[0] ?? null;
     if (!fileToParse) {
-      showToast('Vui long chon file de xuat truoc khi nhan dien.', 'error');
+      showToast('Vui lòng chọn file đề xuất trước khi nhận diện.', 'error');
       return;
     }
     if (fileToParse.size === 0) {
-      showToast('File de xuat dang rong. Vui long chon file hop le.', 'error');
+      showToast('File đề xuất đang rỗng. Vui lòng chọn file hợp lệ.', 'error');
       return;
     }
 
@@ -262,14 +326,15 @@ const CouncilCreationPage: React.FC = () => {
       const suggestions = await buildParsedSuggestions(parsed, matchedProject?.id);
       setProposalCandidates(suggestions);
       setWizardStep(3);
-      showToast('Nhan dien de xuat thanh cong!', 'success');
+      showToast('Nhận diện đề xuất thành công!', 'success');
+      pushActivity(`Nhận diện đề xuất thành công${parsed.projectCode ? ` (${parsed.projectCode})` : ''}.`, 'user');
     } catch (error) {
       console.error(error);
       const message = typeof error === 'string'
         ? error
         : fileToParse
-          ? 'Khong the nhan dien noi dung tep. Neu file da hien ten, vui long chon lai file roi thu lai.'
-          : 'Khong the nhan dien noi dung tep.';
+          ? 'Không thể nhận diện nội dung tệp. Neu file da hien ten, vui long chon lai file roi thu lai.'
+          : 'Không thể nhận diện nội dung tệp.';
       showToast(message, 'error');
     } finally {
       setProposalParseLoading(false);
@@ -280,7 +345,24 @@ const CouncilCreationPage: React.FC = () => {
     event.preventDefault();
     const projectForCheck = activeProjectId || activeProjectSnapshot?.id;
     if (!projectForCheck) {
-      showToast('Vui long chon de tai can thanh lap hoi dong truoc.');
+      showToast('Vui lòng chọn đề tài cần thành lập hội đồng trước.');
+      return;
+    }
+
+    const normalizedEmail = newMember.email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      showToast('Vui lòng nhập email thành viên.', 'error');
+      return;
+    }
+
+    const duplicateEmail = activeMembers.some((member) => (member.email || '').trim().toLowerCase() === normalizedEmail);
+    if (duplicateEmail) {
+      showToast('Email thành viên đã tồn tại trong hội đồng.', 'error');
+      return;
+    }
+
+    if (!canAssignUniqueRole(activeMembers, newMember.role)) {
+      showToast(`Vai tro ${ROLE_LABELS[newMember.role]} chi duoc phep 1 nguoi.`, 'error');
       return;
     }
 
@@ -288,20 +370,21 @@ const CouncilCreationPage: React.FC = () => {
     try {
       const hasConflict = await councilService.checkConflict(newMember, projectForCheck);
       if (hasConflict) {
-        showToast('Khong the them thanh vien: co xung dot loi ich (COI).', 'error');
+        showToast('Không thể thêm thành viên: có xung đột lợi ích (COI).', 'error');
         return;
       }
 
       if (activeCouncilId) {
-        await councilService.addMember(activeCouncilId, { ...newMember, hasConflict: false, title: newMember.title }, 'Research Staff');
+        await councilService.addMember(activeCouncilId, { ...newMember, email: normalizedEmail, hasConflict: false, title: newMember.title }, 'Research Staff');
         await loadCouncilDetail(activeCouncilId, true);
       } else {
-        setMembers([...members, { ...newMember, hasConflict: false, title: newMember.title }]);
+        setMembers([...members, { ...newMember, email: normalizedEmail, hasConflict: false, title: newMember.title }]);
       }
 
       setNewMember({ name: '', role: 'uy_vien', email: '', phone: '', affiliation: '', title: '' });
       setIsModalOpen(false);
       showToast(`Da them thanh vien: ${newMember.name}`, 'success');
+      pushActivity(`Them thanh vien ${newMember.name} (${ROLE_LABELS[newMember.role]}).`, 'user');
     } catch (error) {
       console.error(error);
       showToast(typeof error === 'string' ? error : 'Them thanh vien that bai.', 'error');
@@ -312,7 +395,7 @@ const CouncilCreationPage: React.FC = () => {
 
   const handleSelectProposal = (candidate: ProposalSuggestion) => {
     if (!candidate.selectable || candidate.hasConflict || !candidate.email) {
-      showToast(candidate.conflictReason || 'De xuat nay khong the them truc tiep vao hoi dong.', 'error');
+      showToast(candidate.conflictReason || 'Đề xuất này không thể thêm trực tiếp vào hội đồng.', 'error');
       return;
     }
 
@@ -322,7 +405,12 @@ const CouncilCreationPage: React.FC = () => {
 
     const exists = members.some((member) => member.email.toLowerCase() === candidate.email?.toLowerCase());
     if (exists) {
-      showToast('Thanh vien nay da co trong danh sach.', 'error');
+      showToast('Thành viên này đã có trong danh sách.', 'error');
+      return;
+    }
+
+    if (!canAssignUniqueRole(activeMembers, candidate.role)) {
+      showToast(`Vai tro ${ROLE_LABELS[candidate.role]} da du nguoi, vui long chon vai tro khac.`, 'error');
       return;
     }
 
@@ -340,7 +428,7 @@ const CouncilCreationPage: React.FC = () => {
       },
     ]);
     document.getElementById('council-details-section')?.scrollIntoView({ behavior: 'smooth' });
-    showToast(`Da them de xuat: ${candidate.name}`, 'success');
+    showToast(`Đã thêm đề xuất: ${candidate.name}`, 'success');
   };
 
   const handleRemoveMember = async (idx: number) => {
@@ -353,10 +441,10 @@ const CouncilCreationPage: React.FC = () => {
         await councilService.removeMember(activeCouncilId, member.id);
         await loadCouncilDetail(activeCouncilId, true);
         await refreshCouncils();
-        showToast(`Da go thanh vien ${member.name}`, 'success');
+        showToast(`Đã gỡ thành viên ${member.name}`, 'success');
       } catch (error) {
         console.error(error);
-        showToast(typeof error === 'string' ? error : 'Khong the go thanh vien.', 'error');
+        showToast(typeof error === 'string' ? error : 'Không thể gỡ thành viên.', 'error');
       } finally {
         setLoading(false);
       }
@@ -364,7 +452,8 @@ const CouncilCreationPage: React.FC = () => {
     }
 
     setRemovedMemberIndexes([...removedMemberIndexes, idx]);
-    showToast(`Da go thanh vien ${member.name} khoi ban nhap`, 'success');
+    showToast(`Đã gỡ thành viên ${member.name} khỏi bản nháp`, 'success');
+    pushActivity(`Gỡ thành viên ${member.name} khỏi danh sách bản nháp.`, 'user');
   };
 
   const handleExport = () => {
@@ -380,13 +469,13 @@ const CouncilCreationPage: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    showToast('Xuat file thanh cong.', 'success');
+    showToast('Xuất file thành công.', 'success');
   };
 
   const handleCreateCouncil = async () => {
     if (activeCouncilId) {
       if (!decisionFile) {
-        showToast('Ban dang o che do sua. Chon file neu muon cap nhat quyet dinh.', 'success');
+        showToast('Bạn đang ở chế độ sửa. Chọn file nếu muốn cập nhật quyết định.', 'success');
         return;
       }
 
@@ -394,11 +483,11 @@ const CouncilCreationPage: React.FC = () => {
       try {
         await councilService.uploadDecision(activeCouncilId, decisionFile);
         await refreshCouncils();
-        showToast('Da cap nhat file quyet dinh cho hoi dong.', 'success');
+        showToast('Đã cập nhật file quyết định cho hội đồng.', 'success');
         setDecisionFile(null);
       } catch (error) {
         console.error(error);
-        showToast(typeof error === 'string' ? error : 'Cap nhat file quyet dinh that bai.', 'error');
+        showToast(typeof error === 'string' ? error : 'Cập nhật file quyết định thất bại.', 'error');
       } finally {
         setLoading(false);
       }
@@ -406,12 +495,25 @@ const CouncilCreationPage: React.FC = () => {
     }
 
     if (!activeProject) {
-      showToast('Vui long chon de tai can thanh lap hoi dong.');
+      showToast('Vui lòng chọn đề tài cần thành lập hội đồng.');
       return;
     }
 
     if (activeMembers.length === 0) {
-      showToast('Vui long them toi thieu 1 thanh vien hoi dong.');
+      showToast('Vui lòng thêm tối thiểu 1 thành viên hội đồng.');
+      return;
+    }
+
+    const validation = validateCouncilComposition(activeMembers);
+    if (!validation.ok) {
+      const firstError = validation.errors[0] ?? 'Dữ liệu hội đồng không hợp lệ.';
+
+      if (firstError.includes('thieu vai tro')) {
+        showToast(`Hội đồng con thieu vai tro: ${missingRoles.map((role) => ROLE_LABELS[role]).join(', ')}.`, 'error');
+        return;
+      }
+
+      showToast(firstError, 'error');
       return;
     }
 
@@ -432,19 +534,20 @@ const CouncilCreationPage: React.FC = () => {
       setRemovedMemberIndexes([]);
       setDecisionFile(null);
       resetProposalState(null);
-      showToast('Hoi dong da duoc phe duyet va ban hanh thanh cong!', 'success');
+      showToast('Hội đồng da duoc phe duyet va ban hanh thanh cong!', 'success');
+      pushActivity(`Ban hành hội đồng ${created.decisionCode} cho de tai ${created.projectCode}.`, 'user');
     } catch (error) {
       console.error(error);
-      showToast(typeof error === 'string' ? error : 'Ban hanh hoi dong that bai.', 'error');
+      showToast(typeof error === 'string' ? error : 'Ban hành hội đồng that bai.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-up">
       {toast && (
-        <div className={`fixed top-4 right-4 px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+        <div className={`fixed top-4 right-4 px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold text-white animate-fade-up ${toast.type === 'error' ? 'bg-error-500' : 'bg-success-500'}`}>
           {toast.message}
         </div>
       )}
@@ -454,7 +557,7 @@ const CouncilCreationPage: React.FC = () => {
         <p className="text-gray-500 text-sm mt-1">Tối giản quy trình lập hội đồng cho đề tài đã hoàn thành</p>
       </div>
 
-      <section className="bg-white border border-gray-200 rounded-2xl p-4 shadow-card">
+      <section className="card p-4 animate-fade-up-delay-1">
         <div className="grid grid-cols-3 gap-3 text-xs">
           {[
             { step: 1, label: 'Chọn đề tài' },
@@ -466,7 +569,7 @@ const CouncilCreationPage: React.FC = () => {
             return (
               <div
                 key={item.step}
-                className={`rounded-xl border px-3 py-2 font-bold ${active ? 'border-primary bg-blue-50 text-primary' : done ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400'}`}
+                className={`rounded-xl border px-3 py-2 font-bold ${active ? 'border-primary-300 bg-primary-50 text-primary-800' : done ? 'border-success-200 bg-success-50 text-success-700' : 'border-gray-200 bg-gray-50 text-gray-400'}`}
               >
                 Bước {item.step}: {item.label}
               </div>
@@ -483,7 +586,7 @@ const CouncilCreationPage: React.FC = () => {
           </h2>
           <span className="bg-blue-50 text-primary text-[10px] font-bold px-3 py-1 rounded-full uppercase border border-blue-100">{projects.length} cần xử lý</span>
         </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-card space-y-4">
+        <div className="card p-5 space-y-4 motion-hover-lift">
           <div>
             <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Chọn nhanh đề tài</label>
             <select
@@ -497,7 +600,7 @@ const CouncilCreationPage: React.FC = () => {
                 }
                 handleSelectProject(selected);
               }}
-              className="w-full border border-gray-200 rounded-xl text-sm"
+              className="form-input"
             >
               <option value="">-- Chọn đề tài --</option>
               {allProjects.map((project) => (
@@ -515,13 +618,13 @@ const CouncilCreationPage: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {projects.map((project) => (
-                <div key={project.id} className="p-4 border border-gray-100 rounded-xl flex items-center justify-between gap-4">
+                <div key={project.id} className="p-4 border border-primary-100 rounded-xl flex items-center justify-between gap-4 bg-white">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-primary mb-1">{project.code}</p>
+                    <p className="text-[11px] font-bold text-primary-700 mb-1">{project.code}</p>
                     <p className="text-sm font-bold text-gray-900 truncate">{project.title}</p>
                     <p className="text-xs text-gray-500 mt-1">Chủ nhiệm: {project.owner} • Thời gian: {project.durationMonths} tháng</p>
                   </div>
-                  <button type="button" onClick={() => handleSelectProject(project)} className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-button hover:bg-primary-dark">
+                  <button type="button" onClick={() => handleSelectProject(project)} className="btn-primary text-xs">
                     Chọn đề tài
                   </button>
                 </div>
@@ -540,7 +643,7 @@ const CouncilCreationPage: React.FC = () => {
                   {project.endDate < '2024-01-01' && <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">HAN: {project.endDate}</span>}
                 </div>
                 <h3 className="font-bold text-gray-900 mb-1">{project.title}</h3>
-                <p className="text-xs text-gray-500">Chu nhiem: {project.owner} • Thoi gian: {project.durationMonths} thang</p>
+                <p className="text-xs text-gray-500">Chủ nhiệm: {project.owner} • Thoi gian: {project.durationMonths} thang</p>
               </div>
               <button
                 type="button"
@@ -553,7 +656,7 @@ const CouncilCreationPage: React.FC = () => {
                 }}
                 className="px-6 py-3 bg-primary text-white text-xs font-bold rounded-xl shadow-button hover:bg-primary-dark"
               >
-                Thiet lap Hoi dong
+                Thiết lập Hội đồng
               </button>
             </div>
           ))}
@@ -631,7 +734,7 @@ const CouncilCreationPage: React.FC = () => {
                   <div className="flex justify-between items-start gap-3">
                     <div>
                       <p className="font-bold text-sm text-gray-900">{candidate.name}</p>
-                      <p className="text-[11px] text-gray-500">{candidate.institution || candidate.affiliation || 'Chua co thong tin bo sung'}</p>
+                      <p className="text-[11px] text-gray-500">{candidate.institution || candidate.affiliation || 'Chưa có thông tin bổ sung'}</p>
                     </div>
                     <span className="text-[9px] font-bold text-gray-400 border border-gray-100 px-1.5 py-0.5 rounded">{candidate.roleDisplay}</span>
                   </div>
@@ -661,7 +764,7 @@ const CouncilCreationPage: React.FC = () => {
                     disabled={!candidate.selectable || candidate.hasConflict}
                     className={`w-full py-2.5 text-[11px] font-bold border rounded-xl transition-colors ${!candidate.selectable || candidate.hasConflict ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-600 hover:bg-primary hover:text-white hover:border-primary'}`}
                   >
-                    {candidate.selectable && !candidate.hasConflict ? 'Chon de xuat' : 'Khong the them truc tiep'}
+                    {candidate.selectable && !candidate.hasConflict ? 'Chọn đề xuất' : 'Không thể thêm trực tiếp'}
                   </button>
                 </div>
               ))}
@@ -678,16 +781,25 @@ const CouncilCreationPage: React.FC = () => {
           )}
 
           {wizardStep >= 3 && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-card">
-            <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">Chi tiet thanh phan Hoi dong</h3>
+          <div className="card p-8">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">Chi tiết thành phần Hội đồng</h3>
             <div className="mb-6 bg-gray-50 border border-gray-100 rounded-xl p-4">
-              <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">De tai dang chon</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Đề tài dang chon</p>
               <p className="text-sm font-bold text-gray-900">
-                {activeProject ? `${activeProject.code} - ${activeProject.title}` : activeProjectSnapshot ? `${activeProjectSnapshot.code} - ${activeProjectSnapshot.title}` : 'Chua chon de tai'}
+                {activeProject ? `${activeProject.code} - ${activeProject.title}` : activeProjectSnapshot ? `${activeProjectSnapshot.code} - ${activeProjectSnapshot.title}` : 'Chưa chọn đề tài'}
               </p>
               {(activeProject || activeProjectSnapshot) && (
-                <p className="text-xs text-gray-500 mt-1">Chu nhiem: {activeProject?.owner ?? activeProjectSnapshot?.owner ?? 'N/A'}</p>
+                <p className="text-xs text-gray-500 mt-1">Chủ nhiệm: {activeProject?.owner ?? activeProjectSnapshot?.owner ?? 'N/A'}</p>
               )}
+            </div>
+
+            <div className="mb-6 rounded-xl border border-info-200 bg-info-50 px-4 py-3">
+              <p className="text-xs font-semibold text-info-700">
+                Quy tắc nghiệp vụ: tối thiểu 5 thành viên, bắt buộc có Chủ tịch, Phản biện 1, Phản biện 2, Thư ký và không trùng email.
+              </p>
+              <p className="text-xs text-gray-700 mt-1">
+                Vai tro hien tai: Chu tich {roleCounts.chu_tich}, PB1 {roleCounts.phan_bien_1}, PB2 {roleCounts.phan_bien_2}, Thu ky {roleCounts.thu_ky}, Uy vien {roleCounts.uy_vien}.
+              </p>
             </div>
 
             <div className="overflow-hidden border border-gray-100 rounded-xl mb-6">
@@ -706,7 +818,7 @@ const CouncilCreationPage: React.FC = () => {
                         <input type="text" value={member.name} onChange={(event) => setMembers(members.map((item, index) => index === idx ? { ...item, name: event.target.value } : item))} className="w-full border-gray-200 bg-gray-50 rounded-xl text-sm" />
                       </td>
                       <td className="px-4 py-4">
-                        <input type="text" value={member.title || ''} onChange={(event) => setMembers(members.map((item, index) => index === idx ? { ...item, title: event.target.value, hocHamHocVi: event.target.value } : item))} className="w-full border-gray-200 bg-gray-50 rounded-xl text-sm" placeholder="Nhap hoc ham/hoc vi" />
+                        <input type="text" value={member.title || ''} onChange={(event) => setMembers(members.map((item, index) => index === idx ? { ...item, title: event.target.value, hocHamHocVi: event.target.value } : item))} className="w-full border-gray-200 bg-gray-50 rounded-xl text-sm" placeholder="Nhập học hàm/học vị" />
                       </td>
                       <td className="px-4 py-4">
                         <input type="text" value={ROLE_LABELS[member.role]} readOnly className="w-full border-gray-200 bg-gray-50 rounded-xl text-sm" />
@@ -716,9 +828,9 @@ const CouncilCreationPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 text-center">
                         {removedMemberIndexes.includes(idx) ? (
-                          <span className="text-[10px] font-bold text-red-500 uppercase">Da go</span>
+                          <span className="text-[10px] font-bold text-red-500 uppercase">Đã gỡ</span>
                         ) : (
-                          <button type="button" onClick={() => handleRemoveMember(idx)} className="text-gray-400 hover:text-red-500 font-bold text-[10px] uppercase">Go thanh vien</button>
+                          <button type="button" onClick={() => handleRemoveMember(idx)} className="text-gray-400 hover:text-red-500 font-bold text-[10px] uppercase">Gỡ thành viên</button>
                         )}
                       </td>
                     </tr>
@@ -726,10 +838,10 @@ const CouncilCreationPage: React.FC = () => {
                   <tr>
                     <td colSpan={5} className="px-4 py-4">
                       <button type="button" onClick={() => setIsModalOpen(true)} className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-400 hover:text-[#1E40AF] hover:border-blue-200 hover:bg-blue-50 transition-colors">
-                        + Them thanh vien moi
+                        + Thêm thành viên mới
                       </button>
                       <button type="button" onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded mt-2 text-xs font-bold w-full">
-                        Xuat file
+                        Xuất file
                       </button>
                     </td>
                   </tr>
@@ -738,28 +850,28 @@ const CouncilCreationPage: React.FC = () => {
             </div>
 
             <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4">
-              <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">Bieu mau lien quan</p>
-              <p className="text-xs text-blue-800">Mo trang quan ly bieu mau de xem/sua bieu mau theo vai tro cua thanh vien trong hoi dong.</p>
+              <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">Biểu mẫu liên quan</p>
+              <p className="text-xs text-blue-800">Mở trang quản lý biểu mẫu để xem/sửa biểu mẫu theo vai trò của thành viên trong hội đồng.</p>
               <button type="button" onClick={() => { window.location.href = '/research-staff/template-management'; }} className="mt-2 text-xs font-bold text-primary hover:underline">
-                Mo bieu mau lien quan
+                Mở biểu mẫu liên quan
               </button>
             </div>
 
             <div className="space-y-3 mb-6">
-              <label className="text-[10px] font-bold text-gray-500 uppercase">Quyet dinh thanh lap (.pdf)</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Quyết định thành lập (.pdf)</label>
               <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-gray-50/50">
                 <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400 font-bold text-xs mb-4">UP</div>
                 <input ref={decisionInputRef} type="file" accept="application/pdf" className="hidden" onChange={(event) => setDecisionFile(event.target.files?.[0] ?? null)} />
                 <button type="button" onClick={() => decisionInputRef.current?.click()} className="bg-white border border-gray-200 px-6 py-2 text-xs font-bold text-primary rounded-xl mb-2 shadow-card">
-                  Chon tep tin
+                  Chọn tệp tin
                 </button>
-                <p className="text-[11px] text-gray-400 font-medium">hoac keo tha vao day (Toi da 10MB)</p>
-                {decisionFile && <p className="text-xs text-gray-600 font-bold mt-2">Da chon: {decisionFile.name}</p>}
+                <p className="text-[11px] text-gray-400 font-medium">hoặc kéo thả vào đây (Tối đa 10MB)</p>
+                {decisionFile && <p className="text-xs text-gray-600 font-bold mt-2">Đã chọn: {decisionFile.name}</p>}
               </div>
             </div>
 
             <div className="flex justify-end">
-              <button type="button" onClick={handleCreateCouncil} disabled={loading} className="px-8 py-3 text-xs font-bold text-white bg-primary rounded-xl shadow-button hover:bg-primary-dark">
+              <button type="button" onClick={handleCreateCouncil} disabled={loading} className="btn-primary text-xs px-8 py-3">
                 {loading ? 'Đang xử lý...' : 'Phê duyệt & Ban hành'}
               </button>
             </div>
@@ -769,7 +881,7 @@ const CouncilCreationPage: React.FC = () => {
       </div>
 
       {wizardStep >= 3 && (
-        <div className="sticky bottom-3 z-30 bg-white/95 backdrop-blur border border-gray-200 rounded-2xl p-3 shadow-card flex items-center justify-end gap-2">
+        <div className="sticky bottom-3 z-30 bg-white/95 border border-gray-200 rounded-2xl p-3 shadow-card flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={() => showToast('Đã lưu bản nháp tạm thời trên màn hình.', 'success')}
@@ -791,14 +903,14 @@ const CouncilCreationPage: React.FC = () => {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-gray-300 rounded-full" /> Hoi dong da thanh lap gan day
+            <span className="w-2.5 h-2.5 bg-gray-300 rounded-full" /> Hội đồng đã thành lập gần đây
           </h3>
         </div>
         <div className="bg-white border border-gray-200 rounded-2xl shadow-card overflow-hidden">
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['So quyet dinh', 'Ten de tai', 'Ngay lap', 'Trang thai', 'Thao tac'].map((header) => (
+                {['Số quyết định', 'Tên đề tài', 'Ngày lập', 'Trạng thái', 'Thao tác'].map((header) => (
                   <th key={header} className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase">{header}</th>
                 ))}
               </tr>
@@ -812,25 +924,26 @@ const CouncilCreationPage: React.FC = () => {
                   <td className="px-8 py-5"><StatusBadge status={council.status} /></td>
                   <td className="px-8 py-5">
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => loadCouncilDetail(council.id, false)} className="text-[10px] font-bold text-primary hover:underline">Xem</button>
-                      <button type="button" onClick={() => loadCouncilDetail(council.id, true)} className="text-[10px] font-bold text-primary hover:underline">Sua</button>
+                      <button type="button" onClick={() => loadCouncilDetail(council.id, false)} className="text-[10px] font-bold text-primary-700 hover:text-primary-900">Xem</button>
+                      <button type="button" onClick={() => loadCouncilDetail(council.id, true)} className="text-[10px] font-bold text-primary-700 hover:text-primary-900">Sửa</button>
                       <button
                         type="button"
                         onClick={async () => {
                           setLoading(true);
                           try {
                             const result = await councilService.resendInvitations(council.id);
-                            showToast(`Da gui mail cho ${result.sent} thanh vien.`, 'success');
+                            showToast(`Đã gửi mail cho ${result.sent} thành viên.`, 'success');
+                            pushActivity(`Gửi lại email mời họp cho hội đồng ${council.decisionCode} (${result.sent} người).`, 'user');
                           } catch (error) {
                             console.error(error);
-                            showToast(typeof error === 'string' ? error : 'Gui mail that bai.', 'error');
+                            showToast(typeof error === 'string' ? error : 'Gửi mail thất bại.', 'error');
                           } finally {
                             setLoading(false);
                           }
                         }}
-                        className="text-[10px] font-bold text-primary hover:underline"
+                        className="text-[10px] font-bold text-primary-700 hover:text-primary-900"
                       >
-                        Gui mail
+                        Gửi mail
                       </button>
                     </div>
                   </td>
@@ -841,26 +954,54 @@ const CouncilCreationPage: React.FC = () => {
         </div>
       </section>
 
+      <section className="card animate-fade-up-delay-2">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">Audit Trail Hoạt động</h3>
+          <div className="flex items-center gap-2">
+            <span className="badge badge-primary text-[10px]">{auditTrail.length} sự kiện</span>
+            <button type="button" onClick={handleExportAuditTrail} className="btn-secondary text-xs">
+              Xuất CSV
+            </button>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {auditTrail.length === 0 && (
+            <p className="text-sm text-gray-500">Chưa có sự kiện gần đây.</p>
+          )}
+          {auditTrail.map((event) => (
+            <div key={event.id} className="flex items-start justify-between gap-4 border border-primary-100 rounded-lg px-4 py-3 bg-white">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{event.message}</p>
+                <p className="text-xs text-gray-500 mt-1">{new Date(event.at).toLocaleString('vi-VN')}</p>
+              </div>
+              <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${event.category === 'user' ? 'bg-info-50 text-info-700' : 'bg-gray-100 text-gray-700'}`}>
+                {event.category === 'user' ? 'người dùng' : 'hệ thống'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl w-[500px] overflow-hidden shadow-2xl">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-gray-800">Them thanh vien Hoi dong</h3>
+              <h3 className="font-bold text-lg text-gray-800">Thêm thành viên Hội đồng</h3>
               <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-red-500 font-bold">x</button>
             </div>
             <form onSubmit={handleAddMember} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ho va ten</label>
-                <input required type="text" value={newMember.name} onChange={(event) => setNewMember({ ...newMember, name: event.target.value })} className="w-full border-gray-200 rounded-xl text-sm focus:ring-[#1E40AF]" placeholder="Nhap ten thanh vien..." />
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Họ và tên</label>
+                <input required type="text" value={newMember.name} onChange={(event) => setNewMember({ ...newMember, name: event.target.value })} className="w-full border-gray-200 rounded-xl text-sm focus:ring-[#1E40AF]" placeholder="Nhập tên thành viên..." />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Vai tro</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Vai trò</label>
                 <select value={newMember.role} onChange={(event) => setNewMember({ ...newMember, role: event.target.value as CouncilMember['role'] })} className="w-full border-gray-200 rounded-xl text-sm focus:ring-[#1E40AF]">
-                  <option value="chu_tich">Chu tich</option>
-                  <option value="phan_bien_1">Phan bien 1</option>
-                  <option value="phan_bien_2">Phan bien 2</option>
-                  <option value="thu_ky">Thu ky</option>
-                  <option value="uy_vien">Uy vien</option>
+                  <option value="chu_tich">Chủ tịch</option>
+                  <option value="phan_bien_1">Phản biện 1</option>
+                  <option value="phan_bien_2">Phản biện 2</option>
+                  <option value="thu_ky">Thư ký</option>
+                  <option value="uy_vien">Ủy viên</option>
                 </select>
               </div>
               <div>
@@ -868,12 +1009,12 @@ const CouncilCreationPage: React.FC = () => {
                 <input required type="email" value={newMember.email} onChange={(event) => setNewMember({ ...newMember, email: event.target.value })} className="w-full border-gray-200 rounded-xl text-sm focus:ring-[#1E40AF]" placeholder="email@domain.com" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Hoc ham / Hoc vi</label>
-                <input value={newMember.title ?? ''} onChange={(event) => setNewMember({ ...newMember, title: event.target.value, hocHamHocVi: event.target.value })} className="w-full border-gray-200 rounded-xl text-sm focus:ring-[#1E40AF]" placeholder="Vi du: GS.TS., PGS.TS., TS..." />
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Học hàm / Học vị</label>
+                <input value={newMember.title ?? ''} onChange={(event) => setNewMember({ ...newMember, title: event.target.value, hocHamHocVi: event.target.value })} className="w-full border-gray-200 rounded-xl text-sm focus:ring-[#1E40AF]" placeholder="Ví dụ: GS.TS., PGS.TS., TS..." />
               </div>
               <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold border rounded-xl text-gray-600 hover:bg-gray-50">Huy</button>
-                <button disabled={loading} type="submit" className="px-6 py-2.5 text-sm font-bold bg-[#1E40AF] text-white rounded-xl shadow-md hover:bg-blue-800">{loading ? 'DANG KIEM TRA...' : 'Luu thanh vien'}</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-sm font-bold border rounded-xl text-gray-600 hover:bg-gray-50">Hủy</button>
+                <button disabled={loading} type="submit" className="px-6 py-2.5 text-sm font-bold bg-[#1E40AF] text-white rounded-xl shadow-md hover:bg-blue-800">{loading ? 'ĐANG KIỂM TRA...' : 'Lưu thành viên'}</button>
               </div>
             </form>
           </div>

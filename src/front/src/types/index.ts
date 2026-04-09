@@ -53,6 +53,8 @@ export interface Contract {
   signedDate?: string;
   status: 'cho_duyet' | 'da_ky' | 'hoan_thanh' | 'huy';
   budget: number;
+  agencyName?: string;
+  representative?: string;
   pdfUrl?: string;
   notes?: string;
 }

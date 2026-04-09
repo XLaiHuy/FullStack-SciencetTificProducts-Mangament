@@ -500,3 +500,28 @@ model SystemConfig {
 
   @@map("system_configs")
 }
+
+// ============================================================
+// MODULE 14: EMAIL LOGS
+// ============================================================
+
+model EmailLog {
+  id           String   @id @default(cuid())
+  toAddress    String   @db.VarChar(1000)
+  ccAddress    String?  @db.VarChar(1000)
+  subject      String   @db.VarChar(500)
+  bodyPreview  String?  @db.Text
+  provider     String   @default("smtp") @db.VarChar(50)
+  isMock       Boolean  @default(true)
+  status       String   @db.VarChar(30)
+  attempts     Int      @default(0)
+  messageId    String?  @db.VarChar(255)
+  errorMessage String?  @db.Text
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("email_logs")
+}

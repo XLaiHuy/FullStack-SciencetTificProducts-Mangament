@@ -26,17 +26,17 @@ const DocumentListPage: React.FC = () => {
 
   React.useEffect(() => {
     loadRows().catch((e) => {
-      showToast(typeof e === 'string' ? e : 'Khong the tai danh sach ho so.', 'error');
+      showToast(typeof e === 'string' ? e : 'Không thể tải danh sách hồ sơ.', 'error');
     });
   }, []);
 
   const exportRowsToCsv = () => {
     if (!rows.length) {
-      showToast('Khong co du lieu de xuat.', 'error');
+      showToast('Không có dữ liệu để xuất.', 'error');
       return;
     }
 
-    const headers = ['Ma ho so', 'Ten de tai', 'Chu nhiem', 'Tong tien', 'Trang thai'];
+    const headers = ['Mã hồ sơ', 'Tên đề tài', 'Chủ nhiệm', 'Tổng tiền', 'Trạng thái'];
     const data = rows.map((r) => [
       r.code,
       r.title,
@@ -57,7 +57,7 @@ const DocumentListPage: React.FC = () => {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast('Da xuat file Excel (CSV).', 'success');
+    showToast('Đã xuất file Excel (CSV).', 'success');
   };
 
   return (
@@ -94,9 +94,9 @@ const DocumentListPage: React.FC = () => {
                   onClick={async () => {
                     try {
                       const result = await settlementService.exportFile(c.id, 'excel');
-                      showToast(`Da tao lien ket xuat file: ${result.url}`, 'success');
+                      showToast(`Đã tạo liên kết xuất file: ${result.url}`, 'success');
                     } catch (e) {
-                      showToast(typeof e === 'string' ? e : 'Khong the xuat file ho so.', 'error');
+                      showToast(typeof e === 'string' ? e : 'Không thể xuất file hồ sơ.', 'error');
                     }
                   }}
                   className="text-xs font-bold text-primary hover:underline"

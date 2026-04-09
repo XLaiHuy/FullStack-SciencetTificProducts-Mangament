@@ -33,7 +33,7 @@ const ReportsDashboard: React.FC = () => {
       setTopics(topicData.slice(0, 6));
       setProgress(progressData);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai du lieu bao cao.');
+      setError(typeof e === 'string' ? e : 'Không thể tải dữ liệu báo cáo.');
     } finally {
       setLoading(false);
     }
@@ -54,24 +54,24 @@ const ReportsDashboard: React.FC = () => {
       )}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Tong quan bao cao va thong ke</h1>
-          <p className="text-gray-400 text-sm mt-1">Cap nhat tu du lieu he thong thoi gian thuc</p>
+          <h1 className="text-2xl font-bold text-gray-800">Tổng quan báo cáo và thống kê</h1>
+          <p className="text-gray-400 text-sm mt-1">Cập nhật từ dữ liệu hệ thống thời gian thực</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => loadData().catch(() => undefined)} className="px-4 py-2.5 border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50">
-            Tai lai
+            Tải lại
           </button>
           <button onClick={() => navigate('/reports/export')} className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-button hover:bg-primary-dark">
-            Xuat bao cao
+            Xuất báo cáo
           </button>
           <button
             onClick={() => {
-              showToast('Dang xuat CSV tong hop de tai...');
+              showToast('Đang xuất CSV tổng hợp đề tài...');
               reportService.exportReport('topic-summary', 'csv').catch(() => undefined);
             }}
             className="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black"
           >
-            Xuat CSV nhanh
+            Xuất CSV nhanh
           </button>
         </div>
       </div>
@@ -83,27 +83,27 @@ const ReportsDashboard: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Dang tai du lieu...</div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
-              <p className="text-gray-500 text-sm font-medium">Tong so de tai</p>
+              <p className="text-gray-500 text-sm font-medium">Tổng số đề tài</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalProjects.toLocaleString('vi-VN') ?? 0}</p>
             </div>
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
-              <p className="text-gray-500 text-sm font-medium">Dang thuc hien</p>
+              <p className="text-gray-500 text-sm font-medium">Đang thực hiện</p>
               <p className="text-3xl font-bold text-primary mt-2">{stats?.activeProjects.toLocaleString('vi-VN') ?? 0}</p>
             </div>
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
-              <p className="text-gray-500 text-sm font-medium">Da nghiem thu</p>
+              <p className="text-gray-500 text-sm font-medium">Đã nghiệm thu</p>
               <p className="text-3xl font-bold text-emerald-600 mt-2">{stats?.completedProjects.toLocaleString('vi-VN') ?? 0}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
-              <h4 className="font-bold text-gray-800 mb-4">Thong ke theo linh vuc</h4>
+              <h4 className="font-bold text-gray-800 mb-4">Thống kê theo lĩnh vực</h4>
               <div className="space-y-3">
                 {topics.map((topic) => (
                   <div key={topic.field}>
@@ -120,7 +120,7 @@ const ReportsDashboard: React.FC = () => {
             </div>
 
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
-              <h4 className="font-bold text-gray-800 mb-4">Phan bo trang thai de tai</h4>
+              <h4 className="font-bold text-gray-800 mb-4">Phân bố trạng thái đề tài</h4>
               <div className="space-y-3">
                 {progress.map((item) => (
                   <div key={item.status} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -136,18 +136,18 @@ const ReportsDashboard: React.FC = () => {
 
           <div className="bg-white rounded-xl border border-gray-100 shadow-card overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h4 className="font-bold text-gray-800">Danh sach de tai cap nhat gan day</h4>
+              <h4 className="font-bold text-gray-800">Danh sách đề tài cập nhật gần đây</h4>
               <button onClick={() => navigate('/reports/topic-statistics')} className="text-primary text-sm font-bold hover:underline">
-                Xem tat ca
+                Xem tất cả
               </button>
             </div>
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                 <tr>
-                  <th className="px-6 py-4">Ma de tai</th>
-                  <th className="px-6 py-4">Ten de tai</th>
-                  <th className="px-6 py-4">Chu nhiem</th>
-                  <th className="px-6 py-4">Trang thai</th>
+                  <th className="px-6 py-4">Mã đề tài</th>
+                  <th className="px-6 py-4">Tên đề tài</th>
+                  <th className="px-6 py-4">Chủ nhiệm</th>
+                  <th className="px-6 py-4">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -162,7 +162,7 @@ const ReportsDashboard: React.FC = () => {
                 {projects.length === 0 && (
                   <tr>
                     <td className="px-6 py-6 text-sm text-gray-400" colSpan={4}>
-                      Chua co du lieu de tai.
+                      Chưa có dữ liệu đề tài.
                     </td>
                   </tr>
                 )}

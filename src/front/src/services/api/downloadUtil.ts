@@ -1,10 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
-
-const buildApiUrl = (endpoint: string) => {
-  if (/^https?:\/\//i.test(endpoint)) return endpoint;
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${API_BASE}${normalizedEndpoint}`;
-};
+import { buildApiUrl } from '../../utils/urlUtil';
 
 const extractFileNameFromDisposition = (header: string | null): string | undefined => {
   if (!header) return undefined;
@@ -35,7 +29,7 @@ export const downloadFromApi = async (endpoint: string, fallbackFileName: string
   });
 
   if (!response.ok) {
-    let message = 'Khong the tai tep tu he thong.';
+    let message = 'Không thể tải tệp từ hệ thống.';
     try {
       const body = await response.json();
       if (body?.error) message = body.error;

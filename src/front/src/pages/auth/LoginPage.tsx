@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/api/authService';
 import { saveAuth, getRoleDashboard } from '../../hooks/useAuth';
+import { prefetchRoleModules } from '../../utils/rolePrefetch';
 import { demoCredentials } from '../../mock/mockData';
 import AuthShell from './AuthShell';
 
@@ -35,6 +36,7 @@ const LoginPage: React.FC = () => {
     try {
       const { user, token, councilRole } = await authService.login(email, password);
       saveAuth(user, token);
+      prefetchRoleModules(user.role, councilRole ?? user.councilRole ?? null);
 
       if (user.mustChangePassword) {
         setMustChangeMode(true);
@@ -44,7 +46,7 @@ const LoginPage: React.FC = () => {
         navigate(getRoleDashboard(user.role, councilRole));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Dang nhap that bai');
+      setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
     }
@@ -57,19 +59,19 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       await authService.changePassword(mustCurrentPassword, mustNewPassword);
-      setSuccess('Doi mat khau thanh cong. Dang chuyen huong...');
+      setSuccess('Đổi mật khẩu thành công. Đang chuyển hướng...');
       navigate(postChangeRedirect);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Doi mat khau that bai');
+      setError(err instanceof Error ? err.message : 'Đổi mật khẩu thất bại');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell title={mustChangeMode ? 'Doi mat khau lan dau' : 'Dang nhap he thong'} subtitle="He thong Quan ly Nghien cuu Khoa hoc">
-      {error && <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">{error}</div>}
-      {success && <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-xl text-sm text-green-700 font-medium">{success}</div>}
+    <AuthShell title={mustChangeMode ? 'Đổi mật khẩu lần đầu' : 'Đăng nhập hệ thống'} subtitle="Hệ thống Quản lý Nghiên cứu Khoa học">
+      {error && <div className="mb-4 p-3 bg-error-50 border border-error-200 rounded-xl text-sm text-error-700 font-medium">{error}</div>}
+      {success && <div className="mb-4 p-3 bg-success-50 border border-success-200 rounded-xl text-sm text-success-700 font-medium">{success}</div>}
 
       {!mustChangeMode && (
         <form onSubmit={handleLogin} className="space-y-5">
@@ -80,14 +82,14 @@ const LoginPage: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Nhap email"
+              placeholder="Nhập email"
               required
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400 text-sm"
+              className="form-input py-3"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="password">Mat khau</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="password">Mật khẩu</label>
             <div className="relative">
               <input
                 id="password"
@@ -96,26 +98,26 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400 text-sm"
+                className="form-input py-3"
               />
-              <button type="button" onClick={() => setShowPwd((v) => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
-                {showPwd ? 'An' : 'Hien'}
+              <button type="button" onClick={() => setShowPwd((v) => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-primary hover:text-primary-dark transition-colors">
+                {showPwd ? 'Ẩn' : 'Hiện'}
               </button>
             </div>
           </div>
 
           <div className="flex justify-end">
-            <button type="button" className="text-sm font-medium text-blue-600 hover:underline" onClick={() => navigate('/forgot-password')}>
-              Quen mat khau?
+            <button type="button" className="text-sm font-semibold text-primary hover:text-primary-dark hover:underline" onClick={() => navigate('/forgot-password')}>
+              Quên mật khẩu?
             </button>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl shadow-button transition-all transform active:scale-[0.98] uppercase tracking-wide disabled:opacity-50"
+            className="w-full bg-gradient-primary hover:brightness-95 text-white font-bold py-3.5 rounded-xl shadow-button transition-all transform active:scale-[0.98] uppercase tracking-wide disabled:opacity-50"
           >
-            {loading ? 'Dang dang nhap...' : 'Dang nhap'}
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
       )}
@@ -123,21 +125,21 @@ const LoginPage: React.FC = () => {
       {mustChangeMode && (
         <form onSubmit={handleMustChangePassword} className="space-y-5">
           <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3">
-            Tai khoan tam thoi can doi mat khau truoc khi su dung he thong.
+            Tài khoản tạm thời cần đổi mật khẩu trước khi sử dụng hệ thống.
           </p>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="must-current">Mat khau hien tai</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="must-current">Mật khẩu hiện tại</label>
             <input
               id="must-current"
               type="password"
               value={mustCurrentPassword}
               onChange={(e) => setMustCurrentPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              className="form-input py-3"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="must-new">Mat khau moi</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="must-new">Mật khẩu mới</label>
             <input
               id="must-new"
               type="password"
@@ -145,31 +147,31 @@ const LoginPage: React.FC = () => {
               value={mustNewPassword}
               onChange={(e) => setMustNewPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              className="form-input py-3"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl shadow-button transition-all uppercase tracking-wide disabled:opacity-50"
+            className="w-full bg-gradient-primary hover:brightness-95 text-white font-bold py-3.5 rounded-xl shadow-button transition-all uppercase tracking-wide disabled:opacity-50"
           >
-            {loading ? 'Dang cap nhat...' : 'Doi mat khau'}
+            {loading ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
           </button>
         </form>
       )}
 
-      <div className="mt-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 text-center">Tai khoan demo</p>
+      <div className="mt-8 p-4 bg-white rounded-2xl border border-primary-100 shadow-card">
+        <p className="text-[11px] font-bold text-primary-700 uppercase tracking-wider mb-3 text-center">Tài khoản demo</p>
         <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
           {demoCredentials.map((cred) => (
             <button
               key={cred.email}
               type="button"
               onClick={() => fillDemo(cred.email)}
-              className="text-left px-3 py-2 bg-white border border-gray-200 rounded-xl hover:border-primary hover:bg-primary-light transition-all"
+              className="text-left px-3 py-2 bg-white border border-primary-100 rounded-xl hover:border-primary hover:bg-primary-light transition-all"
             >
-              <p className="text-[11px] font-bold text-primary truncate">{cred.label}</p>
-              <p className="text-[10px] text-gray-400 truncate">{cred.email}</p>
+              <p className="text-[11px] font-bold text-primary-dark truncate">{cred.label}</p>
+              <p className="text-[10px] text-gray-500 truncate">{cred.email}</p>
             </button>
           ))}
         </div>

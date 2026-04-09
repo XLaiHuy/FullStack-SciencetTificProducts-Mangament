@@ -1,0 +1,90 @@
+{
+  "baseUrl": "http://localhost:5173",
+  "measuredAt": "2026-04-09T05:48:45.135Z",
+  "routes": [
+    {
+      "path": "/login",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 1126,
+      "metrics": {
+        "domContentLoadedMs": 242,
+        "loadEventMs": 244,
+        "transferMs": 4,
+        "firstContentfulPaintMs": 648
+      }
+    },
+    {
+      "path": "/research-staff/dashboard",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 559,
+      "metrics": {
+        "domContentLoadedMs": 23,
+        "loadEventMs": 24,
+        "transferMs": 2,
+        "firstContentfulPaintMs": null
+      }
+    },
+    {
+      "path": "/project-owner/dashboard",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 545,
+      "metrics": {
+        "domContentLoadedMs": 22,
+        "loadEventMs": 22,
+        "transferMs": 2,
+        "firstContentfulPaintMs": null
+      }
+    },
+    {
+      "path": "/accounting/dashboard",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 568,
+      "metrics": {
+        "domContentLoadedMs": 24,
+        "loadEventMs": 24,
+        "transferMs": 3,
+        "firstContentfulPaintMs": null
+      }
+    },
+    {
+      "path": "/archive/dashboard",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 564,
+      "metrics": {
+        "domContentLoadedMs": 30,
+        "loadEventMs": 31,
+        "transferMs": 5,
+        "firstContentfulPaintMs": null
+      }
+    },
+    {
+      "path": "/reports/dashboard",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 566,
+      "metrics": {
+        "domContentLoadedMs": 34,
+        "loadEventMs": 34,
+        "transferMs": 4,
+        "firstContentfulPaintMs": null
+      }
+    },
+    {
+      "path": "/superadmin/dashboard",
+      "ok": true,
+      "error": null,
+      "totalDurationMs": 595,
+      "metrics": {
+        "domContentLoadedMs": 48,
+        "loadEventMs": 48,
+        "transferMs": 6,
+        "firstContentfulPaintMs": 140
+      }
+    }
+  ]
+}

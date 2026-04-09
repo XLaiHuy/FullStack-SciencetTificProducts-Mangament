@@ -108,7 +108,7 @@ const TemplateManagementPage: React.FC = () => {
     setNote('');
     setFile(null);
     setFormTypeCode(formTypes[0]?.code ?? 'general');
-    showToast('Da xoa du lieu dang nhap tren form.', 'success');
+    showToast('Đã xóa dữ liệu đang nhập trên form.', 'success');
   };
 
   const cycleRoleFilter = () => {
@@ -116,18 +116,18 @@ const TemplateManagementPage: React.FC = () => {
     if (!availableRoles.length) return;
     if (!roleFilter) {
       setRoleFilter(availableRoles[0]);
-      showToast(`Dang loc theo vai tro: ${availableRoles[0]}`, 'success');
+      showToast(`Đang lọc theo vai trò: ${availableRoles[0]}`, 'success');
       return;
     }
     const currentIndex = availableRoles.indexOf(roleFilter);
     const nextIndex = currentIndex + 1;
     if (nextIndex >= availableRoles.length) {
       setRoleFilter('');
-      showToast('Da bo loc vai tro.', 'success');
+      showToast('Đã bỏ lọc vai trò.', 'success');
       return;
     }
     setRoleFilter(availableRoles[nextIndex]);
-    showToast(`Dang loc theo vai tro: ${availableRoles[nextIndex]}`, 'success');
+    showToast(`Đang lọc theo vai trò: ${availableRoles[nextIndex]}`, 'success');
   };
 
   const visibleTemplates = roleFilter ? templates.filter((t) => t.role === roleFilter) : templates;

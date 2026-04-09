@@ -25,12 +25,12 @@ This document maps UI/API client methods to backend routes and business effects.
 | `projectService.getAll()` | `GET /projects` | `project.routes.ts -> ProjectController.getAll` | List projects with filters and pagination |
 | `projectService.getById(id)` | `GET /projects/:id` | `ProjectController.getById` | Return project detail |
 | `projectService.getByStatus(status)` | `GET /projects?status=...` | `ProjectController.getAll` | Filter by status |
+| `projectService.getMine()` | `GET /projects/my` | `ProjectController.getMine` | Project owner's own projects |
 | `projectService.create(data)` | `POST /projects` | `ProjectController.create` | Create project, generate code, log business action |
 | `projectService.updateStatus(id,status)` | `PUT /projects/:id/status` | `ProjectController.updateStatus` | Enforce allowed transition and final-report gating |
 | `projectService.submitMidtermReport(...)` | `POST /projects/:id/midterm-report` | `ProjectController.submitMidtermReport` | Save midterm report for owner-owned project |
 | `projectService.submitFinalSubmission(...)` | `POST /projects/:id/final-submission` | `ProjectController.submitFinalReport` | Save final report and auto move project to `cho_nghiem_thu` |
 | `projectService.submitProduct(...)` | `POST /projects/:id/products` | `ProjectController.submitProduct` | Unified product upload; status update by type |
-| `projectService.getByOwnerEmail(...)` | `GET /project-owner/projects` | No mounted route in `app.ts` | Candidate legacy method; verify before use |
 
 ## 4. Contracts Module
 
@@ -128,5 +128,7 @@ Note: Current frontend superadmin pages are partially mock/static and do not ful
 ## 12. Known Frontend Gaps and Risks
 
 - Several pages still use mock/static data and should not be treated as full FE-BE integrated flows yet.
-- `projectService.getByOwnerEmail()` points to `/project-owner/projects`, but this prefix is not mounted in current `app.ts`.
-- Report export and settlement export currently return metadata/mock URL placeholders, not physical generated files.
+- ✅ Settlement export now generates real Excel files (Phase 1 complete).
+- Word format export for settlements is still placeholder (Phase 2).
+- Archive record auto-creation triggered when project reaches `da_thanh_ly` status.
+- Contract fields `agencyName` and `representative` now exposed in UI.

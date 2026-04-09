@@ -21,7 +21,7 @@ const ContractViewPage: React.FC = () => {
       setActiveContractId(preferred.id);
     }).catch((err) => {
       console.error(err);
-      showToast('Khong the tai du lieu hop dong.');
+      showToast('Không thể tải dữ liệu hợp đồng.');
     });
   }, []);
 
@@ -31,26 +31,26 @@ const ContractViewPage: React.FC = () => {
   );
 
   const statusLabel = useMemo(() => {
-    if (!activeContract) return 'Khong co du lieu';
-    if (activeContract.status === 'da_ky') return 'Da ky';
-    if (activeContract.status === 'cho_duyet') return 'Cho duyet';
-    if (activeContract.status === 'hoan_thanh') return 'Hoan thanh';
-    return 'Huy';
+    if (!activeContract) return 'Không có dữ liệu';
+    if (activeContract.status === 'da_ky') return 'Đã ký';
+    if (activeContract.status === 'cho_duyet') return 'Chờ duyệt';
+    if (activeContract.status === 'hoan_thanh') return 'Hoàn thành';
+    return 'Hủy';
   }, [activeContract]);
 
   const handleDownloadPdf = async () => {
     if (!activeContract) {
-      showToast('Chua co hop dong de tai.');
+      showToast('Chưa có hợp đồng để tải.');
       return;
     }
     setDownloading(true);
     try {
       const fallbackName = `HopDong_${activeContract.code.replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`;
       await contractService.downloadPdf(activeContract.id, fallbackName);
-      showToast('Da tai hop dong PDF tu he thong.');
+      showToast('Đã tải hợp đồng PDF từ hệ thống.');
     } catch (err) {
       console.error(err);
-      showToast(typeof err === 'string' ? err : 'Khong the tai file hop dong.');
+      showToast(typeof err === 'string' ? err : 'Không thể tải file hợp đồng.');
     } finally {
       setDownloading(false);
     }
@@ -65,7 +65,7 @@ const ContractViewPage: React.FC = () => {
       </div>
       {contracts.length > 1 && (
         <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chon hop dong</label>
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chọn hợp đồng</label>
           <select
             value={activeContractId}
             onChange={(e) => setActiveContractId(e.target.value)}
@@ -81,7 +81,7 @@ const ContractViewPage: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-800">{activeContract?.code ?? 'N/A'}</h2>
-            <p className="text-sm text-slate-500">Ký ngày: {activeContract?.signedDate ?? 'Chua ky'}</p>
+            <p className="text-sm text-slate-500">Ký ngày: {activeContract?.signedDate ?? 'Chưa ký'}</p>
           </div>
           <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase">{statusLabel}</span>
         </div>
@@ -112,7 +112,7 @@ const ContractViewPage: React.FC = () => {
             disabled={downloading || !activeContract}
             className="px-5 py-2 text-sm font-semibold text-primary bg-white border border-primary rounded-lg hover:bg-blue-50"
           >
-            {downloading ? 'Dang tai...' : 'Tải xuống PDF'}
+            {downloading ? 'Đang tải...' : 'Tải xuống PDF'}
           </button>
         </div>
       </div>

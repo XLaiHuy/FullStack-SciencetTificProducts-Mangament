@@ -1,0 +1,19 @@
+{
+  "targetUrl": "http://localhost:5173/login",
+  "measuredAt": "2026-04-09T05:48:39.384Z",
+  "totalDurationMs": 1179,
+  "timing": {
+    "domContentLoadedMs": 302.7999999523163,
+    "loadEventMs": 305,
+    "responseMs": 3.799999952316284
+  },
+  "paint": {
+    "firstPaintMs": 476,
+    "firstContentfulPaintMs": 688
+  },
+  "memory": {
+    "jsHeapSizeLimit": 3760000000,
+    "totalJSHeapSize": 10000000,
+    "usedJSHeapSize": 10000000
+  }
+}

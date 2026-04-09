@@ -1,72 +1,77 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
-// Auth
-import LoginPage from '../pages/auth/LoginPage';
-import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import { ProtectedRoute } from './ProtectedRoute';
 
-// Layouts
-import ResearchStaffLayout from '../layouts/ResearchStaffLayout';
-import ProjectOwnerLayout from '../layouts/ProjectOwnerLayout';
-import CouncilMemberLayout from '../layouts/CouncilMemberLayout';
-import AccountingLayout from '../layouts/AccountingLayout';
-import ArchiveLayout from '../layouts/ArchiveLayout';
-import ReportLayout from '../layouts/ReportLayout';
-import SuperAdminLayout from '../layouts/SuperAdminLayout';
+const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'));
 
-// Research Staff Pages
-import ResearchStaffDashboard from '../pages/research_staff/DashboardPage';
-import ContractManagementPage from '../pages/research_staff/ContractManagementPage';
-import CouncilCreationPage from '../pages/research_staff/CouncilCreationPage';
-import TemplateManagementPage from '../pages/research_staff/TemplateManagementPage';
-import SettlementTrackingPage from '../pages/research_staff/SettlementTrackingPage';
-import SettlementDetailPage from '../pages/research_staff/SettlementDetailPage';
-import ExtensionManagementPage from '../pages/research_staff/ExtensionManagementPage';
+const ResearchStaffLayout = lazy(() => import('../layouts/ResearchStaffLayout'));
+const ProjectOwnerLayout = lazy(() => import('../layouts/ProjectOwnerLayout'));
+const CouncilMemberLayout = lazy(() => import('../layouts/CouncilMemberLayout'));
+const AccountingLayout = lazy(() => import('../layouts/AccountingLayout'));
+const ArchiveLayout = lazy(() => import('../layouts/ArchiveLayout'));
+const ReportLayout = lazy(() => import('../layouts/ReportLayout'));
+const SuperAdminLayout = lazy(() => import('../layouts/SuperAdminLayout'));
 
-// Project Owner Pages
-import ProjectOwnerDashboard from '../pages/project_owner/DashboardPage';
-import ContractViewPage from '../pages/project_owner/ContractViewPage';
-import MidtermReportPage from '../pages/project_owner/MidtermReportPage';
-import ResearchSubmissionPage from '../pages/project_owner/ResearchSubmissionPage';
-import AcceptanceMinutesPage from '../pages/project_owner/AcceptanceMinutesPage';
-import SettlementPage from '../pages/project_owner/SettlementPage';
+const ResearchStaffDashboard = lazy(() => import('../pages/research_staff/DashboardPage'));
+const ContractManagementPage = lazy(() => import('../pages/research_staff/ContractManagementPage'));
+const CouncilCreationPage = lazy(() => import('../pages/research_staff/CouncilCreationPage'));
+const TemplateManagementPage = lazy(() => import('../pages/research_staff/TemplateManagementPage'));
+const SettlementTrackingPage = lazy(() => import('../pages/research_staff/SettlementTrackingPage'));
+const SettlementDetailPage = lazy(() => import('../pages/research_staff/SettlementDetailPage'));
+const ExtensionManagementPage = lazy(() => import('../pages/research_staff/ExtensionManagementPage'));
 
-// Council Member Pages
-import CouncilMemberDashboard from '../pages/council_member/DashboardPage';
-import ChairmanPage from '../pages/council_member/ChairmanPage';
-import ReviewerPage from '../pages/council_member/ReviewerPage';
-import SecretaryPage from '../pages/council_member/SecretaryPage';
-import MemberPage from '../pages/council_member/MemberPage';
+const ProjectOwnerDashboard = lazy(() => import('../pages/project_owner/DashboardPage'));
+const ContractViewPage = lazy(() => import('../pages/project_owner/ContractViewPage'));
+const MidtermReportPage = lazy(() => import('../pages/project_owner/MidtermReportPage'));
+const ResearchSubmissionPage = lazy(() => import('../pages/project_owner/ResearchSubmissionPage'));
+const AcceptanceMinutesPage = lazy(() => import('../pages/project_owner/AcceptanceMinutesPage'));
+const SettlementPage = lazy(() => import('../pages/project_owner/SettlementPage'));
 
-// Accounting Pages
-import AccountingDashboard from '../pages/accounting/DashboardPage';
-import DocumentListPage from '../pages/accounting/DocumentListPage';
-import DocumentManagementPage from '../pages/accounting/DocumentManagementPage';
-import LiquidationConfirmationPage from '../pages/accounting/LiquidationConfirmationPage';
+const CouncilMemberDashboard = lazy(() => import('../pages/council_member/DashboardPage'));
+const ChairmanPage = lazy(() => import('../pages/council_member/ChairmanPage'));
+const ReviewerPage = lazy(() => import('../pages/council_member/ReviewerPage'));
+const SecretaryPage = lazy(() => import('../pages/council_member/SecretaryPage'));
+const MemberPage = lazy(() => import('../pages/council_member/MemberPage'));
 
-// Archive Pages
-import ArchiveDashboard from '../pages/archive/DashboardPage';
-import RepositoryPage from '../pages/archive/RepositoryPage';
+const AccountingDashboard = lazy(() => import('../pages/accounting/DashboardPage'));
+const DocumentListPage = lazy(() => import('../pages/accounting/DocumentListPage'));
+const DocumentManagementPage = lazy(() => import('../pages/accounting/DocumentManagementPage'));
+const LiquidationConfirmationPage = lazy(() => import('../pages/accounting/LiquidationConfirmationPage'));
 
-// Reports Pages
-import ReportsDashboard from '../pages/reports/DashboardPage';
-import TopicStatisticsPage from '../pages/reports/TopicStatisticsPage';
-import ContractStatisticsPage from '../pages/reports/ContractStatisticsPage';
-import ProgressStatisticsPage from '../pages/reports/ProgressStatisticsPage';
-import ExportReportsPage from '../pages/reports/ExportReportsPage';
+const ArchiveDashboard = lazy(() => import('../pages/archive/DashboardPage'));
+const RepositoryPage = lazy(() => import('../pages/archive/RepositoryPage'));
 
-// SuperAdmin Pages
-import SuperAdminDashboard from '../pages/superadmin/DashboardPage';
-import AccountManagementPage from '../pages/superadmin/AccountManagementPage';
-import CategoryManagementPage from '../pages/superadmin/CategoryManagementPage';
-import SystemConfigPage from '../pages/superadmin/SystemConfigPage';
-import AuditLogPage from '../pages/superadmin/AuditLogPage';
+const ReportsDashboard = lazy(() => import('../pages/reports/DashboardPage'));
+const TopicStatisticsPage = lazy(() => import('../pages/reports/TopicStatisticsPage'));
+const ContractStatisticsPage = lazy(() => import('../pages/reports/ContractStatisticsPage'));
+const ProgressStatisticsPage = lazy(() => import('../pages/reports/ProgressStatisticsPage'));
+const ExportReportsPage = lazy(() => import('../pages/reports/ExportReportsPage'));
 
-const AppRouter: React.FC = () => (
-  <BrowserRouter>
-    <Routes>
+const SuperAdminDashboard = lazy(() => import('../pages/superadmin/DashboardPage'));
+const AccountManagementPage = lazy(() => import('../pages/superadmin/AccountManagementPage'));
+const CategoryManagementPage = lazy(() => import('../pages/superadmin/CategoryManagementPage'));
+const SystemConfigPage = lazy(() => import('../pages/superadmin/SystemConfigPage'));
+const AuditLogPage = lazy(() => import('../pages/superadmin/AuditLogPage'));
+
+const AnimatedRouteContainer: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <div key={location.pathname} className="animate-fade-up">
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full border-4 border-primary-100 border-t-primary animate-spin mx-auto" />
+              <p className="mt-4 text-sm font-semibold text-primary-700">Đang tải trang...</p>
+            </div>
+          </div>
+        }
+      >
+      <Routes>
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -195,7 +200,15 @@ const AppRouter: React.FC = () => (
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+      </Routes>
+      </Suspense>
+    </div>
+  );
+};
+
+const AppRouter: React.FC = () => (
+  <BrowserRouter>
+    <AnimatedRouteContainer />
   </BrowserRouter>
 );
 

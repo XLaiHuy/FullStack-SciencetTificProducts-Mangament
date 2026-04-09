@@ -2,12 +2,12 @@ import React from 'react';
 import { projectService } from '../../services/api/projectService';
 
 const STATUS_META: Record<string, { label: string; color: string; textColor: string }> = {
-  dang_thuc_hien: { label: 'Dang thuc hien', color: 'bg-blue-500', textColor: 'text-blue-600' },
-  tre_han: { label: 'Tre han', color: 'bg-red-500', textColor: 'text-red-600' },
-  cho_nghiem_thu: { label: 'Cho nghiem thu', color: 'bg-amber-500', textColor: 'text-amber-600' },
-  da_nghiem_thu: { label: 'Da nghiem thu', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
-  da_thanh_ly: { label: 'Da thanh ly', color: 'bg-indigo-500', textColor: 'text-indigo-600' },
-  huy_bo: { label: 'Huy bo', color: 'bg-slate-500', textColor: 'text-slate-600' },
+  dang_thuc_hien: { label: 'Đang thực hiện', color: 'bg-blue-500', textColor: 'text-blue-600' },
+  tre_han: { label: 'Trễ hạn', color: 'bg-red-500', textColor: 'text-red-600' },
+  cho_nghiem_thu: { label: 'Chờ nghiệm thu', color: 'bg-amber-500', textColor: 'text-amber-600' },
+  da_nghiem_thu: { label: 'Đã nghiệm thu', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
+  da_thanh_ly: { label: 'Đã thanh lý', color: 'bg-indigo-500', textColor: 'text-indigo-600' },
+  huy_bo: { label: 'Hủy bỏ', color: 'bg-slate-500', textColor: 'text-slate-600' },
 };
 
 const ProgressStatisticsPage: React.FC = () => {
@@ -23,7 +23,7 @@ const ProgressStatisticsPage: React.FC = () => {
         const rows = await projectService.getAll();
         setProjects(rows);
       } catch (e) {
-        setError(typeof e === 'string' ? e : 'Khong the tai thong ke tien do.');
+        setError(typeof e === 'string' ? e : 'Không thể tải thống kê tiến độ.');
       } finally {
         setLoading(false);
       }
@@ -42,8 +42,8 @@ const ProgressStatisticsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Thong ke tien do</h1>
-        <p className="text-gray-500 text-sm mt-1">Theo doi tien do thuc hien cac de tai nghien cuu</p>
+        <h1 className="text-2xl font-bold text-gray-800">Thống kê tiến độ</h1>
+        <p className="text-gray-500 text-sm mt-1">Theo dõi tiến độ thực hiện các đề tài nghiên cứu</p>
       </div>
 
       {error && (
@@ -63,15 +63,15 @@ const ProgressStatisticsPage: React.FC = () => {
             <div className="mt-2 w-full bg-gray-100 rounded-full h-1.5">
               <div className={`${s.color} h-1.5 rounded-full`} style={{ width: `${s.pct}%` }} />
             </div>
-            <p className="text-xs text-gray-400 mt-1 font-medium">{s.pct.toFixed(1)}% tong so</p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">{s.pct.toFixed(1)}% tổng số</p>
           </div>
         ))}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
-        <h2 className="font-bold text-gray-800 mb-6">Tien do de tai dang thuc hien</h2>
+        <h2 className="font-bold text-gray-800 mb-6">Tiến độ đề tài đang thực hiện</h2>
         {loading ? (
-          <div className="text-sm text-gray-500">Dang tai du lieu...</div>
+          <div className="text-sm text-gray-500">Đang tải dữ liệu...</div>
         ) : (
           <div className="space-y-6">
             {projects
@@ -103,7 +103,7 @@ const ProgressStatisticsPage: React.FC = () => {
                 );
               })}
             {projects.filter((p) => p.status === 'dang_thuc_hien').length === 0 && (
-              <p className="text-sm text-gray-400">Khong co de tai dang thuc hien.</p>
+              <p className="text-sm text-gray-400">Không có đề tài đang thực hiện.</p>
             )}
           </div>
         )}

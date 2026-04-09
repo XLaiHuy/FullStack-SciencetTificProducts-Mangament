@@ -29,7 +29,7 @@ const DocumentManagementPage: React.FC = () => {
 
   React.useEffect(() => {
     loadRows().catch((e) => {
-      showToast(typeof e === 'string' ? e : 'Khong the tai danh sach ho so.');
+      showToast(typeof e === 'string' ? e : 'Không thể tải danh sách hồ sơ.');
     });
   }, []);
 
@@ -46,7 +46,7 @@ const DocumentManagementPage: React.FC = () => {
     });
     setViewRows(filtered);
     setCurrentPage(1);
-    showToast(`Da ap dung bo loc: ${filtered.length}/${rows.length} ho so.`);
+    showToast(`Đã áp dụng bộ lọc: ${filtered.length}/${rows.length} hồ sơ.`);
   };
 
   const totalPages = Math.max(1, Math.ceil(viewRows.length / pageSize));
@@ -63,11 +63,11 @@ const DocumentManagementPage: React.FC = () => {
 
   const exportCurrentView = () => {
     if (!viewRows.length) {
-      showToast('Khong co du lieu de xuat.');
+      showToast('Không có dữ liệu để xuất.');
       return;
     }
 
-    const headers = ['Ma ho so', 'Noi dung', 'So tien', 'Trang thai'];
+    const headers = ['Mã hồ sơ', 'Nội dung', 'Số tiền', 'Trạng thái'];
     const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const body = viewRows.map((r) => [r.code, r.title, String(r.totalAmount), r.status]);
     const csv = [headers.map(escapeCell).join(','), ...body.map((row) => row.map(escapeCell).join(','))].join('\n');
@@ -82,12 +82,12 @@ const DocumentManagementPage: React.FC = () => {
     a.remove();
     URL.revokeObjectURL(url);
 
-    showToast('Da xuat Excel (CSV) cho danh sach hien tai.');
+    showToast('Đã xuất Excel (CSV) cho danh sách hiện tại.');
   };
 
   const printSummary = () => {
     const totalAmount = viewRows.reduce((sum, item) => sum + item.totalAmount, 0);
-    showToast(`Da tao bao cao tom tat: ${viewRows.length} ho so, tong ${totalAmount.toLocaleString('vi-VN')} VNĐ.`);
+    showToast(`Đã tạo báo cáo tóm tắt: ${viewRows.length} hồ sơ, tổng ${totalAmount.toLocaleString('vi-VN')} VNĐ.`);
     window.print();
   };
 
@@ -172,9 +172,9 @@ const DocumentManagementPage: React.FC = () => {
                       onClick={async () => {
                         try {
                           const result = await settlementService.exportFile(s.id, 'excel');
-                          showToast(`Da tao lien ket xuat file cho ${s.code}: ${result.url}`);
+                          showToast(`Đã tạo liên kết xuất file cho ${s.code}: ${result.url}`);
                         } catch (e) {
-                          showToast(typeof e === 'string' ? e : `Khong the tai tai lieu ${s.code}`);
+                          showToast(typeof e === 'string' ? e : `Không thể tải tài liệu ${s.code}`);
                         }
                       }}
                       className="text-[11px] font-bold text-gray-400 hover:text-primary transition-colors"

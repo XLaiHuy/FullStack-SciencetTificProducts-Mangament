@@ -3,6 +3,7 @@ import prisma from '../../prisma';
 import { nextSettlementCode } from '../../utils/codeGenerator';
 import { logBusiness } from '../../middleware/requestLogger';
 import { sendSupplementRequest } from '../../utils/emailService';
+import ExcelJS from 'exceljs';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 export const CreateSettlementSchema = z.object({
@@ -72,7 +73,7 @@ export const SettlementService = {
     return settlement;
   },
 
-  /** POST /api/project-owner/settlements — owner submits settlement */
+  /** POST /api/settlements — owner submits settlement */
   async create(data: z.infer<typeof CreateSettlementSchema>, submittedBy: string, actorId: string) {
     const project = await prisma.project.findFirst({ where: { id: data.projectId, is_deleted: false } });
     if (!project) throw new Error('Đề tài không tồn tại.');
@@ -196,7 +197,18 @@ export const SettlementService = {
         prisma.project.update({
           where: { id: settlement.projectId },
           data: { status: 'da_thanh_ly' },
-        })
+        }),
+        // Auto-create empty ArchiveRecord when project reaches final status
+        prisma.archiveRecord.upsert({
+          where: { projectId: settlement.projectId },
+          create: {
+            projectId: settlement.projectId,
+            archivedBy: actorName,
+            fileUrlsJson: JSON.stringify([]),
+            notes: 'Auto-created when settlement finalized',
+          },
+          update: {},
+        }),
       ] : []),
     ]);
 
@@ -211,20 +223,93 @@ export const SettlementService = {
     return updated;
   },
 
-  /** GET /api/settlements/:id/export — returns export metadata (real file gen is Phase 2) */
+  /** GET /api/settlements/:id/export — generate real Excel/Word file */
   async exportSettlement(id: string, format: 'excel' | 'word', userId: string, userRole: string) {
     const roleFilter = userRole === 'project_owner' ? { project: { ownerId: userId } } : {};
     const settlement = await prisma.settlement.findFirst({
       where: { id, is_deleted: false, ...roleFilter },
-      include: { budgetItems: true, project: { select: { code: true, title: true } } },
+      include: {
+        budgetItems: true,
+        project: { select: { code: true, title: true, budget: true, owner: { select: { name: true, email: true } } } },
+        auditLog: { orderBy: { timestamp: 'desc' }, take: 5 },
+      },
     });
     if (!settlement) throw new Error('Hồ sơ quyết toán không tồn tại.');
 
-    // Future: generate real Excel/Word using exceljs/docx
+    if (format === 'excel') {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Quyết Toán');
+
+      // Headers
+      worksheet.columns = [
+        { header: 'Mã Quyết Toán', key: 'code', width: 15 },
+        { header: 'Mã Đề Tài', key: 'projectCode', width: 15 },
+        { header: 'Tên Đề Tài', key: 'projectTitle', width: 40 },
+        { header: 'Chủ Nhiệm', key: 'owner', width: 20 },
+        { header: 'Tổng Kinh Phí', key: 'totalAmount', width: 15 },
+        { header: 'Trạng Thái', key: 'status', width: 15 },
+      ];
+
+      // Data row - summary
+      worksheet.addRow({
+        code: settlement.code,
+        projectCode: settlement.project.code,
+        projectTitle: settlement.project.title,
+        owner: settlement.project.owner.name,
+        totalAmount: Number(settlement.totalAmount),
+        status: settlement.status,
+      });
+
+      // Budget items section
+      worksheet.addRows([]);
+      const budgetHeader = worksheet.addRow([
+        'Mục Chi Tiết',
+        'Kinh Phí Dự Kiến',
+        'Thực Chi',
+        'Trạng Thái',
+        'Chứng Cứ',
+      ]);
+      budgetHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      budgetHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+
+      settlement.budgetItems.forEach(item => {
+        worksheet.addRow([
+          item.category,
+          Number(item.planned),
+          Number(item.spent),
+          item.status,
+          item.evidenceFile || 'Chưa cung cấp',
+        ]);
+      });
+
+      // Audit log section
+      if (settlement.auditLog.length > 0) {
+        worksheet.addRows([]);
+        const auditHeader = worksheet.addRow(['Nhật Ký Thay Đổi', 'Người Thực Hiện', 'Thời Gian']);
+        auditHeader.font = { bold: true };
+
+        settlement.auditLog.forEach(log => {
+          worksheet.addRow([
+            log.content,
+            log.author,
+            new Date(log.timestamp).toLocaleString('vi-VN'),
+          ]);
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      return {
+        buffer,
+        fileName: `QT_${settlement.code}_${new Date().toISOString().split('T')[0]}.xlsx`,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      };
+    }
+
+    // For Word format, return placeholder (Phase 2)
     return {
-      url:    `/api/settlements/${id}/files/export.${format === 'excel' ? 'xlsx' : 'docx'}`,
+      url: `/api/settlements/${id}/files/export.docx`,
       format,
-      mock:   true,
+      mock: true,
       settlement: { code: settlement.code, project: settlement.project.title },
     };
   },
@@ -249,6 +334,17 @@ export const SettlementService = {
       prisma.project.update({
         where: { id: settlement.projectId },
         data: { status: 'da_thanh_ly' },
+      }),
+      // Auto-create empty ArchiveRecord when project reaches final status
+      prisma.archiveRecord.upsert({
+        where: { projectId: settlement.projectId },
+        create: {
+          projectId: settlement.projectId,
+          archivedBy: actorName,
+          fileUrlsJson: JSON.stringify([]),
+          notes: 'Auto-created when settlement finalized',
+        },
+        update: {},
       }),
     ]);
 

@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useDeferredValue, useMemo, useState } from 'react';
 import { StatusBadge } from '../../components/StatusBadge';
 import { archiveService } from '../../services/api/archiveService';
+
+const PAGE_SIZE = 10;
 
 const RepositoryPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [field, setField] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'latest' | 'asc'>('latest');
+  const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [allProjects, setAllProjects] = useState<Array<{ id: string; code: string; title: string; ownerName: string; field: string; status: string; files: string[] }>>([]);
 
@@ -17,69 +22,112 @@ const RepositoryPage: React.FC = () => {
   React.useEffect(() => {
     archiveService.getAll().then(setAllProjects).catch(console.error);
   }, []);
-  const fields = [...new Set(allProjects.map(p => p.field))];
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim().toLowerCase();
 
-  const filtered = allProjects.filter(p => {
-    const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.code.toLowerCase().includes(search.toLowerCase());
+  const fields = useMemo(
+    () => [...new Set(allProjects.map((p) => p.field))],
+    [allProjects],
+  );
+
+  const years = useMemo(
+    () => [...new Set(allProjects
+      .map((p) => (p.code.match(/20\d{2}/)?.[0] ?? ''))
+      .filter(Boolean))].sort((a, b) => Number(b) - Number(a)),
+    [allProjects],
+  );
+
+  const filtered = useMemo(() => allProjects.filter((p) => {
+    const matchSearch = !normalizedSearch
+      || p.title.toLowerCase().includes(normalizedSearch)
+      || p.code.toLowerCase().includes(normalizedSearch)
+      || p.ownerName.toLowerCase().includes(normalizedSearch);
     const matchField = !field || p.field === field;
-    return matchSearch && matchField;
-  });
+    const matchStatus = !statusFilter || p.status === statusFilter;
+    const extractedYear = p.code.match(/20\d{2}/)?.[0] ?? '';
+    const matchYear = !yearFilter || extractedYear === yearFilter;
+    return matchSearch && matchField && matchStatus && matchYear;
+  }), [allProjects, normalizedSearch, field, statusFilter, yearFilter]);
 
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
     if (sortOrder === 'asc') {
       return a.code.localeCompare(b.code);
     }
     return b.code.localeCompare(a.code);
-  });
+  }), [filtered, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedSorted = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, field, statusFilter, yearFilter, sortOrder]);
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-up">
       {toast && (
-        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold animate-fade-up ${toast.type === 'error' ? 'bg-error-500' : 'bg-success-500'}`}>
           {toast.message}
         </div>
       )}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Kho lưu trữ Nghiên cứu</h1>
-        <p className="text-gray-500 text-sm mt-1">Tìm kiếm và tra cứu kết quả nghiên cứu khoa học</p>
+        <h1 className="text-3xl font-bold text-gray-900">Kho lưu trữ Nghiên cứu</h1>
+        <p className="text-gray-600 text-sm mt-2">Tìm kiếm và tra cứu kết quả nghiên cứu khoa học</p>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-card">
-        <div className="flex gap-3">
+      <div className="card animate-fade-up-delay-1">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="relative flex-1">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-400 text-sm">🔍</span>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               type="text"
               placeholder="Tìm kiếm theo tên đề tài, chủ nhiệm, mã số..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-primary focus:border-primary outline-none"
+              className="form-input pl-10"
             />
           </div>
           <select
             value={field}
             onChange={e => setField(e.target.value)}
-            className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-primary focus:border-primary text-gray-600"
+            className="form-input"
           >
             <option value="">Tất cả lĩnh vực</option>
             {fields.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
-          <select className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:ring-primary focus:border-primary text-gray-600">
-            <option>Tất cả năm học</option>
-            <option>2023-2024</option>
-            <option>2022-2023</option>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-input">
+            <option value="">Tất cả trạng thái</option>
+            {[...new Set(allProjects.map((p) => p.status))].map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+          <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="form-input">
+            <option value="">Tất cả năm học</option>
+            {years.map((year) => <option key={year} value={year}>{year}-{Number(year) + 1}</option>)}
           </select>
         </div>
       </div>
 
       {/* Results count */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">Tìm thấy <span className="font-bold text-gray-900">{sorted.length}</span> đề tài</p>
+        <p className="text-sm text-gray-500">
+          Tìm thấy <span className="font-bold text-gray-900">{sorted.length}</span> đề tài
+          {sorted.length > 0 && (
+            <span className="ml-2 text-gray-400">(Trang {safePage}/{totalPages})</span>
+          )}
+        </p>
         <div className="flex gap-2">
           <button
             onClick={() => setSortOrder((prev) => (prev === 'latest' ? 'asc' : 'latest'))}
-            className="px-4 py-2 text-xs font-bold border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50"
+            className="btn-secondary text-xs"
           >
             {sortOrder === 'latest' ? 'Sắp xếp: Mới nhất' : 'Sắp xếp: Mã tăng dần'}
           </button>
@@ -87,11 +135,11 @@ const RepositoryPage: React.FC = () => {
       </div>
 
       {/* Results Grid */}
-      <div className="grid grid-cols-2 gap-6">
-        {sorted.map(p => (
-          <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-card p-6 hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-up-delay-2">
+        {pagedSorted.map(p => (
+          <div key={p.id} className="card card-interactive motion-hover-lift">
             <div className="flex items-start justify-between mb-3">
-              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{p.code}</span>
+              <span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded">{p.code}</span>
               <StatusBadge status={p.status} />
             </div>
             <h3 className="text-sm font-bold text-gray-900 mb-2 line-clamp-2 leading-snug">{p.title}</h3>
@@ -109,29 +157,69 @@ const RepositoryPage: React.FC = () => {
             <div className="mt-4 pt-4 border-t border-gray-100 flex gap-3">
               <button
                 onClick={() => showToast(`Chi tiet de tai ${p.code}: ${p.title}`, 'success')}
-                className="text-xs font-bold text-primary hover:underline"
+                className="text-xs font-bold text-primary-700 hover:text-primary-900 transition-colors"
               >
                 Xem chi tiết
               </button>
               <button
                 onClick={async () => {
                   if (!p.files || p.files.length === 0) {
-                    showToast(`De tai ${p.code} chua co tep luu tru de tai.`, 'error');
+                    showToast(`Đề tài ${p.code} chưa có tệp lưu trữ đề tài.`, 'error');
                     return;
                   }
                   try {
                     await archiveService.download(p.id);
-                    showToast(`Da tai tai lieu cua de tai ${p.code}.`, 'success');
+                    showToast(`Đã tải tài liệu của đề tài ${p.code}.`, 'success');
                   } catch (e) {
-                    showToast(typeof e === 'string' ? e : `Khong the tai tai lieu cua de tai ${p.code}.`, 'error');
+                    showToast(typeof e === 'string' ? e : `Không thể tải tài liệu của đề tài ${p.code}.`, 'error');
                   }
                 }}
-                className={`text-xs font-bold transition-colors ${p.files && p.files.length > 0 ? 'text-gray-400 hover:text-primary' : 'text-gray-300 cursor-not-allowed'}`}
+                className={`text-xs font-bold transition-colors ${p.files && p.files.length > 0 ? 'text-gray-500 hover:text-primary-700' : 'text-gray-300 cursor-not-allowed'}`}
               >Tải tài liệu</button>
             </div>
           </div>
         ))}
+
+        {sorted.length === 0 && (
+          <div className="md:col-span-2 card text-center py-10">
+            <p className="text-sm text-gray-600 font-semibold">Không có kết quả phù hợp bộ lọc hiện tại.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setField('');
+                setStatusFilter('');
+                setYearFilter('');
+              }}
+              className="btn-secondary text-xs mt-4"
+            >
+              Đặt lại bộ lọc
+            </button>
+          </div>
+        )}
       </div>
+
+      {sorted.length > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+            className="btn-secondary text-xs disabled:opacity-50"
+          >
+            Trang trước
+          </button>
+          <span className="text-xs font-semibold text-gray-600 px-3">{safePage} / {totalPages}</span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+            className="btn-secondary text-xs disabled:opacity-50"
+          >
+            Trang sau
+          </button>
+        </div>
+      )}
     </div>
   );
 };

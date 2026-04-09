@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { reportService } from '../../services/api/reportService';
 
 const STATUS_LABELS: Record<string, string> = {
-  dang_thuc_hien: 'Dang thuc hien',
-  tre_han: 'Tre han',
-  cho_nghiem_thu: 'Cho nghiem thu',
-  da_nghiem_thu: 'Da nghiem thu',
-  da_thanh_ly: 'Da thanh ly',
-  huy_bo: 'Huy bo',
+  dang_thuc_hien: 'Đang thực hiện',
+  tre_han: 'Trễ hạn',
+  cho_nghiem_thu: 'Chờ nghiệm thu',
+  da_nghiem_thu: 'Đã nghiệm thu',
+  da_thanh_ly: 'Đã thanh lý',
+  huy_bo: 'Hủy bỏ',
 };
 
 const ExportReportsPage: React.FC = () => {
@@ -40,11 +40,11 @@ const ExportReportsPage: React.FC = () => {
   };
 
   const reportTypes = [
-    { value: 'topic-summary', label: 'Bao cao tong hop de tai', desc: 'Thong ke de tai theo bo loc hoc ky, linh vuc, trang thai' },
-    { value: 'contract-list', label: 'Danh sach hop dong', desc: 'Tong hop hop dong nghien cuu va trang thai ky ket' },
-    { value: 'budget-report', label: 'Bao cao ngan sach', desc: 'Tong hop ngan sach, tam ung va phan con lai' },
-    { value: 'completion-rate', label: 'Ty le nghiem thu', desc: 'Thong ke ty le nghiem thu theo linh vuc' },
-    { value: 'overdue-list', label: 'Danh sach de tai tre han', desc: 'Danh sach can can thiep tien do' },
+    { value: 'topic-summary', label: 'Báo cáo tổng hợp đề tài', desc: 'Thống kê đề tài theo bộ lọc học kỳ, lĩnh vực, trạng thái' },
+    { value: 'contract-list', label: 'Danh sách hợp đồng', desc: 'Tổng hợp hợp đồng nghiên cứu và trạng thái ký kết' },
+    { value: 'budget-report', label: 'Báo cáo ngân sách', desc: 'Tổng hợp ngân sách, tạm ứng và phần còn lại' },
+    { value: 'completion-rate', label: 'Tỷ lệ nghiệm thu', desc: 'Thống kê tỷ lệ nghiệm thu theo lĩnh vực' },
+    { value: 'overdue-list', label: 'Danh sách đề tài trễ hạn', desc: 'Danh sách cần can thiệp tiến độ' },
   ];
 
   const handleExport = async () => {
@@ -57,9 +57,9 @@ const ExportReportsPage: React.FC = () => {
         department: department || undefined,
         status: status || undefined,
       });
-      showToast(`Da xuat bao cao ${format === 'csv' ? 'CSV' : 'Excel'}.`);
+      showToast(`Đã xuất báo cáo ${format === 'csv' ? 'CSV' : 'Excel'}.`);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the xuat bao cao.');
+      setError(typeof e === 'string' ? e : 'Không thể xuất báo cáo.');
     } finally {
       setLoading(false);
     }
@@ -73,8 +73,8 @@ const ExportReportsPage: React.FC = () => {
         </div>
       )}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Xuat bao cao</h1>
-        <p className="text-gray-500 text-sm mt-1">Tao va xuat cac bao cao thong ke theo du lieu thuc te</p>
+        <h1 className="text-2xl font-bold text-gray-800">Xuất báo cáo</h1>
+        <p className="text-gray-500 text-sm mt-1">Tạo và xuất các báo cáo thống kê theo dữ liệu thực tế</p>
       </div>
 
       {error && (
@@ -85,7 +85,7 @@ const ExportReportsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 shadow-card p-6">
-          <h2 className="font-bold text-gray-800 mb-4">Chon loai bao cao</h2>
+          <h2 className="font-bold text-gray-800 mb-4">Chọn loại báo cáo</h2>
           <div className="space-y-3">
             {reportTypes.map((rt) => (
               <label key={rt.value} className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${reportType === rt.value ? 'border-primary bg-primary/5' : 'border-gray-100 hover:border-gray-200'}`}>
@@ -108,10 +108,10 @@ const ExportReportsPage: React.FC = () => {
 
         <div className="xl:col-span-5 space-y-5">
           <div className="bg-white rounded-xl border border-gray-200 shadow-card p-6">
-            <h2 className="font-bold text-gray-800 mb-4">Cau hinh xuat bao cao</h2>
+            <h2 className="font-bold text-gray-800 mb-4">Cấu hình xuất báo cáo</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Dinh dang</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Định dạng</label>
                 <div className="flex gap-3">
                   {(['excel', 'csv'] as const).map((f) => (
                     <button
@@ -125,9 +125,9 @@ const ExportReportsPage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Nam hoc</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Năm học</label>
                 <select value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
-                  <option value="">Tat ca nam hoc</option>
+                  <option value="">Tất cả năm học</option>
                   {filterOptions.schoolYears.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -136,9 +136,9 @@ const ExportReportsPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Linh vuc</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Lĩnh vực</label>
                 <select value={field} onChange={(e) => setField(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
-                  <option value="">Tat ca linh vuc</option>
+                  <option value="">Tất cả lĩnh vực</option>
                   {filterOptions.fields.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -147,9 +147,9 @@ const ExportReportsPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Don vi</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Đơn vị</label>
                 <select value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
-                  <option value="">Tat ca don vi</option>
+                  <option value="">Tất cả đơn vị</option>
                   {filterOptions.departments.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -158,9 +158,9 @@ const ExportReportsPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Trang thai de tai</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Trạng thái đề tài</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-xl border-gray-200 text-sm py-2.5">
-                  <option value="">Tat ca</option>
+                  <option value="">Tất cả</option>
                   {filterOptions.statuses.map((option) => (
                     <option key={option} value={option}>
                       {STATUS_LABELS[option] ?? option}
@@ -172,16 +172,16 @@ const ExportReportsPage: React.FC = () => {
           </div>
 
           <div className="bg-primary rounded-xl p-6 text-white shadow-button">
-            <h3 className="font-bold text-lg mb-1">San sang xuat</h3>
+            <h3 className="font-bold text-lg mb-1">Sẵn sàng xuất</h3>
             <p className="text-blue-100 text-xs mb-4">
-              {reportTypes.find((r) => r.value === reportType)?.label} - Dinh dang {format.toUpperCase()}
+              {reportTypes.find((r) => r.value === reportType)?.label} - Định dạng {format.toUpperCase()}
             </p>
             <button
               onClick={() => handleExport().catch(() => undefined)}
               disabled={loading}
               className="w-full py-3 bg-white text-primary text-sm font-bold rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Dang xuat...' : 'Xuat bao cao ngay'}
+              {loading ? 'Đang xuất...' : 'Xuất báo cáo ngay'}
             </button>
           </div>
         </div>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { adminService, type AuditLogItem } from '../../services/api/adminService';
 
+const PAGE_SIZE = 50;
+
 const AuditLogPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const [moduleFilter, setModuleFilter] = React.useState('');
@@ -8,6 +10,7 @@ const AuditLogPage: React.FC = () => {
   const [error, setError] = React.useState('');
   const [toast, setToast] = React.useState('');
   const [logs, setLogs] = React.useState<AuditLogItem[]>([]);
+  const [page, setPage] = React.useState(1);
   const [selectedLogId, setSelectedLogId] = React.useState('');
 
   const showToast = (message: string) => {
@@ -27,7 +30,7 @@ const AuditLogPage: React.FC = () => {
       });
       setLogs(res.items);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai audit log.');
+      setError(typeof e === 'string' ? e : 'Không thể tải audit log.');
     } finally {
       setLoading(false);
     }
@@ -37,15 +40,25 @@ const AuditLogPage: React.FC = () => {
     loadLogs().catch(() => undefined);
   }, [loadLogs]);
 
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, moduleFilter]);
+
   const selectedLog = logs.find((log) => log.id === selectedLogId);
   const modules = React.useMemo(() => Array.from(new Set(logs.map((log) => log.module))).filter(Boolean), [logs]);
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedLogs = React.useMemo(
+    () => logs.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [logs, safePage],
+  );
 
   const handleExportCsv = () => {
     if (logs.length === 0) {
-      showToast('Khong co du lieu de xuat CSV.');
+      showToast('Không có dữ liệu để xuất CSV.');
       return;
     }
-    const header = ['Thoi gian', 'Nguoi thuc hien', 'Module', 'Thao tac', 'Chi tiet'];
+    const header = ['Thời gian', 'Người thực hiện', 'Module', 'Thao tác', 'Chi tiết'];
     const rows = logs.map((log) => [
       new Date(log.timestamp).toLocaleString('vi-VN'),
       log.userName,
@@ -64,7 +77,7 @@ const AuditLogPage: React.FC = () => {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    showToast('Da xuat CSV audit log.');
+    showToast('Đã xuất CSV audit log.');
   };
 
   return (
@@ -72,8 +85,8 @@ const AuditLogPage: React.FC = () => {
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Nhat ky he thong (Audit Log)</h1>
-        <p className="text-gray-500 text-sm mt-1">Theo doi toan bo hoat dong cua nguoi dung trong he thong</p>
+        <h1 className="text-2xl font-bold text-gray-900">Nhật ký hệ thống (Audit Log)</h1>
+        <p className="text-gray-500 text-sm mt-1">Theo dõi toàn bộ hoạt động của người dùng trong hệ thống</p>
       </div>
 
       {error && (
@@ -87,7 +100,7 @@ const AuditLogPage: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           type="text"
-          placeholder="Tim theo nguoi thuc hien..."
+          placeholder="Tìm theo người thực hiện..."
           className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-primary focus:border-primary outline-none"
         />
         <select
@@ -95,7 +108,7 @@ const AuditLogPage: React.FC = () => {
           onChange={(e) => setModuleFilter(e.target.value)}
           className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600"
         >
-          <option value="">Tat ca module</option>
+          <option value="">Tất cả module</option>
           {modules.map((module) => (
             <option key={module} value={module}>
               {module}
@@ -103,24 +116,24 @@ const AuditLogPage: React.FC = () => {
           ))}
         </select>
         <button onClick={() => loadLogs().catch(() => undefined)} className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark">
-          Loc
+          Lọc
         </button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
-          <h2 className="font-bold text-sm text-gray-800 uppercase tracking-wider">Nhat ky hoat dong ({logs.length} muc)</h2>
+          <h2 className="font-bold text-sm text-gray-800 uppercase tracking-wider">Nhật ký hoạt động ({logs.length} mục{logs.length > 0 ? ` • Trang ${safePage}/${totalPages}` : ''})</h2>
           <button onClick={handleExportCsv} className="text-xs font-bold text-primary hover:underline">
-            Xuat CSV
+            Xuất CSV
           </button>
         </div>
         {loading ? (
-          <div className="px-6 py-6 text-sm text-gray-500">Dang tai du lieu...</div>
+          <div className="px-6 py-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
         ) : (
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['Thoi gian', 'Nguoi thuc hien', 'Module', 'Thao tac', 'Chi tiet'].map((h) => (
+                {['Thời gian', 'Người thực hiện', 'Module', 'Thao tác', 'Chi tiết'].map((h) => (
                   <th key={h} className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                     {h}
                   </th>
@@ -128,7 +141,7 @@ const AuditLogPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {logs.map((log) => (
+              {pagedLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-gray-400 text-xs font-mono">{new Date(log.timestamp).toLocaleString('vi-VN')}</td>
                   <td className="px-6 py-4 font-semibold text-gray-800">{log.userName}</td>
@@ -138,15 +151,15 @@ const AuditLogPage: React.FC = () => {
                   <td className="px-6 py-4 text-sm font-medium text-gray-700">{log.action}</td>
                   <td className="px-6 py-4">
                     <button onClick={() => setSelectedLogId(log.id)} className="text-[11px] font-bold text-primary hover:underline">
-                      Chi tiet
+                      Chi tiết
                     </button>
                   </td>
                 </tr>
               ))}
-              {logs.length === 0 && (
+              {pagedLogs.length === 0 && (
                 <tr>
                   <td className="px-6 py-6 text-sm text-gray-400" colSpan={5}>
-                    Chua co ban ghi phu hop bo loc.
+                    Chưa có bản ghi phù hợp bộ lọc.
                   </td>
                 </tr>
               )}
@@ -155,19 +168,41 @@ const AuditLogPage: React.FC = () => {
         )}
       </div>
 
+      {logs.length > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={safePage === 1}
+            className="btn-secondary text-xs disabled:opacity-50"
+          >
+            Trang trước
+          </button>
+          <span className="text-xs font-semibold text-gray-600 px-3">{safePage} / {totalPages}</span>
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={safePage === totalPages}
+            className="btn-secondary text-xs disabled:opacity-50"
+          >
+            Trang sau
+          </button>
+        </div>
+      )}
+
       {selectedLog && (
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-blue-800">Chi tiet ban ghi #{selectedLog.id}</h3>
+            <h3 className="text-sm font-bold text-blue-800">Chi tiết bản ghi #{selectedLog.id}</h3>
             <button onClick={() => setSelectedLogId('')} className="text-xs font-bold text-blue-600 hover:underline">
-              Dong
+              Đóng
             </button>
           </div>
-          <p className="text-xs text-blue-700 mt-2">Thoi gian: {new Date(selectedLog.timestamp).toLocaleString('vi-VN')}</p>
-          <p className="text-xs text-blue-700">Nguoi thuc hien: {selectedLog.userName}</p>
+          <p className="text-xs text-blue-700 mt-2">Thời gian: {new Date(selectedLog.timestamp).toLocaleString('vi-VN')}</p>
+          <p className="text-xs text-blue-700">Người thực hiện: {selectedLog.userName}</p>
           <p className="text-xs text-blue-700">Module: {selectedLog.module}</p>
-          <p className="text-xs text-blue-700">Thao tac: {selectedLog.action}</p>
-          {selectedLog.details && <p className="text-xs text-blue-700">Chi tiet: {selectedLog.details}</p>}
+          <p className="text-xs text-blue-700">Thao tác: {selectedLog.action}</p>
+          {selectedLog.details && <p className="text-xs text-blue-700">Chi tiết: {selectedLog.details}</p>}
         </div>
       )}
     </div>

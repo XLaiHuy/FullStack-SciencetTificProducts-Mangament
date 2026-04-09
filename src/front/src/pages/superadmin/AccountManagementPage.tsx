@@ -7,21 +7,23 @@ import {
   type AdminUserRole,
 } from '../../services/api/adminService';
 
+const PAGE_SIZE = 40;
+
 const ROLE_LABELS: Record<AdminUserRole, string> = {
   research_staff: 'Phong NCKH',
-  project_owner: 'Chu nhiem',
-  council_member: 'Hoi dong',
-  accounting: 'Ke toan',
-  archive_staff: 'Luu tru',
-  report_viewer: 'Bao cao',
+  project_owner: 'Chủ nhiệm',
+  council_member: 'Hội đồng',
+  accounting: 'Kế toán',
+  archive_staff: 'Lưu trữ',
+  report_viewer: 'Báo cáo',
   superadmin: 'Superadmin',
 };
 
 const COUNCIL_ROLE_LABELS: Record<AdminCouncilRole, string> = {
-  chairman: 'Chu tich',
-  reviewer: 'Phan bien',
-  secretary: 'Thu ky',
-  member: 'Uy vien',
+  chairman: 'Chủ tịch',
+  reviewer: 'Phản biện',
+  secretary: 'Thư ký',
+  member: 'Ủy viên',
 };
 
 type UserFormState = {
@@ -54,6 +56,7 @@ const AccountManagementPage: React.FC = () => {
   const [error, setError] = React.useState('');
   const [toast, setToast] = React.useState('');
   const [users, setUsers] = React.useState<AdminUser[]>([]);
+  const [page, setPage] = React.useState(1);
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<AdminUser | null>(null);
@@ -73,7 +76,7 @@ const AccountManagementPage: React.FC = () => {
       const res = await adminService.getUsers({ search: search || undefined, role: roleFilter || undefined, limit: 200 });
       setUsers(res.items);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the tai danh sach tai khoan.');
+      setError(typeof e === 'string' ? e : 'Không thể tải danh sách tài khoản.');
     } finally {
       setLoading(false);
     }
@@ -82,6 +85,17 @@ const AccountManagementPage: React.FC = () => {
   React.useEffect(() => {
     loadUsers().catch(() => undefined);
   }, [loadUsers]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedUsers = React.useMemo(
+    () => users.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [users, safePage],
+  );
 
   React.useEffect(() => {
     const action = searchParams.get('action');
@@ -123,7 +137,7 @@ const AccountManagementPage: React.FC = () => {
 
   const submitCreate = async () => {
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      setError('Vui long nhap day du ho ten, email va mat khau.');
+      setError('Vui lòng nhập đầy đủ họ tên, email và mật khẩu.');
       return;
     }
 
@@ -141,9 +155,9 @@ const AccountManagementPage: React.FC = () => {
       });
       closeAllModals();
       await loadUsers();
-      showToast('Da tao tai khoan moi.');
+      showToast('Đã tạo tài khoản mới.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Tao tai khoan that bai.');
+      setError(typeof e === 'string' ? e : 'Tạo tài khoản thất bại.');
     } finally {
       setSubmitting(false);
     }
@@ -152,7 +166,7 @@ const AccountManagementPage: React.FC = () => {
   const submitUpdate = async () => {
     if (!editingUser) return;
     if (!form.name.trim() || !form.email.trim()) {
-      setError('Vui long nhap day du ho ten va email.');
+      setError('Vui lòng nhập đầy đủ họ tên và email.');
       return;
     }
 
@@ -169,9 +183,9 @@ const AccountManagementPage: React.FC = () => {
       });
       closeAllModals();
       await loadUsers();
-      showToast('Da cap nhat thong tin tai khoan.');
+      showToast('Đã cập nhật thông tin tài khoản.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Cap nhat tai khoan that bai.');
+      setError(typeof e === 'string' ? e : 'Cập nhật tài khoản thất bại.');
     } finally {
       setSubmitting(false);
     }
@@ -180,7 +194,7 @@ const AccountManagementPage: React.FC = () => {
   const submitResetPassword = async () => {
     if (!resettingUser) return;
     if (!temporaryPassword.trim() || temporaryPassword.trim().length < 6) {
-      setError('Mat khau tam thoi phai toi thieu 6 ky tu.');
+      setError('Mật khẩu tạm thời phải tối thiểu 6 ký tự.');
       return;
     }
 
@@ -190,9 +204,9 @@ const AccountManagementPage: React.FC = () => {
       await adminService.resetPassword(resettingUser.id, temporaryPassword.trim());
       closeAllModals();
       await loadUsers();
-      showToast('Da dat mat khau tam thoi va bat buoc doi mat khau.');
+      showToast('Đã đặt mật khẩu tạm thời và bắt buộc đổi mật khẩu.');
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Dat lai mat khau that bai.');
+      setError(typeof e === 'string' ? e : 'Đặt lại mật khẩu thất bại.');
     } finally {
       setSubmitting(false);
     }
@@ -203,9 +217,9 @@ const AccountManagementPage: React.FC = () => {
     try {
       const result = await adminService.toggleLock(user.id);
       await loadUsers();
-      showToast(result.isLocked ? `Da khoa tai khoan ${user.name}.` : `Da mo khoa tai khoan ${user.name}.`);
+      showToast(result.isLocked ? `Đã khóa tài khoản ${user.name}.` : `Đã mở khóa tài khoản ${user.name}.`);
     } catch (e) {
-      setError(typeof e === 'string' ? e : 'Khong the cap nhat trang thai khoa tai khoan.');
+      setError(typeof e === 'string' ? e : 'Không thể cập nhật trạng thái khóa tài khoản.');
     }
   };
 
@@ -225,7 +239,7 @@ const AccountManagementPage: React.FC = () => {
         <div className="p-6 space-y-4">{content}</div>
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2">
           <button type="button" onClick={closeAllModals} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold">
-            Huy
+            Hủy
           </button>
           {actions}
         </div>
@@ -243,14 +257,14 @@ const AccountManagementPage: React.FC = () => {
 
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quan ly tai khoan</h1>
-          <p className="text-gray-500 text-sm mt-1">Quan ly toan bo nguoi dung trong he thong</p>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý tài khoản</h1>
+          <p className="text-gray-500 text-sm mt-1">Quản lý toàn bộ người dùng trong hệ thống</p>
         </div>
         <button
           onClick={openCreate}
           className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-button hover:bg-primary-dark"
         >
-          + Tao tai khoan moi
+          + Tạo tài khoản mới
         </button>
       </div>
 
@@ -265,7 +279,7 @@ const AccountManagementPage: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           type="text"
-          placeholder="Tim theo ten, email..."
+          placeholder="Tìm theo tên, email..."
           className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-primary focus:border-primary outline-none"
         />
         <select
@@ -273,7 +287,7 @@ const AccountManagementPage: React.FC = () => {
           onChange={(e) => setRoleFilter(e.target.value as AdminUserRole | '')}
           className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600"
         >
-          <option value="">Tat ca vai tro</option>
+          <option value="">Tất cả vai trò</option>
           {Object.entries(ROLE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -284,21 +298,21 @@ const AccountManagementPage: React.FC = () => {
           onClick={() => loadUsers().catch(() => undefined)}
           className="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black"
         >
-          Tai lai
+          Tải lại
         </button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/30">
-          <h2 className="font-bold text-sm text-gray-800 uppercase tracking-wider">Danh sach tai khoan ({users.length})</h2>
+          <h2 className="font-bold text-sm text-gray-800 uppercase tracking-wider">Danh sách tài khoản ({users.length}{users.length > 0 ? ` • Trang ${safePage}/${totalPages}` : ''})</h2>
         </div>
         {loading ? (
-          <div className="px-6 py-6 text-sm text-gray-500">Dang tai du lieu...</div>
+          <div className="px-6 py-6 text-sm text-gray-500">Đang tải dữ liệu...</div>
         ) : (
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['Ho ten', 'Email', 'Vai tro', 'Phong/Ban', 'Trang thai', 'Thao tac'].map((h) => (
+                {['Họ tên', 'Email', 'Vai trò', 'Phòng/Ban', 'Trạng thái', 'Thao tác'].map((h) => (
                   <th key={h} className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                     {h}
                   </th>
@@ -306,7 +320,7 @@ const AccountManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {users.map((u) => (
+              {pagedUsers.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 font-semibold text-gray-900">{u.name}</td>
                   <td className="px-6 py-4 text-gray-500">{u.email}</td>
@@ -323,13 +337,13 @@ const AccountManagementPage: React.FC = () => {
                         u.isLocked ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                       }`}
                     >
-                      {u.isLocked ? 'Bi khoa' : 'Hoat dong'}
+                      {u.isLocked ? 'Bị khóa' : 'Hoạt động'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-3">
                       <button onClick={() => openEdit(u)} className="text-[11px] font-bold text-primary hover:underline">
-                        Sua
+                        Sửa
                       </button>
                       <button
                         onClick={() => {
@@ -339,29 +353,58 @@ const AccountManagementPage: React.FC = () => {
                         }}
                         className="text-[11px] font-bold text-gray-500 hover:text-primary"
                       >
-                        Dat lai MK
+                        Đặt lại MK
                       </button>
                       <button
                         onClick={() => handleToggleLock(u).catch(() => undefined)}
                         className={`text-[11px] font-bold ${u.isLocked ? 'text-emerald-600 hover:text-emerald-700' : 'text-rose-500 hover:text-rose-700'}`}
                       >
-                        {u.isLocked ? 'Mo khoa' : 'Khoa'}
+                        {u.isLocked ? 'Mở khóa' : 'Khóa'}
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
+              {pagedUsers.length === 0 && (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-gray-400" colSpan={6}>
+                    Chưa có tài khoản phù hợp bộ lọc.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}
       </div>
 
+      {users.length > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={safePage === 1}
+            className="btn-secondary text-xs disabled:opacity-50"
+          >
+            Trang trước
+          </button>
+          <span className="text-xs font-semibold text-gray-600 px-3">{safePage} / {totalPages}</span>
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={safePage === totalPages}
+            className="btn-secondary text-xs disabled:opacity-50"
+          >
+            Trang sau
+          </button>
+        </div>
+      )}
+
       {(createOpen || editingUser) &&
         renderModal(
-          createOpen ? 'Tao tai khoan moi' : 'Cap nhat tai khoan',
+          createOpen ? 'Tạo tài khoản mới' : 'Cập nhật tài khoản',
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="block text-sm font-medium text-gray-700">
-              Ho ten
+              Họ tên
               <input
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -378,18 +421,18 @@ const AccountManagementPage: React.FC = () => {
             </label>
             {createOpen && (
               <label className="block text-sm font-medium text-gray-700 md:col-span-2">
-                Mat khau ban dau
+                Mật khẩu ban đầu
                 <input
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                   className="mt-1 w-full rounded-lg border-gray-200 text-sm"
                 />
-                <p className="mt-1 text-xs text-gray-500">Nguoi dung se bi bat buoc doi mat khau o lan dang nhap dau tien.</p>
+                <p className="mt-1 text-xs text-gray-500">Người dùng sẽ bị bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên.</p>
               </label>
             )}
             <label className="block text-sm font-medium text-gray-700">
-              Vai tro
+              Vai trò
               <select
                 value={form.role}
                 onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as AdminUserRole }))}
@@ -404,7 +447,7 @@ const AccountManagementPage: React.FC = () => {
             </label>
             {form.role === 'council_member' && (
               <label className="block text-sm font-medium text-gray-700">
-                Vai tro hoi dong
+                Vai trò hội đồng
                 <select
                   value={form.councilRole}
                   onChange={(e) => setForm((prev) => ({ ...prev, councilRole: e.target.value as AdminCouncilRole }))}
@@ -419,7 +462,7 @@ const AccountManagementPage: React.FC = () => {
               </label>
             )}
             <label className="block text-sm font-medium text-gray-700">
-              Hoc ham / Chuc danh
+              Học hàm / Chức danh
               <input
                 value={form.title}
                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
@@ -427,7 +470,7 @@ const AccountManagementPage: React.FC = () => {
               />
             </label>
             <label className="block text-sm font-medium text-gray-700">
-              Don vi
+              Đơn vị
               <input
                 value={form.department}
                 onChange={(e) => setForm((prev) => ({ ...prev, department: e.target.value }))}
@@ -441,29 +484,29 @@ const AccountManagementPage: React.FC = () => {
             disabled={submitting}
             className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-50"
           >
-            {submitting ? 'Dang luu...' : createOpen ? 'Tao tai khoan' : 'Luu thay doi'}
+            {submitting ? 'Đang lưu...' : createOpen ? 'Tạo tài khoản' : 'Lưu thay đổi'}
           </button>,
         )}
 
       {resettingUser &&
         renderModal(
-          'Dat lai mat khau tam thoi',
+          'Đặt lại mật khẩu tạm thời',
           <div className="space-y-3">
             <p className="text-sm text-gray-600">
-              Tai khoan: <span className="font-semibold">{resettingUser.email}</span>
+              Tài khoản: <span className="font-semibold">{resettingUser.email}</span>
             </p>
             <label className="block text-sm font-medium text-gray-700">
-              Mat khau tam thoi moi
+              Mật khẩu tạm thời mới
               <input
                 type="password"
                 value={temporaryPassword}
                 onChange={(e) => setTemporaryPassword(e.target.value)}
                 className="mt-1 w-full rounded-lg border-gray-200 text-sm"
-                placeholder="Toi thieu 6 ky tu"
+                placeholder="Tối thiểu 6 ký tự"
               />
             </label>
             <p className="text-xs text-gray-500">
-              Sau thao tac nay, user phai doi mat khau o lan dang nhap tiep theo.
+              Sau thao tác này, user phải đổi mật khẩu ở lần đăng nhập tiếp theo.
             </p>
           </div>,
           <button
@@ -472,7 +515,7 @@ const AccountManagementPage: React.FC = () => {
             disabled={submitting}
             className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-50"
           >
-            {submitting ? 'Dang cap nhat...' : 'Xac nhan dat mat khau'}
+            {submitting ? 'Đang cập nhật...' : 'Xác nhận đặt mật khẩu'}
           </button>,
         )}
     </div>
