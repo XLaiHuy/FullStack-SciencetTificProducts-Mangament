@@ -408,8 +408,14 @@ export const CouncilService = {
         const isOwner = m.email === project.owner.email;
         const isMember = project.members.some(pm => pm.user.email === m.email && !pm.is_deleted);
         return {
-          ...m,
-          userId: account.userId,
+          userId: account.userId ?? null,
+          name: m.name,
+          email: m.email,
+          title: m.title,
+          institution: m.institution,
+          phone: m.phone,
+          affiliation: m.affiliation,
+          role: m.role,
           hasConflict: isOwner || isMember,
           loginEmail: account.loginEmail,
           temporaryPassword: account.temporaryPassword,
@@ -423,7 +429,17 @@ export const CouncilService = {
         decisionCode,
         projectId: data.projectId,
         members: {
-          create: preparedMembers.map(({ loginEmail, temporaryPassword, isNewAccount, ...member }) => member),
+          create: preparedMembers.map((m) => ({
+            userId: m.userId,
+            name: m.name,
+            email: m.email,
+            title: m.title,
+            institution: m.institution,
+            phone: m.phone,
+            affiliation: m.affiliation,
+            role: m.role,
+            hasConflict: m.hasConflict,
+          })),
         },
       },
       include: { members: true, project: { select: { code: true, title: true } } },
@@ -489,8 +505,14 @@ export const CouncilService = {
     const added = await prisma.councilMembership.create({
       data: {
         councilId,
-        ...member,
-        userId: account.userId,
+        userId: account.userId ?? null,
+        name: member.name,
+        email: member.email,
+        title: member.title,
+        institution: member.institution,
+        phone: member.phone,
+        affiliation: member.affiliation,
+        role: member.role,
         hasConflict: isOwner || isMember,
       },
     });
