@@ -28,7 +28,7 @@ services:
       - key: FRONTEND_URL
         sync: false
       - key: EMAIL_MOCK
-        value: "true"
+        value: "false"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
