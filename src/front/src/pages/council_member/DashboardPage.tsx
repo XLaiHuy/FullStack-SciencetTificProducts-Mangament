@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getUser } from '../../hooks/useAuth';
 import { councilService } from '../../services/api/councilService';
 import { StatusBadge } from '../../components/StatusBadge';
 
 const CouncilMemberDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const currentUser = getUser();
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [councils, setCouncils] = React.useState<Awaited<ReturnType<typeof councilService.getAll>>>([]);
@@ -71,7 +73,10 @@ const CouncilMemberDashboard: React.FC = () => {
           <div className="p-6 text-sm text-gray-600">Bạn chưa được phân công hội đồng nào.</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {councils.map((council) => (
+            {councils.map((council) => {
+              const myMember = council.members.find(m => m.userId === currentUser?.id);
+              const myRole = myMember?.role;
+              return (
               <div key={council.id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div>
@@ -84,18 +89,29 @@ const CouncilMemberDashboard: React.FC = () => {
                   <StatusBadge status={council.status} />
                 </div>
                 <div className="flex gap-3 mt-4">
-                  <button onClick={() => navigate('/council-member/member')} className="btn-primary text-xs">
-                    Không gian ủy viên
-                  </button>
-                  <button onClick={() => navigate('/council-member/reviewer')} className="btn-secondary text-xs">
-                    Không gian phản biện
-                  </button>
-                  <button onClick={() => navigate('/council-member/secretary')} className="btn-secondary text-xs">
-                    Không gian thư ký
-                  </button>
+                  {myRole === 'chu_tich' && (
+                    <button onClick={() => navigate('/council-member/chairman')} className="btn-primary text-xs">
+                      Không gian chủ tịch
+                    </button>
+                  )}
+                  {(myRole === 'phan_bien_1' || myRole === 'phan_bien_2') && (
+                    <button onClick={() => navigate('/council-member/reviewer')} className="btn-secondary text-xs">
+                      Không gian phản biện
+                    </button>
+                  )}
+                  {myRole === 'thu_ky' && (
+                    <button onClick={() => navigate('/council-member/secretary')} className="btn-secondary text-xs">
+                      Không gian thư ký
+                    </button>
+                  )}
+                  {myRole === 'uy_vien' && (
+                    <button onClick={() => navigate('/council-member/member')} className="btn-primary text-xs">
+                      Không gian ủy viên
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>
