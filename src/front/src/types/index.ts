@@ -61,6 +61,7 @@ export interface Contract {
 
 export interface CouncilMember {
   id?: string;
+  userId?: string;
   name: string;
   title?: string;
   hocHamHocVi?: string;
