@@ -39,6 +39,8 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      - key: EMAIL_OVERRIDE_TO
+        sync: false
 
   - type: web
     name: nckh-frontend

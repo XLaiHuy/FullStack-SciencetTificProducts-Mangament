@@ -180,19 +180,26 @@ const getTransporter = (config: EmailRuntimeConfig): Transporter => {
 /** Send email (or mock it) */
 export const sendEmail = async (payload: EmailPayload): Promise<EmailResult> => {
   const runtimeConfig = await getRuntimeEmailConfig();
-  const recipients = normalizeRecipients(payload.to);
+  const originalRecipients = normalizeRecipients(payload.to);
   const ccRecipients = payload.cc ? normalizeRecipients(payload.cc) : [];
-  const toAddress = recipients.join(', ');
+  const toAddress = originalRecipients.join(', ');
   const ccAddress = ccRecipients.length ? ccRecipients.join(', ') : undefined;
   const bodyPreview = safeBodyPreview(payload.body);
 
-  if (!recipients.length) {
+  if (!originalRecipients.length) {
     throw new Error('Không có email người nhận hợp lệ.');
   }
 
+  // EMAIL_OVERRIDE_TO: redirect ALL emails to one address (demo/testing mode)
+  const overrideTo = process.env.EMAIL_OVERRIDE_TO?.trim();
+  const actualRecipients = overrideTo ? [overrideTo] : originalRecipients;
+  const overrideNote = overrideTo
+    ? `\n\n--- [DEMO MODE] Thư gốc gửi tới: ${toAddress} ---\n`
+    : '';
+
   if (runtimeConfig.isMock) {
     console.log('[EMAIL MOCK]', {
-      to: recipients,
+      to: actualRecipients,
       subject: payload.subject,
       body: payload.body.substring(0, 80) + '...',
     });
@@ -213,7 +220,7 @@ export const sendEmail = async (payload: EmailPayload): Promise<EmailResult> => 
       success: true,
       message: `Email (mock) sent to ${toAddress}`,
       mock: true,
-      to: recipients,
+      to: actualRecipients,
       attempts: 1,
     };
   }
@@ -240,10 +247,10 @@ export const sendEmail = async (payload: EmailPayload): Promise<EmailResult> => 
       const transporter = getTransporter(runtimeConfig);
       const info = await transporter.sendMail({
         from,
-        to: recipients,
+        to: actualRecipients,
         cc: ccRecipients.length ? ccRecipients : undefined,
         subject: payload.subject,
-        text: payload.body,
+        text: payload.body + overrideNote,
       });
 
       await writeEmailLog({
@@ -263,7 +270,7 @@ export const sendEmail = async (payload: EmailPayload): Promise<EmailResult> => 
         success: true,
         message: `Email sent to ${toAddress}`,
         mock: false,
-        to: recipients,
+        to: actualRecipients,
         attempts: attempt,
         messageId: info.messageId,
       };
