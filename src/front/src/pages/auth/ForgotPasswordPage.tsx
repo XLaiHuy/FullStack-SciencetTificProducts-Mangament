@@ -19,7 +19,7 @@ const ForgotPasswordPage: React.FC = () => {
       await authService.forgotPassword(email);
       setSuccess('Nếu email hợp lệ, hệ thống đã gửi hướng dẫn đặt lại mật khẩu.');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Gửi yêu cầu thất bại');
+      setError(typeof err === 'string' ? err : (err instanceof Error ? err.message : 'Gửi yêu cầu thất bại'));
     } finally {
       setLoading(false);
     }
