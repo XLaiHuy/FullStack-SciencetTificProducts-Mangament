@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create a configured Axios instance
 export const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  timeout: 10000, // 10 seconds
+  timeout: 60000, // Tăng lên 60 giây để chờ backend gửi đủ 5 email
 });
 
 // Interceptor for attaching auth token (setup ready for future use)
