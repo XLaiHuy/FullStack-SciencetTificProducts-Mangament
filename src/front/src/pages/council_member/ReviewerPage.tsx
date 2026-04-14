@@ -49,7 +49,16 @@ const ReviewerPage: React.FC = () => {
           const role = normalizeText(t.role);
           const category = normalizeText(t.category);
           const name = normalizeText(t.name);
-          return role.includes('phan bien') || category.includes('phan_bien') || name.includes('nhan xet');
+          return (
+            role.includes('phan bien') ||
+            role.includes('phan_bien') ||
+            role === 'phan_bien_1' ||
+            role === 'phan_bien_2' ||
+            category.includes('phan_bien') ||
+            category.includes('phan bien') ||
+            name.includes('nhan xet') ||
+            name.includes('phan bien')
+          );
         });
         if (reviewerTemplate) setTemplateId(reviewerTemplate.id);
       } catch (e) {
