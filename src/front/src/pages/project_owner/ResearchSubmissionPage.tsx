@@ -10,6 +10,8 @@ const ResearchSubmissionPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const selectedProject = React.useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
+
   React.useEffect(() => {
     projectService.getAll().then((list) => {
       setProjects(list);
@@ -52,16 +54,16 @@ const ResearchSubmissionPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Tên đề tài</label>
-                <input type="text" defaultValue="Phân tích ứng dụng AI trong quản lý đô thị thông minh" className="w-full rounded-xl border-slate-200 text-sm py-2.5" />
+                <input type="text" value={selectedProject?.title || ''} readOnly className="w-full rounded-xl border-slate-200 text-sm py-2.5 bg-slate-50" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Thời gian thực hiện</label>
-                  <input type="text" defaultValue="24 tháng (01/2023 - 12/2024)" readOnly className="w-full rounded-xl border-slate-200 text-sm bg-slate-50 py-2.5" />
+                  <input type="text" value={`${selectedProject?.durationMonths || 0} tháng (${selectedProject?.startDate} - ${selectedProject?.endDate})`} readOnly className="w-full rounded-xl border-slate-200 text-sm bg-slate-50 py-2.5" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Kinh phí được duyệt</label>
-                  <input type="text" defaultValue="500.000.000 VNĐ" readOnly className="w-full rounded-xl border-slate-200 text-sm bg-slate-50 py-2.5" />
+                  <input type="text" value={`${Number(selectedProject?.budget || 0).toLocaleString('vi-VN')} VNĐ`} readOnly className="w-full rounded-xl border-slate-200 text-sm bg-slate-50 py-2.5" />
                 </div>
               </div>
             </div>
@@ -99,7 +101,7 @@ const ResearchSubmissionPage: React.FC = () => {
             <h2 className="text-lg font-bold text-slate-800">Xác nhận & Nộp kết quả</h2>
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
               <p className="text-sm font-semibold text-primary mb-2">Bạn sắp nộp kết quả nghiên cứu cho đề tài:</p>
-              <p className="text-sm font-bold text-slate-900">NCKH-2023-0142 — Phân tích ứng dụng AI trong quản lý đô thị thông minh</p>
+              <p className="text-sm font-bold text-slate-900">{selectedProject?.code} — {selectedProject?.title}</p>
               <p className="text-xs text-slate-500 mt-2">Lưu ý: Sau khi nộp, bạn sẽ không thể chỉnh sửa hồ sơ. Phòng NCKH sẽ xem xét và phản hồi.</p>
             </div>
             <div className="flex items-center gap-3">
