@@ -4,13 +4,16 @@ import type { Contract } from '../../types';
 
 const ContractViewPage: React.FC = () => {
   const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [activeContractId, setActiveContractId] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [signing, setSigning] = useState(false);
 
-  const showToast = (message: string) => {
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast(message);
-    setTimeout(() => setToast(''), 2500);
+    setToastType(type);
+    setTimeout(() => setToast(''), 3000);
   };
 
   useEffect(() => {
@@ -56,9 +59,30 @@ const ContractViewPage: React.FC = () => {
     }
   };
 
+  const handleSign = async () => {
+    if (!activeContract) return;
+    if (!window.confirm(`Bạn xác nhận ký hợp đồng "${activeContract.code}"?\nHành động này không thể hoàn tác.`)) return;
+    setSigning(true);
+    try {
+      await contractService.sign(activeContract.id);
+      const items = await contractService.getAll();
+      setContracts(items);
+      showToast('✅ Đã xác nhận ký hợp đồng thành công!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(typeof err === 'string' ? err : 'Không thể ký hợp đồng. Vui lòng thử lại.', 'error');
+    } finally {
+      setSigning(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
+      {toast && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold ${
+          toastType === 'error' ? 'bg-red-600' : 'bg-green-600'
+        }`}>{toast}</div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Xem Hợp đồng</h1>
         <p className="text-slate-500 text-sm mt-1">Hợp đồng nghiên cứu khoa học của bạn</p>
@@ -107,6 +131,20 @@ const ContractViewPage: React.FC = () => {
           </div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
+          {/* Nút XÁC NHẬN KÝ – chỉ hiện khi HĐ đang chờ duyệt */}
+          {activeContract?.status === 'cho_duyet' && (
+            <button
+              onClick={handleSign}
+              disabled={signing}
+              className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {signing ? (
+                <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Đang xử lý...</>
+              ) : (
+                <>✅ Xác nhận &amp; Ký hợp đồng</>
+              )}
+            </button>
+          )}
           <button
             onClick={handleDownloadPdf}
             disabled={downloading || !activeContract}
