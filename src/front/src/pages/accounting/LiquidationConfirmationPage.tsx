@@ -6,7 +6,9 @@ interface LiquidationRecord {
   id: string;
   projectCode: string;
   ownerName: string;
-  amount: number;
+  projectBudget: number;    // tổng ngân sách đề tài (500M)
+  settlementAmount: number; // số tiền quyết toán lần này (300M)
+  amount: number;           // giữ lại cho compat
   status: 'pending' | 'confirmed';
   notes?: string;
 }
@@ -19,10 +21,12 @@ const LiquidationConfirmationPage: React.FC = () => {
 
   const refresh = async () => {
     const docs = await accountingService.getDocuments();
-    setRecords(docs.map((d) => ({
+    setRecords(docs.map((d: any) => ({
       id: d.id,
       projectCode: d.project?.code ?? d.code,
       ownerName: d.project?.owner?.name ?? '-',
+      projectBudget: Number(d.project?.budget ?? d.totalAmount ?? 0),
+      settlementAmount: Number(d.totalAmount ?? 0),
       amount: Number(d.totalAmount ?? 0),
       status: d.status === 'da_xac_nhan' ? 'confirmed' : 'pending',
       notes: d.status === 'cho_bo_sung' ? 'Cần bổ sung chứng từ' : undefined,
@@ -70,7 +74,7 @@ const LiquidationConfirmationPage: React.FC = () => {
         {[
           ['Chờ xác nhận', records.filter(r => r.status === 'pending').length.toString(), 'text-orange-600', 'border-l-orange-500'],
           ['Đã xác nhận', records.filter(r => r.status === 'confirmed').length.toString(), 'text-emerald-600', 'border-l-emerald-500'],
-          ['Tổng kinh phí', records.reduce((a, r) => a + r.amount, 0).toLocaleString('vi-VN') + ' VNĐ', 'text-primary', 'border-l-primary'],
+          ['Tổng ngân sách quản lý', records.reduce((a, r) => a + r.projectBudget, 0).toLocaleString('vi-VN') + ' VNĐ', 'text-primary', 'border-l-primary'],
         ].map(([label, val, cls, border]) => (
           <div key={label} className={`bg-white p-6 rounded-xl border border-gray-100 shadow-card border-l-4 ${border}`}>
             <p className="text-xs font-bold text-gray-400 uppercase mb-2">{label}</p>
@@ -94,7 +98,8 @@ const LiquidationConfirmationPage: React.FC = () => {
                   <span className="font-bold text-sm text-gray-900">{rec.projectCode}</span>
                 </div>
                 <p className="text-sm text-gray-600">Chủ nhiệm: <span className="font-semibold text-gray-800">{rec.ownerName}</span></p>
-                <p className="text-sm text-gray-600 mt-1">Kinh phí đề nghị: <span className="font-bold text-primary">{rec.amount.toLocaleString('vi-VN')} VNĐ</span></p>
+                <p className="text-sm text-gray-600 mt-1">Ngân sách đề tài: <span className="font-bold text-gray-700">{rec.projectBudget.toLocaleString('vi-VN')} VNĐ</span></p>
+                <p className="text-sm text-gray-600 mt-0.5">Số tiền quyết toán lần này: <span className="font-bold text-primary">{rec.settlementAmount.toLocaleString('vi-VN')} VNĐ</span></p>
                 {rec.notes && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
                     <p className="text-xs font-semibold text-amber-700">Ghi chú: {rec.notes}</p>
@@ -146,7 +151,10 @@ const LiquidationConfirmationPage: React.FC = () => {
                 <tr key={rec.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 font-bold text-primary">{rec.projectCode}</td>
                   <td className="px-6 py-4 text-gray-700">{rec.ownerName}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{rec.amount.toLocaleString('vi-VN')} VNĐ</td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold text-gray-800">{rec.projectBudget.toLocaleString('vi-VN')} VNĐ <span className="text-xs text-gray-400">(ngân sách)</span></p>
+                    <p className="text-xs text-emerald-600 font-semibold mt-0.5">Quyết toán: {rec.settlementAmount.toLocaleString('vi-VN')} VNĐ</p>
+                  </td>
                   <td className="px-6 py-4">
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-100 uppercase">
                       Đã xác nhận

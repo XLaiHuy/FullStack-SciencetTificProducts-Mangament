@@ -19,6 +19,9 @@ const SettlementTrackingPage: React.FC = () => {
   const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(false);
   const [summaryStats, setSummaryStats] = useState({ totalBudget: 0, disbursedBudget: 0, overdueProjects: 0, pendingSettlements: 0 });
+  // Supplement note modal state
+  const [supplementModal, setSupplementModal] = useState<{ open: boolean; settlementId: string; settlementCode: string } | null>(null);
+  const [supplementNote, setSupplementNote] = useState('');
 
   const refresh = async () => {
     const [settlementList, reportStats] = await Promise.all([
@@ -62,7 +65,7 @@ const SettlementTrackingPage: React.FC = () => {
     return true;
   });
 
-  const tabs = [['all', 'Tất cả hồ sơ'], ['pending', 'Chờ thẩm định'], ['done', 'Hoàn tất']];
+  const tabs = [['all', 'Tất cả hồ sơ'], ['pending', 'Chờ xử lý'], ['done', 'Hoàn tất']];
   const footerStats = [
     { label: 'Tổng kinh phí quản lý', value: `${summaryStats.totalBudget.toLocaleString('vi-VN')} VNĐ`, cls: 'text-slate-900', border: '' },
     { label: 'Đã giải ngân', value: `${summaryStats.disbursedBudget.toLocaleString('vi-VN')} VNĐ`, cls: 'text-primary', border: 'border-l-4 border-l-primary' },
@@ -210,10 +213,10 @@ const SettlementTrackingPage: React.FC = () => {
             <div className="overflow-x-auto">
             <table className="w-full min-w-[940px] text-left table-fixed">
               <colgroup>
-                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[20%]" />
                 <col className="w-[24%]" />
-                <col className="w-[16%]" />
-                <col className="w-[16%]" />
+                <col className="w-[14%]" />
                 <col className="w-[14%]" />
                 <col className="w-[16%]" />
               </colgroup>
@@ -241,8 +244,9 @@ const SettlementTrackingPage: React.FC = () => {
                         <p className="truncate">{s.content}</p>
                         <p className="text-[10px] text-slate-400 font-normal truncate mt-0.5">{s.projectTitle}</p>
                       </td>
-                      <td className="px-6 py-4 text-xs font-bold text-slate-700 whitespace-nowrap">
-                        {s.amount.toLocaleString('vi-VN')}
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-slate-800 whitespace-nowrap">{(s.projectBudget ?? 0).toLocaleString('vi-VN')} VNĐ <span className="text-[10px] text-slate-400 font-normal">(ngân sách)</span></p>
+                        <p className="text-[10px] text-primary font-bold mt-0.5 whitespace-nowrap">Quyết toán: {s.amount.toLocaleString('vi-VN')} VNĐ</p>
                       </td>
                       {/* Progress bar column */}
                       <td className="px-6 py-4">
@@ -269,24 +273,15 @@ const SettlementTrackingPage: React.FC = () => {
                         <div className="flex flex-col items-start gap-1">
                           {(s.status === 'cho_bo_sung' || s.status === 'hoa_don_vat') ? (
                             <button
-                              onClick={async () => {
-                                setLoading(true);
-                                try {
-                                  await settlementService.requestSupplement(s.id, ['Thiếu chứng từ']);
-                                  await refresh();
-                                  showToast(`Đã gửi yêu cầu bổ sung cho hồ sơ ${s.code}`);
-                                } catch (e) {
-                                  console.error(e);
-                                  showToast(typeof e === 'string' ? e : `Gửi yêu cầu bổ sung thất bại: ${s.code}`);
-                                } finally {
-                                  setLoading(false);
-                                }
+                              onClick={() => {
+                                setSupplementNote('');
+                                setSupplementModal({ open: true, settlementId: s.id, settlementCode: s.code });
                               }}
                               className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-red-700 transition-colors"
                             >
                               Yêu cầu bổ sung
                             </button>
-                          ) : (
+                          ) : s.status !== 'da_xac_nhan' ? (
                             <button
                               onClick={async () => {
                                 setLoading(true);
@@ -303,9 +298,9 @@ const SettlementTrackingPage: React.FC = () => {
                               }}
                               className="px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black uppercase hover:bg-primary-dark transition-colors"
                             >
-                              Xác nhận
+                              Xác nhận hợp lệ
                             </button>
-                          )}
+                          ) : null}
                           <button
                             onClick={() => navigate(`/research-staff/settlement/${s.id}`)}
                             className="text-[10px] font-black text-slate-400 hover:text-primary uppercase transition-colors"
@@ -334,6 +329,107 @@ const SettlementTrackingPage: React.FC = () => {
         ))}
       </div>
       {loading && <p className="text-xs text-slate-400">Đang đồng bộ dữ liệu...</p>}
+
+      {/* ─── Supplement Note Modal ─── */}
+      {supplementModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-black text-sm uppercase tracking-wider">Yêu cầu bổ sung hồ sơ</h3>
+                <p className="text-red-100 text-xs mt-0.5">Mã hồ sơ: <span className="font-bold">{supplementModal.settlementCode}</span></p>
+              </div>
+              <button
+                onClick={() => setSupplementModal(null)}
+                className="text-red-200 hover:text-white text-xl font-black leading-none transition-colors"
+              >✕</button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+                <span className="text-amber-500 text-lg shrink-0">⚠️</span>
+                <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                  Nội dung bạn nhập bên dưới sẽ <strong>hiển thị trực tiếp</strong> trên màn hình của Chủ nhiệm đề tài để họ biết cần bổ sung gì.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Nội dung yêu cầu bổ sung <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={supplementNote}
+                  onChange={(e) => setSupplementNote(e.target.value)}
+                  rows={5}
+                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-red-400 transition-colors resize-none"
+                  placeholder="Ví dụ: Chứng từ khoản Thuê khoán chuyên gia thiếu hóa đơn VAT, vui lòng bổ sung hóa đơn đỏ có chữ ký giáp lai. Bảng kê chi tiền mặt cần điền đầy đủ họ tên người nhận..."
+                />
+                <p className="text-[10px] text-slate-400 mt-1">{supplementNote.length}/500 ký tự</p>
+              </div>
+
+              {/* Quick templates */}
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Mẫu nhanh:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    'Thiếu hóa đơn VAT',
+                    'Chữ ký không khớp',
+                    'Bảng kê chi tiền mặt sai',
+                    'Thiếu biên lai xác nhận',
+                    'Số tiền không khớp chứng từ',
+                  ].map((tpl) => (
+                    <button
+                      key={tpl}
+                      type="button"
+                      onClick={() => setSupplementNote((prev) => prev ? prev + '; ' + tpl : tpl)}
+                      className="px-2.5 py-1 text-[10px] font-bold bg-slate-100 text-slate-600 rounded-full hover:bg-red-50 hover:text-red-700 transition-colors"
+                    >
+                      + {tpl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+              <button
+                onClick={() => setSupplementModal(null)}
+                className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                disabled={!supplementNote.trim() || loading}
+                onClick={async () => {
+                  if (!supplementNote.trim()) return;
+                  setLoading(true);
+                  try {
+                    await settlementService.requestSupplement(
+                      supplementModal.settlementId,
+                      ['Yêu cầu bổ sung'],
+                      supplementNote.trim()
+                    );
+                    await refresh();
+                    setSupplementModal(null);
+                    showToast(`✅ Đã gửi yêu cầu bổ sung cho hồ sơ ${supplementModal.settlementCode}`);
+                  } catch (e) {
+                    console.error(e);
+                    showToast(typeof e === 'string' ? e : 'Gửi yêu cầu bổ sung thất bại.');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="px-5 py-2 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Đang gửi...' : '🔔 Gửi yêu cầu bổ sung'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,15 +1,19 @@
 import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
+import multer from 'multer';
 import { SettlementController } from './settlement.controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
-import multer from 'multer';
-import path from 'path';
 
 const router = Router();
 router.use(authenticate);
 
+const uploadDir = path.join(process.cwd(), 'uploads', 'settlements');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, path.join(process.cwd(), 'uploads', 'settlements')),
+  destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
@@ -29,7 +33,7 @@ router.get('/:id/export',
 
 router.post('/',
   requireRole('project_owner'),
-  upload.single('evidenceFile'),
+  upload.array('evidenceFiles', 10),
   SettlementController.create
 );
 

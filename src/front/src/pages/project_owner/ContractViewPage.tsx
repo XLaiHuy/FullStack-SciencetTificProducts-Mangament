@@ -16,16 +16,40 @@ const ContractViewPage: React.FC = () => {
     setTimeout(() => setToast(''), 3000);
   };
 
-  useEffect(() => {
+  const loadContracts = () => {
     contractService.getMine().then((items) => {
       setContracts(items);
       if (!items.length) return;
-      const preferred = items.find((item) => item.status === 'da_ky') ?? items[0];
-      setActiveContractId(preferred.id);
+      setActiveContractId((prev) => {
+        if (prev && items.some((item) => item.id === prev)) return prev;
+        const preferred = items.find((item) => item.status === 'da_ky') ?? items[0];
+        return preferred?.id ?? '';
+      });
     }).catch((err) => {
       console.error(err);
       showToast('Không thể tải dữ liệu hợp đồng.');
     });
+  };
+
+  useEffect(() => {
+    loadContracts();
+  }, []);
+
+  // Listen for PDF updates broadcast by research_staff ContractManagementPage
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('contract_updates');
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'pdf_updated') {
+        loadContracts();
+        showToast('📄 Hợp đồng vừa được cập nhật bởi bộ phận quản lý.', 'success');
+      }
+    };
+    channel.addEventListener('message', handler);
+    return () => {
+      channel.removeEventListener('message', handler);
+      channel.close();
+    };
   }, []);
 
   const activeContract = useMemo(
@@ -122,7 +146,7 @@ const ContractViewPage: React.FC = () => {
             <div className="space-y-4">
               <div><p className="font-bold uppercase mb-1">BÊN A: Trường Đại học Mở TP. Hồ Chí Minh</p></div>
               <div>
-                <p className="font-bold uppercase mb-1">BÊN B: {activeContract?.owner ?? 'N/A'}</p>
+                <p className="font-bold uppercase mb-1">BÊN B: {activeContract?.owner || 'N/A'}</p>
                 <p><span className="inline-block w-24">Tên đề tài:</span> <span className="font-bold text-primary">{activeContract?.projectTitle ?? 'N/A'}</span></p>
                 <p><span className="inline-block w-24">Kinh phí:</span> <span className="font-bold">{Number(activeContract?.budget ?? 0).toLocaleString('vi-VN')} VNĐ</span></p>
               </div>

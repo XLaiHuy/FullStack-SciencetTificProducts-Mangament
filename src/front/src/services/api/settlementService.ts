@@ -7,6 +7,7 @@ type SettlementApi = {
   content: string;
   totalAmount: number;
   status: Settlement['status'];
+  supplementNote?: string;
   project?: { title?: string };
 };
 
@@ -16,7 +17,9 @@ const mapSettlement = (s: SettlementApi): Settlement => ({
   content: s.content,
   amount: Number(s.totalAmount ?? 0),
   status: s.status,
+  supplementNote: s.supplementNote ?? undefined,
   projectTitle: s.project?.title ?? '',
+  projectBudget: Number((s.project as any)?.budget ?? 0),
 });
 
 export const settlementService = {
@@ -25,26 +28,33 @@ export const settlementService = {
     return (res.data ?? []).map(mapSettlement);
   },
 
+  async getById(id: string): Promise<any> {
+    const res = await axiosClient.get(`/settlements/${id}`);
+    return res.data;
+  },
+
   async create(payload: {
     projectId: string;
     content: string;
     totalAmount: number;
     category: string;
-    evidenceFile?: File | null;
+    evidenceFiles?: File[];
   }): Promise<void> {
     const form = new FormData();
     form.append('projectId', payload.projectId);
     form.append('content', payload.content);
     form.append('totalAmount', String(payload.totalAmount));
     form.append('category', payload.category);
-    if (payload.evidenceFile) {
-      form.append('evidenceFile', payload.evidenceFile);
+    if (payload.evidenceFiles && payload.evidenceFiles.length > 0) {
+      payload.evidenceFiles.forEach((file) => {
+        form.append('evidenceFiles', file);
+      });
     }
     await axiosClient.post('/settlements', form);
   },
 
-  async requestSupplement(id: string, reasons: string[]): Promise<void> {
-    await axiosClient.post(`/settlements/${id}/supplement-request`, { reasons });
+  async requestSupplement(id: string, reasons: string[], supplementNote?: string): Promise<void> {
+    await axiosClient.post(`/settlements/${id}/supplement-request`, { reasons, supplementNote });
   },
 
   async updateStatus(id: string, status: Settlement['status']): Promise<void> {

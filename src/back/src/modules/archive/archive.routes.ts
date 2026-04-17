@@ -84,9 +84,9 @@ router.post('/repository/:projectId',
       const files = (req as Request & { files?: Express.Multer.File[] }).files as Express.Multer.File[] | undefined;
 
       const project = await prisma.project.findFirst({
-        where: { id: projectId, status: 'da_nghiem_thu', is_deleted: false },
+        where: { id: projectId, status: { in: ['da_nghiem_thu', 'da_thanh_ly'] }, is_deleted: false },
       });
-      if (!project) throw new Error('Đề tài không tồn tại hoặc chưa được nghiệm thu.');
+      if (!project) throw new Error('Đề tài không tồn tại hoặc chưa đủ điều kiện lưu trữ.');
 
       const fileUrls = files?.map(f => f.path) ?? [];
 
@@ -111,7 +111,7 @@ router.get('/', requireRole('archive_staff', 'superadmin', 'report_viewer', 'pro
       : {};
 
     const rows = await prisma.project.findMany({
-      where: { is_deleted: false, status: 'da_nghiem_thu', ...roleScopedWhere },
+      where: { is_deleted: false, status: { in: ['da_nghiem_thu', 'da_thanh_ly'] }, ...roleScopedWhere },
       select: {
         id: true, code: true, title: true, field: true, status: true,
         owner: { select: { name: true, email: true } },

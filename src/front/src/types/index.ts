@@ -92,6 +92,7 @@ export interface Council {
   decisionPdfUrl?: string;
   minutesFileUrl?: string;
   projectReports?: CouncilProjectReport[];
+  hasSubmittedScore?: boolean;
 }
 
 export interface Template {
@@ -113,6 +114,8 @@ export interface Settlement {
   amount: number;
   status: 'cho_bo_sung' | 'hop_le' | 'da_xac_nhan' | 'hoa_don_vat';
   projectTitle: string;
+  projectBudget?: number;
+  supplementNote?: string;
 }
 
 export interface Extension {

@@ -18,16 +18,17 @@ router.get('/dashboard', requireRole('accounting', 'superadmin'), async (_req: R
       prisma.settlement.count({ where: { status: 'da_xac_nhan', is_deleted: false } }),
     ]);
 
-    const budgetAgg = await prisma.settlement.aggregate({
-      where: { is_deleted: false },
-      _sum: { totalAmount: true },
+    const projectsInSettlement = await prisma.project.findMany({
+      where: { is_deleted: false, settlements: { some: { is_deleted: false } } },
+      select: { budget: true },
     });
+    const budgetAgg = projectsInSettlement.reduce((sum, p) => sum + Number(p.budget ?? 0), 0);
 
     R.ok(res, {
       totalSettlements,
       pendingSettlements,
       confirmedSettlements,
-      totalAmount: Number(budgetAgg._sum.totalAmount ?? 0),
+      totalAmount: budgetAgg,
     });
   } catch (err) { R.serverError(res, (err as Error).message); }
 });

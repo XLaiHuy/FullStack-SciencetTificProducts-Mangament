@@ -111,6 +111,19 @@ const TemplateManagementPage: React.FC = () => {
     }
   };
 
+  const handleDownloadOriginal = async (id: string, name: string) => {
+    setLoading(true);
+    try {
+      await templateService.downloadOriginal(id, name);
+      showToast('Đang tải file gốc...', 'success');
+    } catch (e) {
+      console.error(e);
+      showToast('Không thể tải file gốc của biểu mẫu.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResetForm = () => {
     setName('');
     setRole('chu_tich');
@@ -282,6 +295,7 @@ const TemplateManagementPage: React.FC = () => {
                     </td>
                     <td className="px-8 py-5 text-sm font-medium text-gray-500">{t.updatedDate}</td>
                     <td className="px-8 py-5 space-x-4">
+                      <button onClick={() => handleDownloadOriginal(t.id, t.name)} className="text-sm font-bold text-gray-700 hover:text-blue-600 transition-colors">Xem/Tải file gốc</button>
                       <button onClick={() => handleFill(t.id)} className="text-sm font-bold text-primary hover:underline">Tải dự thảo</button>
                       <button onClick={() => handleDelete(t.id)} className="text-sm font-bold text-gray-500 hover:text-red-500 transition-colors">Ngưng áp dụng</button>
                     </td>

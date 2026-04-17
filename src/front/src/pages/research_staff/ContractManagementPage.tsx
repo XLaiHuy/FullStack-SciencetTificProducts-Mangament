@@ -34,6 +34,7 @@ const toContractWordHtml = (input: {
 }) => {
   const partyB = `${input.ownerTitle ? `${input.ownerTitle} ` : ''}${input.owner}`.trim();
   const today = new Date().toLocaleDateString('vi-VN');
+  const partyBRepresentative = partyB || 'Chủ nhiệm đề tài';
 
   return `<!doctype html>
 <html>
@@ -63,6 +64,7 @@ const toContractWordHtml = (input: {
 
   <div class="section"><span class="label">Bên A:</span> ${escapeHtml(input.agencyName || 'Trường/Cơ quan quản lý đề tài')}.</div>
   <div class="section"><span class="label">Bên B:</span> ${escapeHtml(partyB || 'Chủ nhiệm đề tài')} (${escapeHtml(input.ownerEmail ?? 'chưa cập nhật email')})</div>
+  <div class="section"><span class="label">Đại diện Bên B:</span> ${escapeHtml(partyBRepresentative)}</div>
 
   <table class="table">
     <tr><td class="label">Mã đề tài</td><td>${escapeHtml(input.projectCode)}</td></tr>
@@ -77,7 +79,7 @@ const toContractWordHtml = (input: {
 
   <div class="sign">
     <div class="box"><strong>ĐẠI DIỆN BÊN A</strong><br/><i>(Ký, ghi rõ họ tên)</i><br/>${escapeHtml(input.representative || '')}</div>
-    <div class="box"><strong>ĐẠI DIỆN BÊN B</strong><br/><i>(Ký, ghi rõ họ tên)</i><br/>${escapeHtml(partyB || '')}</div>
+    <div class="box"><strong>ĐẠI DIỆN BÊN B</strong><br/><i>(Ký, ghi rõ họ tên)</i><br/>${escapeHtml(partyBRepresentative)}</div>
   </div>
 </body>
 </html>`;
@@ -94,6 +96,11 @@ const saveBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+// BroadcastChannel to notify project_owner ContractViewPage of updates
+const contractUpdateChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('contract_updates')
+  : null;
+
 const ContractManagementPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -101,7 +108,17 @@ const ContractManagementPage: React.FC = () => {
   const [agencyName, setAgencyName] = useState('Đại học Khoa học và Công nghệ');
   const [partyARepresentative, setPartyARepresentative] = useState('');
   const [budgetOverride, setBudgetOverride] = useState<number | ''>('');
+  const [notes, setNotes] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
+  // --- Adjust-contract panel state ---
+  const [adjustContractId, setAdjustContractId] = useState('');
+  const [adjustFile, setAdjustFile] = useState<File | null>(null);
+  const [adjustAgencyName, setAdjustAgencyName] = useState('');
+  const [adjustRepresentative, setAdjustRepresentative] = useState('');
+  const [adjustBudget, setAdjustBudget] = useState<number | ''>('');
+  const [adjustNotes, setAdjustNotes] = useState('');
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  // ------------------------------------
   const [detailContract, setDetailContract] = useState<Contract | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [search, setSearch] = useState('');
@@ -147,6 +164,18 @@ const ContractManagementPage: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (contracts.length === 0) {
+      if (selectedContractId) setSelectedContractId('');
+      return;
+    }
+
+    const selectedExists = contracts.some((contract) => contract.id === selectedContractId);
+    if (!selectedContractId || !selectedExists) {
+      setSelectedContractId(contracts[0].id);
+    }
+  }, [contracts, selectedContractId]);
+
   const showToast = (msg: string, type: ToastType = 'success') => {
     setToast({ message: msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -185,6 +214,11 @@ const ContractManagementPage: React.FC = () => {
   const eligibleProjects = projects.filter((p) => !activeContractsByProject.has(p.id));
 
   const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
+  const selectedProjectOwnerLabel = selectedProject
+    ? `${selectedProject.ownerTitle ? `${selectedProject.ownerTitle} ` : ''}${selectedProject.owner}`.trim()
+    : '[Chủ nhiệm]';
+  const selectedUploadContract = contracts.find((contract) => contract.id === selectedContractId) || contracts[0] || null;
+  const canUploadPdf = Boolean(selectedUploadContract && uploadFile && !loading);
   const effectiveBudget = typeof budgetOverride === 'number' ? budgetOverride : (selectedProject?.budget ?? 0);
   const budgetBase = selectedProject?.budget ?? 0;
   const budgetDiffRatio = budgetBase > 0 ? Math.abs(effectiveBudget - budgetBase) / budgetBase : 0;
@@ -334,11 +368,19 @@ const ContractManagementPage: React.FC = () => {
   };
 
   const handleUploadPdf = async () => {
-    if (!selectedContractId || !uploadFile) return;
+    if (!selectedUploadContract) {
+      showToast('Vui lòng chọn hợp đồng trước khi tải PDF.', 'error');
+      return;
+    }
+    if (!uploadFile) {
+      showToast('Vui lòng chọn file PDF đã ký trước khi tải lên.', 'error');
+      return;
+    }
     setLoading(true);
     try {
-      await contractService.uploadPdf(selectedContractId, uploadFile);
+      await contractService.uploadPdf(selectedUploadContract.id, uploadFile);
       await refresh();
+      contractUpdateChannel?.postMessage({ type: 'pdf_updated', contractId: selectedUploadContract.id });
       showToast('Tải lên thành công!', 'success');
       setUploadFile(null);
     } catch (e) {
@@ -347,6 +389,46 @@ const ContractManagementPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // ── Adjust-contract handlers ──────────────────────────────────────────────
+  const handleAdjustContractSelect = (id: string) => {
+    setAdjustContractId(id);
+    const contract = contracts.find((c) => c.id === id);
+    if (!contract) return;
+    setAdjustAgencyName((contract as any).agencyName ?? '');
+    setAdjustRepresentative((contract as any).representative ?? '');
+    setAdjustBudget(contract.budget || '');
+    setAdjustNotes(contract.notes ?? '');
+    setAdjustFile(null);
+  };
+
+  const handleSaveAdjust = async () => {
+    const target = contracts.find((c) => c.id === adjustContractId);
+    if (!target) {
+      showToast('Vui lòng chọn hợp đồng cần điều chỉnh.', 'error');
+      return;
+    }
+    if (!adjustFile) {
+      showToast('Vui lòng chọn file PDF mới để thay thế.', 'error');
+      return;
+    }
+    setAdjustLoading(true);
+    try {
+      // Upload new PDF — backend will delete the old file automatically
+      await contractService.uploadPdf(target.id, adjustFile);
+      // Update status / notes if the service exposes it — for now just refresh
+      await refresh();
+      // Notify project_owner screen
+      contractUpdateChannel?.postMessage({ type: 'pdf_updated', contractId: target.id });
+      showToast(`Đã cập nhật PDF hợp đồng ${target.code}. Bản cũ đã bị xóa.`, 'success');
+      setAdjustFile(null);
+    } catch (e) {
+      showToast('Lỗi khi lưu điều chỉnh.', 'error');
+    } finally {
+      setAdjustLoading(false);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -457,8 +539,12 @@ const ContractManagementPage: React.FC = () => {
                 <div className="bg-white border border-gray-300 p-6 min-h-64 text-[11px] leading-relaxed shadow-sm rounded">
                   <div className="text-center mb-4 font-bold uppercase">Hợp đồng Nghiên cứu Khoa học</div>
                   <div className="space-y-3">
-                    <p className="font-bold">BÊN A: {agencyName}</p>
-                    <p className="font-bold">BÊN B: {selectedProject?.owner || '[Chủ nhiệm]'}</p>
+                    <p className="font-bold">BÊN A: {agencyName || '[Chưa nhập]'}</p>
+                    <p className="text-gray-700"><strong>Đại diện Bên A:</strong> {partyARepresentative || '[Chưa nhập]'}</p>
+                    <p className="font-bold">BÊN B: {selectedProjectOwnerLabel}</p>
+                    <p className="text-gray-700">
+                      <strong>Đề tài:</strong> {selectedProject ? `${selectedProject.code} - ${selectedProject.title}` : '[Chưa chọn đề tài]'}
+                    </p>
                     <p className="text-gray-600 italic">Giá trị: {formatCurrency(effectiveBudget)}</p>
                   </div>
                 </div>
@@ -542,6 +628,109 @@ const ContractManagementPage: React.FC = () => {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
+          {/* ── Adjust Contract Panel ── */}
+          <div className="card border-2 border-primary-200">
+            <div className="px-6 py-4 border-b border-gray-200 bg-primary-50">
+              <h2 className="text-lg font-bold text-primary-800">🔄 Điều chỉnh Hợp đồng</h2>
+              <p className="text-xs text-primary-600 mt-1">Chọn hợp đồng để tự đổ thông tin, chỉnh sửa rồi lưu PDF mới (bản cũ sẽ bị xóa và đồng bộ qua màn hình Chủ nhiệm).</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn hợp đồng cần điều chỉnh</label>
+                <select
+                  value={adjustContractId}
+                  onChange={(e) => handleAdjustContractSelect(e.target.value)}
+                  className="form-input text-sm"
+                >
+                  <option value="">-- Chọn hợp đồng --</option>
+                  {contracts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} · {c.projectCode} · {c.owner}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {adjustContractId && (
+                <>
+                  <div className="rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-xs text-primary-900 space-y-1">
+                    <p className="font-bold text-sm">{contracts.find((c) => c.id === adjustContractId)?.code}</p>
+                    <p>Đề tài: {contracts.find((c) => c.id === adjustContractId)?.projectCode} · {contracts.find((c) => c.id === adjustContractId)?.projectTitle}</p>
+                    <p>Chủ nhiệm: {contracts.find((c) => c.id === adjustContractId)?.owner}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Cơ quan quản lý (Bên A)</label>
+                      <input
+                        type="text"
+                        value={adjustAgencyName}
+                        onChange={(e) => setAdjustAgencyName(e.target.value)}
+                        className="form-input text-sm"
+                        placeholder="Tên cơ quan..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Đại diện Bên A</label>
+                      <input
+                        type="text"
+                        value={adjustRepresentative}
+                        onChange={(e) => setAdjustRepresentative(e.target.value)}
+                        className="form-input text-sm"
+                        placeholder="Họ và tên..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Ngân sách (VNĐ)</label>
+                      <input
+                        type="number"
+                        value={adjustBudget}
+                        onChange={(e) => setAdjustBudget(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="form-input text-sm"
+                        placeholder="Nhập ngân sách..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Ghi chú</label>
+                      <textarea
+                        value={adjustNotes}
+                        onChange={(e) => setAdjustNotes(e.target.value)}
+                        className="form-input text-sm resize-none"
+                        rows={2}
+                        placeholder="Ghi chú điều chỉnh..."
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">📎 File PDF mới (thay thế bản cũ)</label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setAdjustFile(e.target.files?.[0] ?? null)}
+                      className="form-input text-sm"
+                    />
+                    {adjustFile && (
+                      <p className="text-[11px] text-green-700 mt-1">✓ Đã chọn: {adjustFile.name}</p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleSaveAdjust}
+                    disabled={adjustLoading || !adjustFile}
+                    className="w-full py-3 bg-primary-600 text-white rounded-lg text-sm font-bold uppercase hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {adjustLoading ? '⏳ ĐANG LƯU...' : '💾 LƯU & THAY THẾ PDF'}
+                  </button>
+                  <p className="text-[11px] text-gray-500 text-center">
+                    Bản PDF cũ sẽ bị xóa khỏi server và đồng bộ ngay qua màn hình Chủ nhiệm.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── Quick Upload Panel ── */}
           <div className="card">
             <h2 className="text-lg font-bold text-gray-900 mb-4 px-6 py-4 border-b border-gray-200">Tải lên PDF đã ký</h2>
             <div className="p-6 space-y-4">
@@ -551,15 +740,44 @@ const ContractManagementPage: React.FC = () => {
                 onChange={e => setUploadFile(e.target.files?.[0] ?? null)}
                 className="form-input text-sm"
               />
-              <select
-                value={selectedContractId}
-                onChange={e => setSelectedContractId(e.target.value)}
-                className="form-input"
+              {contracts.length > 1 ? (
+                <select
+                  value={selectedContractId}
+                  onChange={e => setSelectedContractId(e.target.value)}
+                  className="form-input"
+                >
+                  <option value="">Chọn hợp đồng...</option>
+                  {contracts.map(c => <option key={c.id} value={c.id}>{c.code} - {c.owner}</option>)}
+                </select>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                  {contracts[0] ? (
+                    <>
+                      <span className="font-semibold">Hợp đồng đang chọn:</span> {contracts[0].code} - {contracts[0].owner}
+                    </>
+                  ) : (
+                    'Chưa có hợp đồng để tải PDF.'
+                  )}
+                </div>
+              )}
+              {selectedUploadContract && (
+                <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900 space-y-1">
+                  <p className="font-semibold">{selectedUploadContract.code}</p>
+                  <p className="text-xs">Đề tài: {selectedUploadContract.projectCode} - {selectedUploadContract.projectTitle}</p>
+                  <p className="text-xs">Bên B: {selectedUploadContract.owner}</p>
+                  <p className="text-xs">Trạng thái: {selectedUploadContract.status}</p>
+                </div>
+              )}
+              <button
+                onClick={handleUploadPdf}
+                disabled={!canUploadPdf}
+                className="w-full py-2.5 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">Chọn hợp đồng...</option>
-                {contracts.map(c => <option key={c.id} value={c.id}>{c.code} - {c.owner}</option>)}
-              </select>
-              <button onClick={handleUploadPdf} disabled={loading} className="w-full py-2.5 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase hover:bg-black transition-colors">TẢI LÊN</button>
+                {loading ? 'ĐANG TẢI LÊN...' : 'TẢI LÊN PDF ĐÃ KÝ'}
+              </button>
+              <p className="text-[11px] text-gray-500 text-center">
+                Chọn file PDF đã ký và hợp đồng cần gắn file, rồi bấm nút này để upload.
+              </p>
             </div>
           </div>
         </div>

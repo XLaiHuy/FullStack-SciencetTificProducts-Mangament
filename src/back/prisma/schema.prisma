@@ -265,17 +265,18 @@ enum BudgetItemStatus {
 }
 
 model Settlement {
-  id          String           @id @default(cuid())
-  code        String           @unique @db.VarChar(50)  // QT-YYYY-NNNN
-  projectId   String
-  project     Project          @relation(fields: [projectId], references: [id])
-  content     String           @db.Text
-  totalAmount Decimal          @db.Decimal(15, 2)
-  status      SettlementStatus @default(cho_bo_sung)
-  submittedBy String           @db.VarChar(200)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  is_deleted  Boolean          @default(false)
+  id             String           @id @default(cuid())
+  code           String           @unique @db.VarChar(50)  // QT-YYYY-NNNN
+  projectId      String
+  project        Project          @relation(fields: [projectId], references: [id])
+  content        String           @db.Text
+  totalAmount    Decimal          @db.Decimal(15, 2)
+  status         SettlementStatus @default(cho_bo_sung)
+  submittedBy    String           @db.VarChar(200)
+  supplementNote String?          @db.Text               // Staff note visible to owner
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  is_deleted     Boolean          @default(false)
 
   // Relations
   budgetItems BudgetItem[]

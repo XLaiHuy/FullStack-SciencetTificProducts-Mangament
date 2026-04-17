@@ -83,4 +83,27 @@ export const templateService = {
     link.parentNode?.removeChild(link);
     window.URL.revokeObjectURL(url);
   },
+
+  async downloadOriginal(id: string, fallbackFileName?: string): Promise<void> {
+    const token = localStorage.getItem('nckh_token');
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const response = await fetch(`${baseUrl}/templates/${id}/download`, {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error('Không thể tải file gốc của biểu mẫu.');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fallbackFileName ?? `Template_Original_${id}`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };

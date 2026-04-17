@@ -26,11 +26,12 @@ const ChairmanPage: React.FC = () => {
   const [activeCouncil, setActiveCouncil] = React.useState<Council | null>(null);
   const [templateId, setTemplateId] = React.useState('');
   const [minutesFile, setMinutesFile] = React.useState<File | null>(null);
+  const [minutesUploadedAt, setMinutesUploadedAt] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
-    window.setTimeout(() => setToast(''), 2500);
+    window.setTimeout(() => setToast(''), 3500);
   };
 
   React.useEffect(() => {
@@ -103,7 +104,7 @@ const ChairmanPage: React.FC = () => {
       await councilService.submitScore(councilId, Number(score), comments);
       const now = new Date().toISOString();
       setSubmittedAt(now);
-      showToast('Đã gửi kết quả và kết thúc nghiệm thu.');
+      showToast('Đã gửi kết quả và báo cáo đánh giá!');
     } catch (e) {
       setError(typeof e === 'string' ? e : 'Không thể gửi điểm chủ tịch.');
     }
@@ -127,26 +128,37 @@ const ChairmanPage: React.FC = () => {
     setError('');
     try {
       await councilService.submitMinutes(councilId, comments || 'Chủ tịch gửi biên bản kết luận.', minutesFile);
-      showToast('Đã tải biên bản nghiệm thu đã ký.');
+      showToast('Đã tải biên bản nghiệm thu đã ký!');
+      setMinutesUploadedAt(new Date().toISOString());
       setMinutesFile(null);
     } catch (e) {
       setError(typeof e === 'string' ? e : 'Không thể tải biên bản đã ký.');
     }
   };
 
+  const isScoreSubmitted = Boolean(submittedAt) || Boolean(activeCouncil?.hasSubmittedScore);
+  const isMinutesUploaded = Boolean(minutesUploadedAt) || Boolean(activeCouncil?.minutesFileUrl);
+  const isCouncilCompleted = activeCouncil?.status === 'da_hoan_thanh';
+
+  const shouldLockScore = isScoreSubmitted || isCouncilCompleted;
+  const shouldLockMinutes = isMinutesUploaded || isCouncilCompleted;
+
   return (
     <div className="flex flex-col h-full gap-6">
-      {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
+      {toast && <div className="fixed top-24 right-4 bg-emerald-600 text-white px-6 py-4 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-[9999] text-sm font-bold animate-in slide-in-from-right-8">{toast}</div>}
       <header className="bg-white border border-slate-200 rounded-xl flex items-center justify-between px-6 py-4 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800">Không gian làm việc chủ tịch hội đồng</h2>
-        <button
-          type="button"
-          onClick={() => submitScore().catch(() => undefined)}
-          disabled={Boolean(submittedAt) || !score}
-          className="bg-[#1E40AF] text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-800 transition-all shadow-sm disabled:opacity-50"
-        >
-          Gửi kết quả và kết thúc nghiệm thu
-        </button>
+        <div className="flex items-center gap-3">
+          {isCouncilCompleted && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-200">Đã khóa: Đã chuyển sang Thư ký</span>}
+          <button
+            type="button"
+            onClick={() => submitScore().catch(() => undefined)}
+            disabled={shouldLockScore || !score}
+            className="bg-[#1E40AF] text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-800 transition-all shadow-sm disabled:opacity-50"
+          >
+            {shouldLockScore ? 'Đã lưu điểm thành công' : 'Gửi kết quả và kết thúc nghiệm thu'}
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -200,11 +212,11 @@ const ChairmanPage: React.FC = () => {
               <input
                 value={score}
                 onChange={(e) => setScore(e.target.value)}
-                disabled={Boolean(submittedAt)}
+                disabled={shouldLockScore}
                 type="number"
                 min="0"
                 max="100"
-                className="mt-1 w-40 border-slate-200 rounded-lg text-sm"
+                className="mt-1 w-40 border-slate-200 rounded-lg text-sm bg-white disabled:bg-slate-50 disabled:text-slate-500"
               />
             </label>
             <label className="block text-sm font-semibold text-slate-700">
@@ -212,25 +224,42 @@ const ChairmanPage: React.FC = () => {
               <textarea
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
-                disabled={Boolean(submittedAt)}
+                disabled={shouldLockScore}
                 rows={6}
-                className="mt-1 w-full border-slate-200 rounded-lg text-sm"
+                className="mt-1 w-full border-slate-200 rounded-lg text-sm bg-white disabled:bg-slate-50 disabled:text-slate-500"
               />
             </label>
             <div className="rounded-xl border border-dashed border-slate-300 p-5 bg-slate-50">
-              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => setMinutesFile(e.target.files?.[0] ?? null)} />
-              <button onClick={() => fileInputRef.current?.click()} className="w-full border border-slate-200 bg-white rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" disabled={shouldLockMinutes} onChange={(e) => setMinutesFile(e.target.files?.[0] ?? null)} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={shouldLockMinutes} className="w-full border border-slate-200 bg-white rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed">
                 {minutesFile ? `Đã chọn: ${minutesFile.name}` : 'Chọn biên bản nghiệm thu đã ký (PDF)'}
               </button>
               <button
                 onClick={() => uploadMinutes().catch(() => undefined)}
-                disabled={!minutesFile}
-                className="mt-3 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-black disabled:opacity-50"
+                disabled={shouldLockMinutes || !minutesFile}
+                className="mt-3 w-full bg-gray-900 text-white font-bold py-2.5 rounded-lg hover:bg-black disabled:opacity-50 transition-colors shadow-sm"
               >
-                Tải biên bản đã ký
+                {shouldLockMinutes ? 'Biên bản đã được lưu' : 'Tải lên hệ thống'}
               </button>
+              {isMinutesUploaded && (
+                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-emerald-800">Thông tin biên bản hợp lệ</p>
+                    <p className="text-xs text-emerald-600">Đã lưu trữ trên hệ thống an toàn</p>
+                  </div>
+                </div>
+              )}
             </div>
-            {submittedAt && <p className="text-xs font-semibold text-emerald-600">Đã gửi lúc {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
+            {isScoreSubmitted && <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <p className="text-sm font-bold text-blue-800 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Trạng thái: Đã gửi kết quả đánh giá thành công
+              </p>
+              {submittedAt && <p className="text-xs font-medium text-blue-600 mt-1 pl-7">Vào lúc {new Date(submittedAt).toLocaleString('vi-VN')}</p>}
+            </div>}
           </section>
         </div>
       )}

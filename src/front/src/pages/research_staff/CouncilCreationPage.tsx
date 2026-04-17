@@ -79,16 +79,14 @@ const CouncilCreationPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [removedMemberIndexes, setRemovedMemberIndexes] = useState<number[]>([]);
   const [decisionFile, setDecisionFile] = useState<File | null>(null);
-  const [proposalFile, setProposalFile] = useState<File | null>(null);
-  const [proposalParsed, setProposalParsed] = useState<ParsedContractProposal | null>(null);
-  const [proposalParseLoading, setProposalParseLoading] = useState(false);
-  const [proposalCandidates, setProposalCandidates] = useState<ProposalSuggestion[]>([]);
+  const [councilFile, setCouncilFile] = useState<File | null>(null);
+  const [councilParseLoading, setCouncilParseLoading] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityEvent[]>([]);
   const [credentialExports, setCredentialExports] = useState<CredentialExportRecord[]>([]);
   const [newMember, setNewMember] = useState<CouncilMember>({ name: '', role: 'uy_vien', email: '', phone: '', affiliation: '', title: '' });
 
   const decisionInputRef = useRef<HTMLInputElement | null>(null);
-  const proposalInputRef = useRef<HTMLInputElement | null>(null);
+  const councilFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeMembers = useMemo(
     () => members.filter((_, idx) => !removedMemberIndexes.includes(idx)),
@@ -137,10 +135,8 @@ const CouncilCreationPage: React.FC = () => {
       affiliation: 'Bo sung thu cong sau khi kiem tra COI',
     }));
 
-  const resetProposalState = (nextFile?: File | null) => {
-    setProposalFile(nextFile ?? null);
-    setProposalParsed(null);
-    setProposalCandidates([]);
+  const resetCouncilState = (nextFile?: File | null) => {
+    setCouncilFile(nextFile ?? null);
     setToast(null);
   };
 
@@ -276,108 +272,37 @@ const CouncilCreationPage: React.FC = () => {
     }
   };
 
-  const resolveProjectFromProposal = (parsed: ParsedContractProposal) => {
-    if (parsed.suggestedProjectId) {
-      const matchedById = projects.find((item) => item.id === parsed.suggestedProjectId);
-      if (matchedById) return matchedById;
-    }
-
-    if (parsed.projectCode) {
-      const upperCode = parsed.projectCode.toUpperCase();
-      const matchedByCode = projects.find((item) => item.code.toUpperCase() === upperCode);
-      if (matchedByCode) return matchedByCode;
-    }
-
-    return null;
-  };
-
-  const buildParsedSuggestions = async (parsed: ParsedContractProposal, matchedProjectId?: string): Promise<ProposalSuggestion[]> => {
-    const suggestions: ProposalSuggestion[] = [];
-
-    if (parsed.ownerName || parsed.ownerEmail) {
-      let hasConflict = true;
-      let conflictReason = 'Chủ nhiệm đề tài không thể tham gia hội đồng nghiệm thu.';
-
-      if (matchedProjectId && parsed.ownerEmail) {
-        const conflict = await councilService.checkConflict({
-          name: parsed.ownerName || '',
-          title: parsed.ownerTitle || '',
-          role: 'uy_vien',
-          email: parsed.ownerEmail,
-        }, matchedProjectId);
-
-        hasConflict = conflict;
-        if (!conflict) {
-          hasConflict = true;
-          conflictReason = 'Chủ nhiệm de tai luon duoc danh dau COI tren khu goi y.';
-        }
-      }
-
-      suggestions.push({
-        id: 'principal-investigator',
-        name: parsed.ownerName || 'Chưa rõ chủ nhiệm đề tài',
-        title: parsed.ownerTitle || '',
-        institution: parsed.projectTitle || 'Thông tin nhận diện từ file đề xuất',
-        affiliation: 'Chủ nhiệm de tai',
-        email: parsed.ownerEmail || '',
-        role: 'uy_vien',
-        roleDisplay: 'CHU NHIEM DE TAI',
-        source: 'principal_investigator',
-        selectable: false,
-        hasConflict,
-        conflictReason,
-      });
-    }
-
-    suggestions.push(...buildPlaceholderSuggestions());
-    return suggestions;
-  };
-
-  const handleParseProposal = async () => {
-    const fileToParse = proposalFile ?? proposalInputRef.current?.files?.[0] ?? null;
+  const handleParseCouncilFile = async () => {
+    const fileToParse = councilFile ?? councilFileInputRef.current?.files?.[0] ?? null;
     if (!fileToParse) {
-      showToast('Vui lòng chọn file đề xuất trước khi nhận diện.', 'error');
+      showToast('Vui lòng tải file danh sách hội đồng trước khi nhận diện.', 'error');
       return;
     }
     if (fileToParse.size === 0) {
-      showToast('File đề xuất đang rỗng. Vui lòng chọn file hợp lệ.', 'error');
+      showToast('File đang rỗng. Vui lòng chọn file hợp lệ.', 'error');
       return;
     }
 
-    setProposalParseLoading(true);
+    setCouncilParseLoading(true);
     try {
-      const parsed = await contractService.parseProposal(fileToParse);
-      setProposalParsed(parsed);
-      if (!proposalFile) {
-        setProposalFile(fileToParse);
-      }
-
-      const matchedProject = resolveProjectFromProposal(parsed);
-      if (matchedProject) {
-        setActiveProjectId(matchedProject.id);
-        setActiveProjectSnapshot({
-          id: matchedProject.id,
-          code: matchedProject.code,
-          title: matchedProject.title,
-          owner: matchedProject.owner,
-        });
-      }
-
-      const suggestions = await buildParsedSuggestions(parsed, matchedProject?.id);
-      setProposalCandidates(suggestions);
+      const parsedMembers = await councilService.parseMembersFromFile(fileToParse);
+      setCouncilFile(fileToParse);
+      
+      const newMembers = [...members.filter(m => m.name !== DEFAULT_MEMBER.name), ...parsedMembers];
+      const uniqueMembers = Array.from(new Map(newMembers.map(m => [(m.email || Math.random().toString()).toLowerCase(), m])).values());
+      
+      setMembers(uniqueMembers);
       setWizardStep(3);
-      showToast('Nhận diện đề xuất thành công!', 'success');
-      pushActivity(`Nhận diện đề xuất thành công${parsed.projectCode ? ` (${parsed.projectCode})` : ''}.`, 'user');
-    } catch (error) {
+      showToast(`Nhận diện thành công ${parsedMembers.length} thành viên!`, 'success');
+      pushActivity(`Nhận diện danh sách hội đồng từ file ${fileToParse.name}.`, 'user');
+    } catch (error: any) {
       console.error(error);
       const message = typeof error === 'string'
         ? error
-        : fileToParse
-          ? 'Không thể nhận diện nội dung tệp. Neu file da hien ten, vui long chon lai file roi thu lai.'
-          : 'Không thể nhận diện nội dung tệp.';
+        : error?.response?.data?.error || error?.message || 'Không cấu trúc được danh sách thành viên.';
       showToast(message, 'error');
     } finally {
-      setProposalParseLoading(false);
+      setCouncilParseLoading(false);
     }
   };
 
@@ -596,7 +521,7 @@ const CouncilCreationPage: React.FC = () => {
       setMembers([DEFAULT_MEMBER]);
       setRemovedMemberIndexes([]);
       setDecisionFile(null);
-      resetProposalState(null);
+      resetCouncilState(null);
       showToast('Hội đồng da duoc phe duyet va ban hanh thanh cong!', 'success');
       pushActivity(`Ban hành hội đồng ${created.decisionCode} cho de tai ${created.projectCode}.`, 'user');
     } catch (error) {
@@ -738,26 +663,26 @@ const CouncilCreationPage: React.FC = () => {
           {wizardStep >= 2 && (
           <div className="bg-white border border-blue-200 rounded-2xl shadow-card overflow-hidden">
             <div className="p-5 border-b border-blue-50 bg-blue-50/50">
-              <h3 className="font-bold text-blue-800 text-sm uppercase tracking-tight">AI nhận diện đề xuất</h3>
+              <h3 className="font-bold text-blue-800 text-sm uppercase tracking-tight">AI nhận diện DS Hội đồng</h3>
             </div>
             <div className="p-5 space-y-4 text-center">
               <div className="border-2 border-dashed border-blue-100 rounded-xl p-6 bg-blue-50/20">
                 <input
-                  ref={proposalInputRef}
+                  ref={councilFileInputRef}
                   type="file"
                   accept=".pdf,.doc,.docx,.txt"
                   className="hidden"
-                  onChange={(event) => resetProposalState(event.target.files?.[0] ?? null)}
+                  onChange={(event) => resetCouncilState(event.target.files?.[0] ?? null)}
                 />
-                <button type="button" onClick={() => proposalInputRef.current?.click()} className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-button">
+                <button type="button" onClick={() => councilFileInputRef.current?.click()} className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-button">
                   <span className="text-xl">+</span>
                 </button>
-                <p className="text-xs font-bold text-gray-700">{proposalFile ? proposalFile.name : 'Tải file đề xuất (PDF/DOCX)'}</p>
-                <p className="text-[10px] text-gray-400 mt-1 uppercase">Tự động cảnh báo COI và gợi ý vai trò</p>
+                <p className="text-xs font-bold text-gray-700">{councilFile ? councilFile.name : 'Tải file danh sách (PDF/DOCX)'}</p>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase">Tự động điền 5 thành viên</p>
               </div>
 
-              <button type="button" onClick={handleParseProposal} disabled={proposalParseLoading || !proposalFile} className="w-full py-2.5 bg-blue-700 text-white text-xs font-bold rounded-xl shadow-button hover:bg-blue-800 disabled:opacity-50">
-                {proposalParseLoading ? 'Đang xử lý...' : 'Bắt đầu nhận diện'}
+              <button type="button" onClick={handleParseCouncilFile} disabled={councilParseLoading || !councilFile} className="w-full py-2.5 bg-blue-700 text-white text-xs font-bold rounded-xl shadow-button hover:bg-blue-800 disabled:opacity-50">
+                {councilParseLoading ? 'Đang xử lý...' : 'Bắt đầu nhận diện'}
               </button>
               <button
                 type="button"
@@ -766,17 +691,6 @@ const CouncilCreationPage: React.FC = () => {
               >
                 Bỏ qua nhận diện, sang bước 3
               </button>
-
-              {proposalParsed && (
-                <div className="text-left bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Kết quả nhận diện</p>
-                  <p className="text-xs font-bold text-gray-800">Mã đề tài: <span className="text-blue-600 font-black">{proposalParsed.projectCode || 'N/A'}</span></p>
-                  <p className="text-xs text-gray-600">Chủ nhiệm: {proposalParsed.ownerTitle ? `${proposalParsed.ownerTitle} ` : ''}{proposalParsed.ownerName || 'N/A'}</p>
-                  <p className="text-xs text-gray-600">Email: {proposalParsed.ownerEmail || 'N/A'}</p>
-                  <p className="text-xs text-gray-600">Kinh phí: {proposalParsed.suggestedBudget ? proposalParsed.suggestedBudget.toLocaleString('vi-VN') : 'N/A'}</p>
-                  <p className="text-[11px] text-gray-600 italic">"{proposalParsed.textExcerpt.slice(0, 120)}..."</p>
-                </div>
-              )}
             </div>
           </div>
           )}
@@ -784,53 +698,29 @@ const CouncilCreationPage: React.FC = () => {
           {wizardStep >= 2 && (
           <div className="bg-white border border-gray-200 rounded-2xl shadow-card">
             <div className="p-5 border-b border-gray-100 bg-gray-50/30">
-              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-tight">Gợi ý từ Chủ nhiệm</h3>
+              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-tight">Cảnh báo Chủ nhiệm</h3>
             </div>
             <div className="p-5 space-y-4">
-              {proposalCandidates.length === 0 && (
+              {(!activeProject && !activeProjectSnapshot) ? (
                 <div className="p-4 border border-dashed border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-500">
-                  Chưa có gợi ý. Hãy tải file đề xuất và bấm nhận diện để hiển thị cảnh báo COI.
+                  Chưa chọn đề tài. Chọn đề tài ở Bước 1 để hiển thị thông tin chủ nhiệm.
                 </div>
-              )}
-              {proposalCandidates.map((candidate) => (
-                <div key={candidate.id} className="p-4 border border-gray-100 rounded-xl space-y-3 bg-white">
+              ) : (
+                <div className="p-4 border border-gray-100 rounded-xl space-y-3 bg-white">
                   <div className="flex justify-between items-start gap-3">
                     <div>
-                      <p className="font-bold text-sm text-gray-900">{candidate.name}</p>
-                      <p className="text-[11px] text-gray-500">{candidate.institution || candidate.affiliation || 'Chưa có thông tin bổ sung'}</p>
+                      <p className="font-bold text-sm text-gray-900">{activeProject?.owner ?? activeProjectSnapshot?.owner ?? 'N/A'}</p>
+                      <p className="text-[11px] text-gray-500">{activeProject?.title ?? activeProjectSnapshot?.title ?? 'Đề tài'}</p>
                     </div>
-                    <span className="text-[9px] font-bold text-gray-400 border border-gray-100 px-1.5 py-0.5 rounded">{candidate.roleDisplay}</span>
+                    <span className="text-[9px] font-bold text-gray-400 border border-gray-100 px-1.5 py-0.5 rounded">CHỦ NHIỆM ĐỀ TÀI</span>
                   </div>
 
-                  {candidate.hasConflict ? (
-                    <div className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                      {candidate.conflictReason || 'CANH BAO: XUNG DOT LOI ICH (COI)'}
-                    </div>
-                  ) : candidate.selectable ? (
-                    <div className="bg-green-50 text-green-600 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                      DU DIEU KIEN
-                    </div>
-                  ) : (
-                    <div className="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                      CHO BO SUNG UNG VIEN
-                    </div>
-                  )}
-
-                  {candidate.email && <p className="text-[11px] text-gray-500">{candidate.email}</p>}
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectProposal(candidate)}
-                    disabled={!candidate.selectable || candidate.hasConflict}
-                    className={`w-full py-2.5 text-[11px] font-bold border rounded-xl transition-colors ${!candidate.selectable || candidate.hasConflict ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-600 hover:bg-primary hover:text-white hover:border-primary'}`}
-                  >
-                    {candidate.selectable && !candidate.hasConflict ? 'Chọn đề xuất' : 'Không thể thêm trực tiếp'}
-                  </button>
+                  <div className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                    Chủ nhiệm không thể tham gia hội đồng (COI)
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
           )}

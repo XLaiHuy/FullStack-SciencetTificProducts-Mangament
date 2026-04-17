@@ -35,6 +35,7 @@ const mapCouncil = (c: any): Council => ({
     fileUrl: normalizeUploadPath(r.fileUrl),
     submittedAt: r.submittedAt,
   })),
+  hasSubmittedScore: Array.isArray(c.reviews) && c.reviews.length > 0,
 });
 
 export type CouncilCreateResult = Council & {
@@ -123,6 +124,13 @@ export const councilService = {
     const form = new FormData();
     form.append('file', file);
     await axiosClient.post(`/councils/${councilId}/decision`, form);
+  },
+
+  async parseMembersFromFile(file: File): Promise<CouncilMember[]> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await axiosClient.post('/councils/parse-members', form);
+    return res.data;
   },
 
   async downloadDecision(councilId: string, fallbackFileName?: string): Promise<void> {

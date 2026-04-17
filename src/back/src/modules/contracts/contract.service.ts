@@ -455,7 +455,7 @@ export const ContractService = {
   async getByOwner(ownerId: string) {
     return prisma.contract.findMany({
       where: { project: { ownerId }, is_deleted: false },
-      include: { project: { select: { code: true, title: true } } },
+      include: { project: { select: { code: true, title: true, owner: { select: { name: true, email: true, title: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
   },
@@ -531,17 +531,27 @@ export const ContractService = {
     return updated;
   },
 
-  /** POST /api/contracts/:id/upload — store uploaded PDF path */
+  /** POST /api/contracts/:id/upload — replace stored PDF (delete old file first) */
   async uploadPdf(id: string, filePath: string, actorId: string, actorName: string) {
     const contract = await prisma.contract.findFirst({ where: { id, is_deleted: false } });
     if (!contract) throw new Error('Hợp đồng không tồn tại.');
+
+    // Delete the previously stored PDF file from disk if it exists
+    if (contract.pdfUrl) {
+      const oldAbsPath = (await import('../../utils/uploadFile')).resolveUploadAbsolutePath(contract.pdfUrl);
+      if (oldAbsPath) {
+        await fs.unlink(oldAbsPath).catch(() => {
+          // Ignore if the file is already gone
+        });
+      }
+    }
 
     const updated = await prisma.contract.update({
       where: { id },
       data:  { pdfUrl: filePath },
     });
 
-    await logBusiness(actorId, actorName, `Tải lên PDF hợp đồng ${contract.code}`, 'Contracts');
+    await logBusiness(actorId, actorName, `Cập nhật PDF hợp đồng ${contract.code} (thay thế bản cũ)`, 'Contracts');
     return updated;
   },
 

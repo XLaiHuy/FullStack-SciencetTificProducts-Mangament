@@ -349,22 +349,26 @@ const detectCouncilMembers = (text: string): ParsedMember[] => {
     const email = line.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
     const phone = line.match(/(?:\d{10,11}\b)/)?.[0];
 
-    const roleText = line.match(/(?:vai trò|vai tro|chức vụ|chuc vu|vi trí|vi tri|role)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim().toLowerCase();
+    const roleText = line.match(/(?:vai trò|vai tro|chức vụ|chuc vu|vi trí|vi tri|role)\s*[:\-]?\s*([^|\n,]+)/i)?.[1]?.trim().toLowerCase();
     const roleKey = roleText ? Object.keys(roleMap).find((k) => roleText.includes(k)) : undefined;
     const role = roleKey ? roleMap[roleKey] : detectRole(line);
 
-    const nameByLabel = line.match(/(?:họ và tên|ho va ten|họ tên|ho ten)\s*[:\-]?\s*([^\n,]+)/i)?.[1] ?? '';
+    const nameByLabel = line.match(/(?:họ và tên|ho va ten|họ tên|ho ten)\s*[:\-]?\s*([^|\n,]+)/i)?.[1] ?? '';
     const beforeEmail = email ? line.slice(0, line.toLowerCase().indexOf(email.toLowerCase())) : line;
     const nameCandidate = nameByLabel || beforeEmail.split(/[,;|]/)[0] || beforeEmail;
     const { name, title } = sanitizeName(nameCandidate);
 
-    const institution = line.match(/(?:đơn vị|don vi|cơ quan|co quan)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim();
+    const institution = line.match(/(?:đơn vị|don vi|cơ quan|co quan)\s*[:\-]?\s*([^|\n,]+)/i)?.[1]?.trim();
 
     const points = [name, email, role, institution].filter(Boolean).length;
     const confidence = Math.round((points / 4) * 100);
 
+    // Require either an email, or an explicit name by label, or a phone to consider it a real person line.
+    // This avoids accidental matches on instruction sentences that happen to mention a role.
+    const isActuallyPerson = email || phone || line.toLowerCase().includes('họ và tên') || line.toLowerCase().includes('ho va ten') || line.toLowerCase().includes('họ tên') || line.toLowerCase().includes('ho ten') || (name && name.length > 5 && name.length <= 40 && !line.includes('chuẩn bị') && !line.includes('nhiệm thu') && !line.includes('chịu trách nhiệm'));
+    
     const identitySignals = [name, email, role].filter(Boolean).length;
-    if (identitySignals >= 2) {
+    if (identitySignals >= 2 && isActuallyPerson && name && name.length <= 50) {
       detectedMembers.push({
         name,
         email,

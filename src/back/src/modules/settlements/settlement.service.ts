@@ -49,7 +49,7 @@ export const SettlementService = {
       prisma.settlement.count({ where }),
       prisma.settlement.findMany({
         where,
-        include: { project: { select: { code: true, title: true, owner: { select: { name: true, email: true } } } } },
+        include: { project: { select: { code: true, title: true, budget: true, owner: { select: { name: true, email: true } } } } },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -109,6 +109,24 @@ export const SettlementService = {
     });
 
     await logBusiness(actorId, submittedBy, `Tạo quyết toán ${code}`, 'Settlements');
+
+    // Notify all research_staff and accounting users about the new settlement
+    try {
+      const staffUsers = await prisma.user.findMany({
+        where: { role: { in: ['research_staff', 'accounting'] }, is_deleted: false },
+        select: { id: true },
+      });
+      if (staffUsers.length > 0) {
+        await NotificationService.createForUsers(
+          staffUsers.map(u => u.id),
+          'request',
+          `Ho so quyet toan moi ${code} da duoc nop boi ${submittedBy}. Vui long kiem tra va tham dinh.`
+        );
+      }
+    } catch (err) {
+      console.warn('[SettlementService.create] Failed to notify staff:', (err as Error).message);
+    }
+
     return settlement;
   },
 
@@ -117,7 +135,8 @@ export const SettlementService = {
     id: string,
     reasons: string[],
     actorId: string,
-    actorName: string
+    actorName: string,
+    supplementNote?: string
   ) {
     const settlement = await prisma.settlement.findFirst({
       where: { id, is_deleted: false },
@@ -125,43 +144,32 @@ export const SettlementService = {
     });
     if (!settlement) throw new Error('Hồ sơ quyết toán không tồn tại.');
 
-    // Update status + add audit entry
-    const [updated] = await prisma.$transaction([
-      prisma.settlement.update({
-        where: { id },
-        data: {
-          status: 'cho_bo_sung',
-          auditLog: {
-            create: [{
-              content: `Đã gửi yêu cầu bổ sung: ${reasons.join('; ')}.`,
-              author:  actorName,
-            }],
-          },
-        },
-      }),
-    ]);
+    const noteText = supplementNote?.trim() || reasons.join('; ');
 
-    // Keep business flow stable even if email delivery is unavailable.
-    try {
-      await sendSupplementRequest(
-        settlement.project.owner.email,
-        settlement.project.owner.name,
-        settlement.code,
-        reasons
-      );
-    } catch (error) {
-      console.warn('[SettlementService.requestSupplement] sendSupplementRequest failed:', (error as Error).message);
-    }
+    // Update status + save supplement note + add audit entry
+    const updated = await prisma.settlement.update({
+      where: { id },
+      data: {
+        status: 'cho_bo_sung',
+        supplementNote: noteText,
+        auditLog: {
+          create: [{
+            content: `Yêu cầu bổ sung từ ${actorName}: ${noteText}`,
+            author:  actorName,
+          }],
+        },
+      },
+    });
 
     await logBusiness(actorId, actorName,
-      `Yêu cầu bổ sung QT ${settlement.code}: ${reasons.join(', ')}`,
+      `Yêu cầu bổ sung QT ${settlement.code}: ${noteText}`,
       'Settlements'
     );
 
     await NotificationService.createForUser(
       settlement.project.ownerId,
       'warning',
-      `Ho so quyet toan ${settlement.code} can bo sung: ${reasons.join('; ')}`
+      `Ho so quyet toan ${settlement.code} can bo sung: ${noteText}`
     );
 
     return updated;

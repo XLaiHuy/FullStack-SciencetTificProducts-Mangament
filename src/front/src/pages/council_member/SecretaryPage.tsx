@@ -59,7 +59,7 @@ const SecretaryPage: React.FC = () => {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    window.setTimeout(() => setToast(''), 2500);
+    window.setTimeout(() => setToast(''), 3500);
   };
 
   const loadBaseData = React.useCallback(async () => {
@@ -234,7 +234,7 @@ const SecretaryPage: React.FC = () => {
         minutesContent.trim() || 'Thư ký gửi biên bản nghiệm thu chính thức.',
         minutesFile,
       );
-      showToast('Đã tải lên biên bản nghiệm thu.');
+      showToast('Đã tải lên biên bản nghiệm thu thành công!');
       setMinutesFile(null);
       const detail = await councilService.getById(councilId);
       if (detail) setActiveCouncil(detail);
@@ -297,7 +297,7 @@ const SecretaryPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full gap-6 max-w-7xl mx-auto w-full">
-      {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
+      {toast && <div className="fixed top-24 right-4 bg-emerald-600 text-white px-6 py-4 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-[9999] text-sm font-bold">{toast}</div>}
 
       <header className="space-y-1">
         <h2 className="text-2xl font-bold text-gray-900">Bảng điều khiển Thư ký hội đồng</h2>
@@ -391,11 +391,15 @@ const SecretaryPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <button
-                            disabled={!row.isSubmitted}
+                            disabled={!row.isSubmitted || row.decisionStatus === 'accepted'}
                             onClick={() => openDecisionDialog(row.memberId, 'accepted', row.memberName)}
-                            className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50"
+                            className={`px-3 py-1 text-white text-xs rounded ${
+                              row.decisionStatus === 'accepted'
+                                ? 'bg-green-300 cursor-not-allowed'
+                                : 'bg-green-500 hover:bg-green-600 disabled:opacity-50'
+                            }`}
                           >
-                            Xác nhận hợp lệ
+                            {row.decisionStatus === 'accepted' ? '✓ Đã xác nhận' : 'Xác nhận hợp lệ'}
                           </button>
                           <button
                             disabled={!row.isSubmitted}
@@ -447,12 +451,14 @@ const SecretaryPage: React.FC = () => {
                     type="file"
                     className="hidden"
                     accept="application/pdf,.pdf"
+                    disabled={Boolean(activeCouncil?.minutesFileUrl)}
                     onChange={(e) => setMinutesFile(e.target.files?.[0] ?? null)}
                   />
                   <button
                     type="button"
                     onClick={() => minutesFileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-[#1E40AF] transition-colors bg-gray-50"
+                    disabled={Boolean(activeCouncil?.minutesFileUrl)}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-[#1E40AF] transition-colors bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <div className="mb-3 text-gray-400 text-3xl font-bold">+</div>
                     <p className="text-sm font-medium text-gray-700">
@@ -463,20 +469,36 @@ const SecretaryPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleUploadMinutes().catch(() => undefined)}
-                    disabled={submittingMinutes || !minutesFile}
+                    disabled={submittingMinutes || !minutesFile || Boolean(activeCouncil?.minutesFileUrl)}
                     className="mt-3 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-black disabled:opacity-50"
                   >
-                    {submittingMinutes ? 'ĐANG GỬI BIÊN BẢN...' : 'GỬI BIÊN BẢN CHÍNH THỨC'}
+                    {submittingMinutes ? 'ĐANG GỬI BIÊN BẢN...' : activeCouncil?.minutesFileUrl ? 'Biên bản đã được lưu' : 'GỬI BIÊN BẢN CHÍNH THỨC'}
                   </button>
+                  {activeCouncil?.minutesFileUrl && (
+                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-3">
+                      <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                      <div>
+                        <p className="text-sm font-bold text-emerald-800">Biên bản đã lưu thành công trên hệ thống</p>
+                        <p className="text-xs text-emerald-600 break-all mt-0.5">{activeCouncil.minutesFileUrl}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col justify-end">
                   <button
                     onClick={() => finalizeCouncil().catch(() => undefined)}
-                    disabled={!canFinalizeCouncil}
-                    className="w-full bg-[#1E40AF] text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!canFinalizeCouncil || activeCouncil?.status === 'da_hoan_thanh'}
+                    className={`w-full font-bold py-4 rounded-lg transition-colors shadow-md ${
+                      activeCouncil?.status === 'da_hoan_thanh'
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-not-allowed'
+                        : 'bg-[#1E40AF] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
                   >
-                    Xác nhận hoàn thành chỉnh sửa
+                    {activeCouncil?.status === 'da_hoan_thanh' ? '✓ Đã xác nhận hoàn thành' : 'Xác nhận hoàn thành chỉnh sửa'}
                   </button>
+                  {activeCouncil?.status === 'da_hoan_thanh' && (
+                    <p className="text-xs text-emerald-600 font-semibold text-center mt-2">Hội đồng đã kết thúc và khóa lại.</p>
+                  )}
                 </div>
               </div>
             </section>

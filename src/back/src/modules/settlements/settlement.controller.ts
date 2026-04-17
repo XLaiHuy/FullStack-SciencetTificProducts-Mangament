@@ -36,31 +36,48 @@ export const SettlementController = {
   async create(req: Request, res: Response) {
     try {
       const body = CreateSettlementFormSchema.parse(req.body);
-      const uploadedFile = (req as Request & { file?: Express.Multer.File }).file;
+      const uploadedFiles = (req as Request & { files?: Express.Multer.File[] }).files ?? [];
+
+      // Build budget items: one per uploaded file, or a single item without a file
+      const budgetItems: { category: string; planned: number; spent: number; evidenceFile?: string; status: 'khop' | 'vuot_muc' | 'chua_nop' }[] = [];
+      if (uploadedFiles.length > 0) {
+        uploadedFiles.forEach((file, idx) => {
+          budgetItems.push({
+            category: body.category ?? 'Thiết bị nghiên cứu',
+            planned: idx === 0 ? body.totalAmount : 0,
+            spent: idx === 0 ? body.totalAmount : 0,
+            evidenceFile: `/uploads/settlements/${file.filename}`,
+            status: 'khop',
+          });
+        });
+      } else {
+        budgetItems.push({
+          category: body.category ?? 'Thiết bị nghiên cứu',
+          planned: body.totalAmount,
+          spent: body.totalAmount,
+          status: 'chua_nop',
+        });
+      }
+
       const settlement = await SettlementService.create({
         projectId: body.projectId,
         content: body.content,
         totalAmount: body.totalAmount,
-        budgetItems: [{
-          category: body.category ?? 'Thiết bị nghiên cứu',
-          planned: body.totalAmount,
-          spent: body.totalAmount,
-          evidenceFile: uploadedFile?.path,
-          status: 'khop',
-        }],
+        budgetItems,
       }, req.user!.name, req.user!.userId);
-      R.created(res, settlement, 'Nộp hồ sơ quyết toán thành công.');
+      R.created(res, settlement, `Nộp hồ sơ quyết toán thành công. Đã đính kèm ${uploadedFiles.length} chứng từ.`);
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
 
   /** POST /api/settlements/:id/supplement-request */
   async requestSupplement(req: Request, res: Response) {
     try {
-      const { reasons } = SupplementRequestSchema.parse(req.body);
+      const { reasons, supplementNote } = req.body;
+      const parsedReasons = SupplementRequestSchema.parse({ reasons }).reasons;
       const result = await SettlementService.requestSupplement(
-        req.params.id, reasons, req.user!.userId, req.user!.name
+        req.params.id, parsedReasons, req.user!.userId, req.user!.name, supplementNote
       );
-      R.ok(res, result, 'Đã gửi yêu cầu bổ sung và thông báo email đến chủ nhiệm.');
+      R.ok(res, result, 'Đã gửi yêu cầu bổ sung đến chủ nhiệm.');
     } catch (err) { R.badRequest(res, (err as Error).message); }
   },
 

@@ -136,6 +136,20 @@ router.get('/:id/fill', requireRole('research_staff', 'superadmin', 'project_own
   }
 });
 
+router.get('/:id/download', requireRole('research_staff', 'superadmin', 'project_owner'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const template = await prisma.formTemplate.findFirst({ where: { id, isDeleted: false } });
+    if (!template || !template.fileUrl) {
+      return R.notFound(res, 'File biểu mẫu không tồn tại.');
+    }
+    const filename = path.basename(template.fileUrl);
+    res.download(template.fileUrl, filename);
+  } catch (err) {
+    R.serverError(res, (err as Error).message);
+  }
+});
+
 router.post('/',
   requireRole('research_staff', 'superadmin'),
   upload.single('file'),

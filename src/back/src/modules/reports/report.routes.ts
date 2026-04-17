@@ -156,9 +156,10 @@ router.get(
         prisma.contract.count({ where: { status: 'cho_duyet', is_deleted: false } }),
       ]);
 
-      const [budgetAgg, advancedAgg] = await Promise.all([
+      const [budgetAgg, advancedAgg, settledAgg] = await Promise.all([
         prisma.project.aggregate({ where: { is_deleted: false }, _sum: { budget: true } }),
         prisma.project.aggregate({ where: { is_deleted: false }, _sum: { advancedAmount: true } }),
+        prisma.settlement.aggregate({ where: { is_deleted: false, status: 'da_xac_nhan' }, _sum: { totalAmount: true } }),
       ]);
 
       R.ok(res, {
@@ -167,7 +168,7 @@ router.get(
         overdueProjects,
         completedProjects,
         totalBudget: Number(budgetAgg._sum.budget ?? 0),
-        disbursedBudget: Number(advancedAgg._sum.advancedAmount ?? 0),
+        disbursedBudget: Number(advancedAgg._sum.advancedAmount ?? 0) + Number(settledAgg._sum.totalAmount ?? 0),
         totalContracts,
         activeContracts,
         pendingContracts,
@@ -200,9 +201,10 @@ router.get(
         prisma.contract.count({ where: { status: 'da_ky', is_deleted: false } }),
         prisma.contract.count({ where: { status: 'cho_duyet', is_deleted: false } }),
       ]);
-      const [budgetAgg, advancedAgg] = await Promise.all([
+      const [budgetAgg, advancedAgg, settledAgg] = await Promise.all([
         prisma.project.aggregate({ where: { is_deleted: false }, _sum: { budget: true } }),
         prisma.project.aggregate({ where: { is_deleted: false }, _sum: { advancedAmount: true } }),
+        prisma.settlement.aggregate({ where: { is_deleted: false, status: 'da_xac_nhan' }, _sum: { totalAmount: true } }),
       ]);
       R.ok(res, {
         totalProjects,
@@ -210,7 +212,7 @@ router.get(
         overdueProjects,
         completedProjects,
         totalBudget: Number(budgetAgg._sum.budget ?? 0),
-        disbursedBudget: Number(advancedAgg._sum.advancedAmount ?? 0),
+        disbursedBudget: Number(advancedAgg._sum.advancedAmount ?? 0) + Number(settledAgg._sum.totalAmount ?? 0),
         totalContracts,
         activeContracts,
         pendingContracts,
