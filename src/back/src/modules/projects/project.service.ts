@@ -3,8 +3,23 @@ import { ProjectRepository } from './project.repository';
 import { nextProjectCode } from '../../utils/codeGenerator';
 import { logBusiness } from '../../middleware/requestLogger';
 import { ProjectStatus, Prisma } from '@prisma/client';
+import prisma from '../../prisma';
 import path from 'path';
 import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/uploadFile';
+import { NotificationService } from '../notifications/notification.service';
+
+const getResearchStaffAndSuperadminIds = async () => {
+  const rows = await prisma.user.findMany({
+    where: {
+      is_deleted: false,
+      isActive: true,
+      isLocked: false,
+      role: { in: ['research_staff', 'superadmin'] },
+    },
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
+};
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 export const CreateProjectSchema = z.object({
@@ -39,8 +54,24 @@ const ALLOWED_TRANSITIONS: Record<string, ProjectStatus[]> = {
   huy_bo:         [],
 };
 
+const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  dang_thuc_hien: 'Đang thực hiện',
+  tre_han: 'Trễ hạn',
+  cho_nghiem_thu: 'Chờ nghiệm thu',
+  da_nghiem_thu: 'Đã nghiệm thu',
+  huy_bo: 'Hủy bỏ',
+  da_thanh_ly: 'Đã thanh lý',
+};
+
+const statusLabel = (status: ProjectStatus) => PROJECT_STATUS_LABELS[status] ?? status;
+
 // ─── Project Service ──────────────────────────────────────────────────────────
 export const ProjectService = {
+  /** GET /api/projects/owners — active project owners for assignment */
+  async getProjectOwners() {
+    return ProjectRepository.findProjectOwners();
+  },
+
   /** GET /api/projects — filtered list with soft-delete guard */
   async getAll(
     filters: { status?: string; field?: string; search?: string; page?: number; limit?: number },
@@ -122,6 +153,13 @@ export const ProjectService = {
       advancedAmount: data.advancedAmount ?? 0,
     });
     await logBusiness(actorId, actorName, `Tạo đề tài ${code}`, 'Projects');
+
+    await NotificationService.createForUser(
+      data.ownerId,
+      'request',
+      `Ban duoc phan cong chu nhiem de tai ${code} - ${data.title}.`
+    );
+
     return project;
   },
 
@@ -148,6 +186,12 @@ export const ProjectService = {
     await logBusiness(actorId, actorName,
       `Cập nhật trạng thái đề tài ${project.code}: ${project.status} → ${newStatus}`,
       'Projects'
+    );
+
+    await NotificationService.createForUser(
+      project.ownerId,
+      'info',
+      `De tai ${project.code} da chuyen trang thai ${project.status} -> ${newStatus}.`
     );
 
     return updated;
@@ -186,7 +230,15 @@ export const ProjectService = {
     if (!project) throw new Error('Đề tài không tồn tại.');
     if (project.ownerId !== actorId) throw new Error('Bạn chỉ có thể nộp báo cáo cho đề tài của chính mình.');
 
-    return ProjectRepository.createReport({ projectId, type: 'midterm', content, fileUrl, submittedBy });
+    const report = await ProjectRepository.createReport({ projectId, type: 'midterm', content, fileUrl, submittedBy });
+    const staffIds = await getResearchStaffAndSuperadminIds();
+    await NotificationService.createForUsers(
+      staffIds,
+      'request',
+      `Bao cao dinh ky giua ky moi da nop cho de tai ${project.code}.`
+    );
+
+    return report;
   },
 
   /** POST /api/projects/:id/final-submission */
@@ -195,9 +247,25 @@ export const ProjectService = {
     if (!project) throw new Error('Đề tài không tồn tại.');
     if (project.ownerId !== actorId) throw new Error('Bạn chỉ có thể nộp hồ sơ cuối cho đề tài của chính mình.');
 
+    const previousStatus = project.status;
     const report = await ProjectRepository.createReport({ projectId, type: 'final', content, fileUrl, submittedBy });
     // Auto-transition project to cho_nghiem_thu now that final report exists
-    await ProjectRepository.update(projectId, { status: 'cho_nghiem_thu' });
+    const nextStatus: ProjectStatus = 'cho_nghiem_thu';
+    await ProjectRepository.update(projectId, { status: nextStatus });
+
+    const staffIds = await getResearchStaffAndSuperadminIds();
+    await NotificationService.createForUsers(
+      staffIds,
+      'request',
+      `Bao cao tong ket da nop cho de tai ${project.code}. De tai chuyen sang cho_nghiem_thu.`
+    );
+    if (previousStatus !== nextStatus) {
+      await NotificationService.createForUser(
+        project.ownerId,
+        'info',
+        `Đề tài ${project.code} cập nhật trạng thái: ${statusLabel(previousStatus)} -> ${statusLabel(nextStatus)}.`
+      );
+    }
     
     await logBusiness(actorId, submittedBy, `Nộp hồ sơ cuối cho dự án ${projectId}`, 'Projects');
     return report;
@@ -226,12 +294,44 @@ export const ProjectService = {
       submittedBy,
     });
 
+    const previousStatus = project.status;
     if (type === 'midterm_report') {
       // Keep project in execution phase
-      await ProjectRepository.update(projectId, { status: 'dang_thuc_hien' });
+      const nextStatus: ProjectStatus = 'dang_thuc_hien';
+      await ProjectRepository.update(projectId, { status: nextStatus });
+
+      const staffIds = await getResearchStaffAndSuperadminIds();
+      await NotificationService.createForUsers(
+        staffIds,
+        'request',
+        `Bao cao dinh ky giua ky moi da nop cho de tai ${project.code}.`
+      );
+
+      if (previousStatus !== nextStatus) {
+        await NotificationService.createForUser(
+          project.ownerId,
+          'info',
+          `Đề tài ${project.code} cập nhật trạng thái: ${statusLabel(previousStatus)} -> ${statusLabel(nextStatus)}.`
+        );
+      }
     } else {
       // Final artifacts trigger acceptance phase
-      await ProjectRepository.update(projectId, { status: 'cho_nghiem_thu' });
+      const nextStatus: ProjectStatus = 'cho_nghiem_thu';
+      await ProjectRepository.update(projectId, { status: nextStatus });
+
+      const staffIds = await getResearchStaffAndSuperadminIds();
+      await NotificationService.createForUsers(
+        staffIds,
+        'request',
+        `Ho so san pham cuoi ky da nop cho de tai ${project.code}. De tai chuyen sang cho_nghiem_thu.`
+      );
+      if (previousStatus !== nextStatus) {
+        await NotificationService.createForUser(
+          project.ownerId,
+          'info',
+          `Đề tài ${project.code} cập nhật trạng thái: ${statusLabel(previousStatus)} -> ${statusLabel(nextStatus)}.`
+        );
+      }
     }
 
     await logBusiness(actorId, submittedBy, `Nộp sản phẩm (${type}) cho dự án ${projectId}`, 'Projects');

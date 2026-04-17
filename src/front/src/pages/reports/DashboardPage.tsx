@@ -104,33 +104,49 @@ const ReportsDashboard: React.FC = () => {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
               <h4 className="font-bold text-gray-800 mb-4">Thống kê theo lĩnh vực</h4>
-              <div className="space-y-3">
-                {topics.map((topic) => (
-                  <div key={topic.field}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-700">{topic.field}</span>
-                      <span className="font-semibold text-primary">{topic.count}</span>
+              {topics.length === 0 ? (
+                <div className="empty-state-panel text-center">
+                  <span className="empty-state-icon">i</span>
+                  <p className="text-sm font-semibold text-gray-800">Chưa có dữ liệu theo lĩnh vực</p>
+                  <p className="text-xs text-gray-600 mt-1">Thống kê sẽ hiển thị khi dữ liệu đề tài được cập nhật.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {topics.map((topic) => (
+                    <div key={topic.field}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-gray-700">{topic.field}</span>
+                        <span className="font-semibold text-primary">{topic.count}</span>
+                      </div>
+                      <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-primary h-full rounded-full" style={{ width: `${Math.min((topic.count / (topics[0]?.count || 1)) * 100, 100)}%` }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                      <div className="bg-primary h-full rounded-full" style={{ width: `${Math.min((topic.count / (topics[0]?.count || 1)) * 100, 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-card">
               <h4 className="font-bold text-gray-800 mb-4">Phân bố trạng thái đề tài</h4>
-              <div className="space-y-3">
-                {progress.map((item) => (
-                  <div key={item.status} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700">{item.status}</span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {item.count} ({((item.count / totalProgress) * 100).toFixed(1)}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {progress.length === 0 ? (
+                <div className="empty-state-panel text-center">
+                  <span className="empty-state-icon">i</span>
+                  <p className="text-sm font-semibold text-gray-800">Chưa có dữ liệu trạng thái</p>
+                  <p className="text-xs text-gray-600 mt-1">Phân bố trạng thái sẽ hiển thị khi có dữ liệu đề tài.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {progress.map((item) => (
+                    <div key={item.status} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-700">{item.status}</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {item.count} ({((item.count / totalProgress) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -161,8 +177,12 @@ const ReportsDashboard: React.FC = () => {
                 ))}
                 {projects.length === 0 && (
                   <tr>
-                    <td className="px-6 py-6 text-sm text-gray-400" colSpan={4}>
-                      Chưa có dữ liệu đề tài.
+                    <td className="px-6 py-6" colSpan={4}>
+                      <div className="empty-state-panel text-center">
+                        <span className="empty-state-icon">i</span>
+                        <p className="text-sm font-semibold text-gray-800">Chưa có dữ liệu đề tài</p>
+                        <p className="text-xs text-gray-600 mt-1">Danh sách gần đây sẽ hiển thị sau khi có đề tài trong hệ thống.</p>
+                      </div>
                     </td>
                   </tr>
                 )}

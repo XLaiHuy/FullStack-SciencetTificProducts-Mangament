@@ -207,11 +207,20 @@ const SettlementTrackingPage: React.FC = () => {
               </div>
             </div>
 
-            <table className="w-full text-left">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[940px] text-left table-fixed">
+              <colgroup>
+                <col className="w-[14%]" />
+                <col className="w-[24%]" />
+                <col className="w-[16%]" />
+                <col className="w-[16%]" />
+                <col className="w-[14%]" />
+                <col className="w-[16%]" />
+              </colgroup>
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   {['Mã hồ sơ', 'Nội dung', 'Số tiền (VNĐ)', 'Tiến độ', 'Trạng thái', 'Thao tác'].map(h => (
-                    <th key={h} className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{h}</th>
+                    <th key={h} className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -227,16 +236,16 @@ const SettlementTrackingPage: React.FC = () => {
                   const progress = s.status === 'da_xac_nhan' ? 100 : s.status === 'hop_le' ? 70 : s.status === 'cho_bo_sung' ? 40 : 20;
                   return (
                     <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-4 text-xs font-bold text-primary">{s.code}</td>
-                      <td className="px-4 py-4 text-xs font-bold text-slate-800 max-w-[140px]">
+                      <td className="px-6 py-4 text-xs font-bold text-primary whitespace-nowrap">{s.code}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-slate-800">
                         <p className="truncate">{s.content}</p>
                         <p className="text-[10px] text-slate-400 font-normal truncate mt-0.5">{s.projectTitle}</p>
                       </td>
-                      <td className="px-4 py-4 text-xs font-bold text-slate-700 whitespace-nowrap">
+                      <td className="px-6 py-4 text-xs font-bold text-slate-700 whitespace-nowrap">
                         {s.amount.toLocaleString('vi-VN')}
                       </td>
                       {/* Progress bar column */}
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4">
                         <div className="space-y-1 min-w-[80px]">
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] font-bold text-slate-500">Giải ngân</span>
@@ -251,12 +260,12 @@ const SettlementTrackingPage: React.FC = () => {
                         </div>
                       </td>
                       {/* Smart status badge */}
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${cfg.cls}`}>
                           {cfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4">
                         <div className="flex flex-col items-start gap-1">
                           {(s.status === 'cho_bo_sung' || s.status === 'hoa_don_vat') ? (
                             <button
@@ -310,6 +319,7 @@ const SettlementTrackingPage: React.FC = () => {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>

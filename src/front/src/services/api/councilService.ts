@@ -37,6 +37,12 @@ const mapCouncil = (c: any): Council => ({
   })),
 });
 
+export type CouncilCreateResult = Council & {
+  newAccountsCount?: number;
+  newAccountsCsvBase64?: string;
+  newAccountsCsvFileName?: string;
+};
+
 export const councilService = {
   // GET /api/councils
   async getAll(): Promise<Council[]> {
@@ -57,7 +63,7 @@ export const councilService = {
   },
 
   // POST /api/councils
-  async create(projectCode: string, projectTitle: string, members: CouncilMember[], _actorName: string): Promise<Council> {
+  async create(projectCode: string, projectTitle: string, members: CouncilMember[], _actorName: string): Promise<CouncilCreateResult> {
     // In our backend design, projectId is used. projectCode from FE is mostly passed as projectId (if so mapped).
     // The backend route takes { projectId, members }
     const res = await axiosClient.post('/councils', {
@@ -73,7 +79,13 @@ export const councilService = {
         role: m.role,
       }))
     });
-    return mapCouncil(res.data);
+    const mapped = mapCouncil(res.data);
+    return {
+      ...mapped,
+      newAccountsCount: typeof res.data?.newAccountsCount === 'number' ? res.data.newAccountsCount : undefined,
+      newAccountsCsvBase64: typeof res.data?.newAccountsCsvBase64 === 'string' ? res.data.newAccountsCsvBase64 : undefined,
+      newAccountsCsvFileName: typeof res.data?.newAccountsCsvFileName === 'string' ? res.data.newAccountsCsvFileName : undefined,
+    };
   },
 
   // PUT /api/councils/{id}/approve or complete
@@ -142,7 +154,7 @@ export const councilService = {
   },
 
   async submitScore(councilId: string, score: number, comments: string): Promise<void> {
-    await axiosClient.post(`/council/${councilId}/score-reviews`, { score, comments });
+    await axiosClient.post(`/councils/${councilId}/score-reviews`, { score, comments });
   },
 
   async submitMinutes(councilId: string, content: string, file?: File): Promise<void> {
@@ -171,7 +183,7 @@ export const councilService = {
     submittedCount?: number;
     totalMembers?: number;
   }> {
-    const res = await axiosClient.get(`/council/${councilId}/score-summary`);
+    const res = await axiosClient.get(`/councils/${councilId}/score-summary`);
     return res.data;
   },
 
@@ -179,7 +191,7 @@ export const councilService = {
     councilId: string,
     payload: { memberId: string; decision: 'accepted' | 'rework'; note?: string },
   ): Promise<void> {
-    await axiosClient.post(`/council/${councilId}/score-decisions`, payload);
+    await axiosClient.post(`/councils/${councilId}/score-decisions`, payload);
   },
 
   async approveRevision(revisionId: string): Promise<void> {

@@ -21,6 +21,13 @@ export const ExtensionController = {
     } catch (err) { R.notFound(res, (err as Error).message); }
   },
 
+  async downloadSupportingDocument(req: Request, res: Response) {
+    try {
+      const payload = await ExtensionService.getSupportingDocumentDownload(req.params.id, req.user!.userId, req.user!.role);
+      res.download(payload.absolutePath, payload.fileName);
+    } catch (err) { R.badRequest(res, (err as Error).message); }
+  },
+
   async create(req: Request, res: Response) {
     try {
       const file = (req as Request & { file?: Express.Multer.File }).file;

@@ -1,27 +1,27 @@
 {
   "baseUrl": "http://localhost:5173",
-  "measuredAt": "2026-04-09T05:48:45.135Z",
+  "measuredAt": "2026-04-17T03:36:55.346Z",
   "routes": [
     {
       "path": "/login",
       "ok": true,
       "error": null,
-      "totalDurationMs": 1126,
+      "totalDurationMs": 985,
       "metrics": {
-        "domContentLoadedMs": 242,
-        "loadEventMs": 244,
+        "domContentLoadedMs": 191,
+        "loadEventMs": 193,
         "transferMs": 4,
-        "firstContentfulPaintMs": 648
+        "firstContentfulPaintMs": 520
       }
     },
     {
       "path": "/research-staff/dashboard",
       "ok": true,
       "error": null,
-      "totalDurationMs": 559,
+      "totalDurationMs": 576,
       "metrics": {
-        "domContentLoadedMs": 23,
-        "loadEventMs": 24,
+        "domContentLoadedMs": 28,
+        "loadEventMs": 30,
         "transferMs": 2,
         "firstContentfulPaintMs": null
       }
@@ -30,11 +30,11 @@
       "path": "/project-owner/dashboard",
       "ok": true,
       "error": null,
-      "totalDurationMs": 545,
+      "totalDurationMs": 568,
       "metrics": {
-        "domContentLoadedMs": 22,
-        "loadEventMs": 22,
-        "transferMs": 2,
+        "domContentLoadedMs": 30,
+        "loadEventMs": 31,
+        "transferMs": 3,
         "firstContentfulPaintMs": null
       }
     },
@@ -42,10 +42,10 @@
       "path": "/accounting/dashboard",
       "ok": true,
       "error": null,
-      "totalDurationMs": 568,
+      "totalDurationMs": 575,
       "metrics": {
-        "domContentLoadedMs": 24,
-        "loadEventMs": 24,
+        "domContentLoadedMs": 29,
+        "loadEventMs": 31,
         "transferMs": 3,
         "firstContentfulPaintMs": null
       }
@@ -54,11 +54,11 @@
       "path": "/archive/dashboard",
       "ok": true,
       "error": null,
-      "totalDurationMs": 564,
+      "totalDurationMs": 558,
       "metrics": {
-        "domContentLoadedMs": 30,
-        "loadEventMs": 31,
-        "transferMs": 5,
+        "domContentLoadedMs": 25,
+        "loadEventMs": 26,
+        "transferMs": 3,
         "firstContentfulPaintMs": null
       }
     },
@@ -66,10 +66,10 @@
       "path": "/reports/dashboard",
       "ok": true,
       "error": null,
-      "totalDurationMs": 566,
+      "totalDurationMs": 559,
       "metrics": {
-        "domContentLoadedMs": 34,
-        "loadEventMs": 34,
+        "domContentLoadedMs": 26,
+        "loadEventMs": 27,
         "transferMs": 4,
         "firstContentfulPaintMs": null
       }
@@ -78,12 +78,12 @@
       "path": "/superadmin/dashboard",
       "ok": true,
       "error": null,
-      "totalDurationMs": 595,
+      "totalDurationMs": 559,
       "metrics": {
-        "domContentLoadedMs": 48,
-        "loadEventMs": 48,
-        "transferMs": 6,
-        "firstContentfulPaintMs": 140
+        "domContentLoadedMs": 27,
+        "loadEventMs": 28,
+        "transferMs": 3,
+        "firstContentfulPaintMs": null
       }
     }
   ]

@@ -56,6 +56,15 @@ type ActivityEvent = {
   message: string;
 };
 
+type CredentialExportRecord = {
+  id: string;
+  decisionCode: string;
+  createdAt: string;
+  count: number;
+  fileName: string;
+  csvBase64: string;
+};
+
 const CouncilCreationPage: React.FC = () => {
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [councils, setCouncils] = useState<Council[]>([]);
@@ -75,6 +84,7 @@ const CouncilCreationPage: React.FC = () => {
   const [proposalParseLoading, setProposalParseLoading] = useState(false);
   const [proposalCandidates, setProposalCandidates] = useState<ProposalSuggestion[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityEvent[]>([]);
+  const [credentialExports, setCredentialExports] = useState<CredentialExportRecord[]>([]);
   const [newMember, setNewMember] = useState<CouncilMember>({ name: '', role: 'uy_vien', email: '', phone: '', affiliation: '', title: '' });
 
   const decisionInputRef = useRef<HTMLInputElement | null>(null);
@@ -189,14 +199,44 @@ const CouncilCreationPage: React.FC = () => {
       .slice(0, 12);
   }, [activityLogs, councils]);
 
+  const escapeCsvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+  const downloadBase64Csv = (base64: string, fallbackName: string) => {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    const blob = new Blob([bytes], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fallbackName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+
+  const rememberCredentialExport = (record: Omit<CredentialExportRecord, 'id' | 'createdAt'>) => {
+    setCredentialExports((prev) => ([
+      {
+        ...record,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ].slice(0, 8)));
+  };
+
   const handleExportAuditTrail = () => {
-    const toCsvCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const lines = auditTrail.map((event, idx) => [
       String(idx + 1),
       new Date(event.at).toLocaleString('vi-VN'),
       event.category,
       event.message,
-    ].map(toCsvCell).join(','));
+    ].map(escapeCsvCell).join(','));
 
     const csv = ['"STT","ThoiGian","Loai","NoiDung"', ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -457,8 +497,15 @@ const CouncilCreationPage: React.FC = () => {
   };
 
   const handleExport = () => {
-    const rows = activeMembers.map((member, index) => `${index + 1},${member.name},${member.title ?? ''},${member.role},${member.email},${member.affiliation ?? ''}`);
-    const csv = ['STT,HoTen,HocHamHocVi,VaiTro,Email,DonVi', ...rows].join('\n');
+    const rows = activeMembers.map((member, index) => [
+      index + 1,
+      member.name,
+      member.title ?? '',
+      member.role,
+      member.email,
+      member.affiliation ?? '',
+    ].map(escapeCsvCell).join(','));
+    const csv = ['"STT","HoTen","HocHamHocVi","VaiTro","Email","DonVi"', ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -522,6 +569,22 @@ const CouncilCreationPage: React.FC = () => {
       const created = await councilService.create(activeProject.id, activeProject.title, activeMembers, 'Research Staff');
       if (decisionFile) {
         await councilService.uploadDecision(created.id, decisionFile);
+      }
+
+      if (created.newAccountsCsvBase64 && (created.newAccountsCount ?? 0) > 0) {
+        const fileName = created.newAccountsCsvFileName || `new_accounts_${created.decisionCode || activeProject.code}.csv`;
+        downloadBase64Csv(
+          created.newAccountsCsvBase64,
+          fileName,
+        );
+        rememberCredentialExport({
+          decisionCode: created.decisionCode || activeProject.code,
+          count: created.newAccountsCount ?? 0,
+          fileName,
+          csvBase64: created.newAccountsCsvBase64,
+        });
+        showToast(`Đã xuất CSV ${created.newAccountsCount} tài khoản hội đồng mới.`, 'success');
+        pushActivity(`Xuất CSV credential tài khoản mới cho hội đồng ${created.decisionCode}.`, 'user');
       }
 
       setCouncils([created, ...councils]);
@@ -953,6 +1016,44 @@ const CouncilCreationPage: React.FC = () => {
           </table>
         </div>
       </section>
+
+      {credentialExports.length > 0 && (
+        <section className="card animate-fade-up-delay-2">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Credential CSV Gần Đây</h3>
+              <p className="text-xs text-gray-500 mt-1">Chỉ lưu trong phiên hiện tại, tải lại trang sẽ mất dữ liệu này.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCredentialExports([])}
+              className="btn-secondary text-xs"
+            >
+              Xóa lịch sử
+            </button>
+          </div>
+          <div className="space-y-3">
+            {credentialExports.map((record) => (
+              <div key={record.id} className="flex items-center justify-between gap-4 border border-amber-100 rounded-lg px-4 py-3 bg-amber-50/40">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{record.fileName}</p>
+                  <p className="text-xs text-gray-600 mt-1">Hội đồng {record.decisionCode} • {record.count} tài khoản mới • {new Date(record.createdAt).toLocaleString('vi-VN')}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadBase64Csv(record.csvBase64, record.fileName);
+                    showToast('Đã tải lại CSV credentials.', 'success');
+                  }}
+                  className="btn-primary text-xs"
+                >
+                  Tải lại CSV
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="card animate-fade-up-delay-2">
         <div className="flex items-center justify-between mb-4">

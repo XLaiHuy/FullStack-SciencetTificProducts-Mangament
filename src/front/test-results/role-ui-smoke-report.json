@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-04-08T11:52:39.638Z",
-  "finishedAt": "2026-04-08T11:55:34.504Z",
+  "startedAt": "2026-04-17T03:31:17.893Z",
+  "finishedAt": "2026-04-17T03:34:37.845Z",
   "frontendUrl": "http://localhost:5173",
   "roles": [
     {
@@ -9,32 +9,20 @@
       "loginOk": true,
       "visitedRoutes": [
         "/research-staff/dashboard",
-        "/research-staff/council-creation"
+        "/research-staff/project-management",
+        "/research-staff/council-creation",
+        "/research-staff/contract-management",
+        "/research-staff/template-management",
+        "/research-staff/settlement-tracking",
+        "/research-staff/extension-management"
       ],
-      "buttonsClicked": 21,
+      "buttonsClicked": 56,
       "buttonFailures": [],
-      "uploadChecks": 0,
+      "uploadChecks": 1,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [
-        {
-          "url": "http://localhost:5173/research-staff/council-creation",
-          "message": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-        },
-        {
-          "url": "http://localhost:5173/research-staff/council-creation",
-          "message": "Invalid PDF structure."
-        },
-        {
-          "url": "http://localhost:5173/research-staff/council-creation",
-          "message": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-        },
-        {
-          "url": "http://localhost:5173/research-staff/council-creation",
-          "message": "Invalid PDF structure."
-        }
-      ],
-      "error": "page.evaluate: Execution context was destroyed, most likely because of a navigation"
+      "jsErrors": [],
+      "error": null
     },
     {
       "role": "project_owner",
@@ -48,7 +36,7 @@
         "/project-owner/acceptance-minutes",
         "/project-owner/settlement"
       ],
-      "buttonsClicked": 22,
+      "buttonsClicked": 18,
       "buttonFailures": [],
       "uploadChecks": 1,
       "downloadChecks": 2,
@@ -82,7 +70,7 @@
         "/archive/dashboard",
         "/archive/repository"
       ],
-      "buttonsClicked": 11,
+      "buttonsClicked": 9,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -120,7 +108,7 @@
         "/superadmin/audit-log",
         "/superadmin/category-management"
       ],
-      "buttonsClicked": 28,
+      "buttonsClicked": 29,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -136,7 +124,7 @@
         "/council-member/dashboard",
         "/council-member/chairman"
       ],
-      "buttonsClicked": 17,
+      "buttonsClicked": 2,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -152,7 +140,7 @@
         "/council-member/dashboard",
         "/council-member/reviewer"
       ],
-      "buttonsClicked": 15,
+      "buttonsClicked": 2,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -168,7 +156,7 @@
         "/council-member/dashboard",
         "/council-member/secretary"
       ],
-      "buttonsClicked": 2,
+      "buttonsClicked": 13,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -184,7 +172,7 @@
         "/council-member/dashboard",
         "/council-member/member"
       ],
-      "buttonsClicked": 21,
+      "buttonsClicked": 11,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -196,11 +184,11 @@
   "totals": {
     "roles": 10,
     "loginFailed": 0,
-    "totalRoutesVisited": 32,
-    "totalButtonsClicked": 172,
+    "totalRoutesVisited": 37,
+    "totalButtonsClicked": 175,
     "totalButtonFailures": 0,
-    "totalJsErrors": 4,
-    "totalUploadChecks": 1,
+    "totalJsErrors": 0,
+    "totalUploadChecks": 2,
     "totalDownloadChecks": 2,
     "totalIoFailures": 0,
     "totalUploadFailures": 0,

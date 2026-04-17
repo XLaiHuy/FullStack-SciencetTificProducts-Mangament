@@ -120,6 +120,7 @@ export interface Extension {
   projectCode: string;
   projectOwner: string;
   reason: string;
+  supportingDocument?: string;
   proposedDate: string;
   extensionDays: number;
   extensionCount: number;

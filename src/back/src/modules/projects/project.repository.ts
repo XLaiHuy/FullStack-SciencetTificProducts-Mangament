@@ -2,6 +2,24 @@ import prisma from '../../prisma';
 import { ProjectStatus, Prisma } from '@prisma/client';
 
 export const ProjectRepository = {
+  async findProjectOwners() {
+    return prisma.user.findMany({
+      where: {
+        role: 'project_owner',
+        is_deleted: false,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        title: true,
+        department: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  },
+
   async count(where: Prisma.ProjectWhereInput) {
     return prisma.project.count({ where });
   },

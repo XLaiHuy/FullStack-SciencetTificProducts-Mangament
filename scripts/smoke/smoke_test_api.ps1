@@ -74,10 +74,56 @@ try {
 try {
   $projRes = Invoke-RestMethod -Uri "$base/projects" -Headers $headers -Method Get
   $projects = @($projRes.data)
+  if (-not $projects.Count) {
+    $ownersRes = Invoke-RestMethod -Uri "$base/projects/owners" -Headers $headers -Method Get
+    $ownerRows = @($ownersRes.data)
+    if (-not $ownerRows.Count) { throw 'No project owners available to bootstrap smoke data.' }
+
+    $bootstrapPayload = @{
+      title = "API Smoke Bootstrap $(Get-Date -Format 'HHmmss')"
+      ownerId = $ownerRows[0].id
+      ownerTitle = 'TS.'
+      department = 'Bootstrap Department'
+      field = 'Bootstrap Field'
+      startDate = '2026-03-01T00:00:00.000Z'
+      endDate = '2026-12-31T00:00:00.000Z'
+      durationMonths = 10
+      budget = 180000000
+      advancedAmount = 0
+    } | ConvertTo-Json
+
+    $createdBootstrap = Invoke-RestMethod -Uri "$base/projects" -Method Post -Headers $headers -ContentType 'application/json' -Body $bootstrapPayload
+    $bootstrapId = $createdBootstrap.data.id
+    if (-not $bootstrapId) { throw 'Failed to create bootstrap project.' }
+
+    $projRes = Invoke-RestMethod -Uri "$base/projects" -Headers $headers -Method Get
+    $projects = @($projRes.data)
+  }
+
   if (-not $projects.Count) { throw 'No projects returned.' }
 
   $projectChoNghiemThu = $projects | Where-Object { $_.status -eq 'cho_nghiem_thu' } | Select-Object -First 1
-  $ownerIdCandidate = $projects[0].owner.id
+  $ownerIdCandidate = $projects[0].ownerId
+  if (-not $ownerIdCandidate) { $ownerIdCandidate = $projects[0].owner.id }
+
+  if (-not $projectChoNghiemThu) {
+    $bootstrapProject = $projects | Where-Object { $_.ownerId -eq $ownerIdCandidate } | Select-Object -First 1
+    if (-not $bootstrapProject) { $bootstrapProject = $projects | Select-Object -First 1 }
+
+    $ownerLoginBody = @{ email = 'owner@nckh.edu.vn'; password = '123456' } | ConvertTo-Json
+    $ownerLogin = Invoke-RestMethod -Uri "$base/auth/login" -Method Post -ContentType 'application/json' -Body $ownerLoginBody
+    $ownerToken = $ownerLogin.data.accessToken
+    if (-not $ownerToken) { throw 'Missing owner access token for bootstrap final submission.' }
+    $ownerHeaders = @{ Authorization = "Bearer $ownerToken" }
+
+    Invoke-RestMethod -Uri "$base/projects/$($bootstrapProject.id)/final-submission" -Method Post -Headers $ownerHeaders -ContentType 'application/json' -Body (@{ content = 'API smoke bootstrap final submission' } | ConvertTo-Json) | Out-Null
+
+    $projectRefetch = Invoke-RestMethod -Uri "$base/projects/$($bootstrapProject.id)" -Headers $headers -Method Get
+    $projectChoNghiemThu = $projectRefetch.data
+    if ($projectChoNghiemThu.status -ne 'cho_nghiem_thu') {
+      throw "Bootstrap project status is '$($projectChoNghiemThu.status)' instead of 'cho_nghiem_thu'."
+    }
+  }
 
   $contractsRes = Invoke-RestMethod -Uri "$base/contracts" -Headers $headers -Method Get
   $contracts = @($contractsRes.data)
@@ -97,9 +143,11 @@ try {
   $payload = @{
     projectId = $projectChoNghiemThu.id
     members = @(
-      @{ name = 'GS.TS. Hoang Van Auto'; title = 'GS.TS.'; institution = 'Dai hoc A'; email = 'autochair@deltajohnsons.com'; phone = '0900000001'; affiliation = 'Dai hoc A'; role = 'chu_tich' },
-      @{ name = 'TS. Phan Bien Auto'; title = 'TS.'; institution = 'Vien B'; email = 'autoreviewer@deltajohnsons.com'; phone = '0900000002'; affiliation = 'Vien B'; role = 'phan_bien_1' },
-      @{ name = 'ThS. Uy Vien Auto'; title = 'ThS.'; institution = 'Vien C'; email = 'automember@deltajohnsons.com'; phone = '0900000003'; affiliation = 'Vien C'; role = 'uy_vien' }
+      @{ name = 'GS.TS. Hoang Van E'; title = 'GS.TS.'; institution = 'Dai hoc A'; email = 'chairman@demo.com'; phone = '0900000001'; affiliation = 'Dai hoc A'; role = 'chu_tich' },
+      @{ name = 'PGS.TS. Le Quang C'; title = 'PGS.TS.'; institution = 'Vien B'; email = 'reviewer@demo.com'; phone = '0900000002'; affiliation = 'Vien B'; role = 'phan_bien_1' },
+      @{ name = 'GS.TS. Nguyen Van C'; title = 'GS.TS.'; institution = 'Vien C'; email = 'council@nckh.edu.vn'; phone = '0900000003'; affiliation = 'Vien C'; role = 'phan_bien_2' },
+      @{ name = 'TS. Pham Thi D'; title = 'TS.'; institution = 'Vien D'; email = 'secretary@demo.com'; phone = '0900000004'; affiliation = 'Vien D'; role = 'thu_ky' },
+      @{ name = 'ThS. Nguyen Minh E'; title = 'ThS.'; institution = 'Vien E'; email = 'member@demo.com'; phone = '0900000005'; affiliation = 'Vien E'; role = 'uy_vien' }
     )
   } | ConvertTo-Json -Depth 6
 
@@ -175,7 +223,12 @@ try {
 # 7) Create contract success (project without active contract)
 try {
   if (-not $projectNoContract) {
-    if (-not $ownerIdCandidate) { throw 'No owner id available to create temp project.' }
+    if (-not $ownerIdCandidate) {
+      $ownersRes = Invoke-RestMethod -Uri "$base/projects/owners" -Headers $headers -Method Get
+      $ownerRows = @($ownersRes.data)
+      if (-not $ownerRows.Count) { throw 'No owner id available to create temp project.' }
+      $ownerIdCandidate = $ownerRows[0].id
+    }
 
     $projectPayload = @{
       title = "Auto Contract Project $(Get-Date -Format 'HHmmss')"

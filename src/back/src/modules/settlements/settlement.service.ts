@@ -4,6 +4,7 @@ import { nextSettlementCode } from '../../utils/codeGenerator';
 import { logBusiness } from '../../middleware/requestLogger';
 import { sendSupplementRequest } from '../../utils/emailService';
 import ExcelJS from 'exceljs';
+import { NotificationService } from '../notifications/notification.service';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 export const CreateSettlementSchema = z.object({
@@ -140,24 +141,34 @@ export const SettlementService = {
       }),
     ]);
 
-    // Send mock email notification
-    await sendSupplementRequest(
-      settlement.project.owner.email,
-      settlement.project.owner.name,
-      settlement.code,
-      reasons
-    );
+    // Keep business flow stable even if email delivery is unavailable.
+    try {
+      await sendSupplementRequest(
+        settlement.project.owner.email,
+        settlement.project.owner.name,
+        settlement.code,
+        reasons
+      );
+    } catch (error) {
+      console.warn('[SettlementService.requestSupplement] sendSupplementRequest failed:', (error as Error).message);
+    }
 
     await logBusiness(actorId, actorName,
       `Yêu cầu bổ sung QT ${settlement.code}: ${reasons.join(', ')}`,
       'Settlements'
     );
 
+    await NotificationService.createForUser(
+      settlement.project.ownerId,
+      'warning',
+      `Ho so quyet toan ${settlement.code} can bo sung: ${reasons.join('; ')}`
+    );
+
     return updated;
   },
 
   /** PUT /api/settlements/:id/status — accounting updates status */
-  async updateStatus(id: string, status: string, actorId: string, actorName: string) {
+  async updateStatus(id: string, status: string, actorId: string, actorName: string, note?: string) {
     const settlement = await prisma.settlement.findFirst({ where: { id, is_deleted: false } });
     if (!settlement) throw new Error('Hồ sơ quyết toán không tồn tại.');
 
@@ -187,7 +198,7 @@ export const SettlementService = {
           status: status as never,
           auditLog: {
             create: [{
-              content: `Trạng thái cập nhật: ${settlement.status} → ${status}`,
+              content: `Trạng thái cập nhật: ${settlement.status} → ${status}${note ? `. Ghi chú: ${note}` : ''}`,
               author:  actorName,
             }],
           },
@@ -220,6 +231,21 @@ export const SettlementService = {
         : `Cập nhật QT ${settlement.code}: ${settlement.status} → ${status}`, 
       'Settlements'
     );
+
+    if (status === 'da_xac_nhan') {
+      const owner = await prisma.project.findFirst({
+        where: { id: settlement.projectId },
+        select: { ownerId: true, code: true },
+      });
+
+      if (owner?.ownerId) {
+        await NotificationService.createForUser(
+          owner.ownerId,
+          'info',
+          `Ho so quyet toan ${settlement.code} da duoc xac nhan. De tai ${owner.code} chuyen sang da thanh ly.`
+        );
+      }
+    }
     return updated;
   },
 
@@ -315,40 +341,6 @@ export const SettlementService = {
   },
 
   async approve(id: string, actorId: string, actorName: string) {
-    const settlement = await prisma.settlement.findFirst({
-      where: { id, is_deleted: false },
-      include: { project: true },
-    });
-    if (!settlement) throw new Error('Hồ sơ quyết toán không tồn tại.');
-
-    const [updated] = await prisma.$transaction([
-      prisma.settlement.update({
-        where: { id },
-        data: {
-          status: 'da_xac_nhan',
-          auditLog: {
-            create: [{ content: 'Phê duyệt thanh lý quyết toán.', author: actorName }],
-          },
-        },
-      }),
-      prisma.project.update({
-        where: { id: settlement.projectId },
-        data: { status: 'da_thanh_ly' },
-      }),
-      // Auto-create empty ArchiveRecord when project reaches final status
-      prisma.archiveRecord.upsert({
-        where: { projectId: settlement.projectId },
-        create: {
-          projectId: settlement.projectId,
-          archivedBy: actorName,
-          fileUrlsJson: JSON.stringify([]),
-          notes: 'Auto-created when settlement finalized',
-        },
-        update: {},
-      }),
-    ]);
-
-    await logBusiness(actorId, actorName, `APPROVE QT ${settlement.code}`, 'Settlements', JSON.stringify({ old_values: settlement }));
-    return updated;
+    return this.updateStatus(id, 'da_xac_nhan', actorId, actorName, 'Phê duyệt thanh lý quyết toán.');
   },
 };

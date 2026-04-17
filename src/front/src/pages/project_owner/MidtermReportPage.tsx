@@ -20,7 +20,7 @@ const MidtermReportPage: React.FC = () => {
   };
 
   useEffect(() => {
-    projectService.getAll().then((list) => {
+    projectService.getMine().then((list) => {
       setProjects(list);
       if (list.length > 0) setProjectId(list[0].id);
     }).catch(console.error);
@@ -60,7 +60,7 @@ const MidtermReportPage: React.FC = () => {
     try {
       await projectService.submitProduct(projectId, { type: 'midterm_report', content: notes, file });
       setSubmitted(true);
-      await projectService.getAll().then(setProjects);
+      await projectService.getMine().then(setProjects);
       localStorage.removeItem(MIDTERM_DRAFT_KEY);
       showToast('Đã nộp báo cáo giữa kỳ thành công.', 'success');
     } catch (e) {
@@ -100,7 +100,11 @@ const MidtermReportPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
             <h2 className="text-lg font-bold text-slate-800">Thông tin báo cáo giữa kỳ</h2>
-            <p className="text-sm text-slate-500">Đề tài: NCKH-2023-0142 — Hạn nộp: 30/10/2023</p>
+            <p className="text-sm text-slate-500">
+              {projects.length
+                ? `Đề tài hiện chọn: ${projects.find((p) => p.id === projectId)?.code ?? projects[0].code}`
+                : 'Chưa có đề tài được gán.'}
+            </p>
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             <div className="grid grid-cols-2 gap-6">

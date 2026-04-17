@@ -16,6 +16,7 @@ const ReportLayout = lazy(() => import('../layouts/ReportLayout'));
 const SuperAdminLayout = lazy(() => import('../layouts/SuperAdminLayout'));
 
 const ResearchStaffDashboard = lazy(() => import('../pages/research_staff/DashboardPage'));
+const ProjectManagementPage = lazy(() => import('../pages/research_staff/ProjectManagementPage'));
 const ContractManagementPage = lazy(() => import('../pages/research_staff/ContractManagementPage'));
 const CouncilCreationPage = lazy(() => import('../pages/research_staff/CouncilCreationPage'));
 const TemplateManagementPage = lazy(() => import('../pages/research_staff/TemplateManagementPage'));
@@ -56,20 +57,30 @@ const CategoryManagementPage = lazy(() => import('../pages/superadmin/CategoryMa
 const SystemConfigPage = lazy(() => import('../pages/superadmin/SystemConfigPage'));
 const AuditLogPage = lazy(() => import('../pages/superadmin/AuditLogPage'));
 
+const RouteLoadingFallback: React.FC = () => (
+  <div className="min-h-screen bg-transparent px-4 md:px-8 py-8 animate-reveal-scale">
+    <div className="max-w-6xl mx-auto space-y-6 perf-contain">
+      <div className="card p-6 space-y-4">
+        <div className="skeleton-line w-1/3" />
+        <div className="skeleton-line w-5/6" />
+        <div className="skeleton-line w-2/3" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-5 space-y-3"><div className="skeleton-line w-2/3" /><div className="skeleton-line w-full" /><div className="skeleton-line w-4/5" /></div>
+        <div className="card p-5 space-y-3"><div className="skeleton-line w-3/5" /><div className="skeleton-line w-full" /><div className="skeleton-line w-2/3" /></div>
+        <div className="card p-5 space-y-3"><div className="skeleton-line w-1/2" /><div className="skeleton-line w-full" /><div className="skeleton-line w-3/4" /></div>
+      </div>
+    </div>
+  </div>
+);
+
 const AnimatedRouteContainer: React.FC = () => {
   const location = useLocation();
 
   return (
-    <div key={location.pathname} className="animate-fade-up">
+    <div key={location.pathname} className="animate-fade-up perf-contain">
       <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center bg-white">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full border-4 border-primary-100 border-t-primary animate-spin mx-auto" />
-              <p className="mt-4 text-sm font-semibold text-primary-700">Đang tải trang...</p>
-            </div>
-          </div>
-        }
+        fallback={<RouteLoadingFallback />}
       >
       <Routes>
       {/* Default redirect */}
@@ -91,6 +102,7 @@ const AnimatedRouteContainer: React.FC = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<ResearchStaffDashboard />} />
+        <Route path="project-management" element={<ProjectManagementPage />} />
         <Route path="contract-management" element={<ContractManagementPage />} />
         <Route path="council-creation" element={<CouncilCreationPage />} />
         <Route path="template-management" element={<TemplateManagementPage />} />

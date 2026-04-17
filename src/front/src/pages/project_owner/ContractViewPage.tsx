@@ -17,7 +17,7 @@ const ContractViewPage: React.FC = () => {
   };
 
   useEffect(() => {
-    contractService.getAll().then((items) => {
+    contractService.getMine().then((items) => {
       setContracts(items);
       if (!items.length) return;
       const preferred = items.find((item) => item.status === 'da_ky') ?? items[0];
@@ -65,7 +65,7 @@ const ContractViewPage: React.FC = () => {
     setSigning(true);
     try {
       await contractService.sign(activeContract.id);
-      const items = await contractService.getAll();
+      const items = await contractService.getMine();
       setContracts(items);
       showToast('✅ Đã xác nhận ký hợp đồng thành công!', 'success');
     } catch (err) {

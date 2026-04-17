@@ -23,6 +23,11 @@ router.get('/:id',
   ExtensionController.getById
 );
 
+router.get('/:id/supporting-document',
+  requireRole('project_owner', 'research_staff', 'superadmin'),
+  ExtensionController.downloadSupportingDocument
+);
+
 router.post('/',
   requireRole('project_owner'),
   upload.single('supporting_document'),

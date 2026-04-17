@@ -66,7 +66,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'Plus Jakarta Sans', 'Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'display-lg': ['48px', { lineHeight: '1.2', fontWeight: '700' }],
@@ -83,8 +83,8 @@ export default {
         '2xl': '16px',
       },
       boxShadow: {
-        'card': '0 2px 8px 0 rgba(0, 0, 0, 0.08)',
-        'button': '0 4px 12px 0 rgba(0, 0, 0, 0.15)',
+        'card': '0 10px 30px rgba(15, 23, 42, 0.08)',
+        'button': '0 12px 24px rgba(0, 84, 166, 0.18)',
         'sidebar': '4px 0px 24px rgba(0, 0, 0, 0.02)',
       },
       backgroundImage: {
@@ -96,7 +96,7 @@ export default {
     function ({ addComponents }) {
       const buttons = {
         '.btn-primary': {
-          '@apply px-4 py-2.5 bg-primary-500 text-white rounded-lg font-semibold text-sm shadow-sm hover:bg-primary-600 active:bg-primary-700 transition-colors hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:opacity-50 disabled:cursor-not-allowed': {},
+          '@apply btn-wow px-4 py-2.5 bg-primary-500 text-white rounded-lg font-semibold text-sm shadow-button hover:bg-primary-600 active:bg-primary-700 transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:opacity-50 disabled:cursor-not-allowed': {},
         },
         '.btn-secondary': {
           '@apply px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm border border-gray-200 hover:bg-gray-200 active:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed': {},

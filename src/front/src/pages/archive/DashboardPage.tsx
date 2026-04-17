@@ -59,7 +59,15 @@ const ArchiveDashboard: React.FC = () => {
               </tr>
             ))}
             {archived.length === 0 && (
-              <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-400">Chưa có đề tài nào lưu trữ</td></tr>
+              <tr>
+                <td colSpan={5} className="px-6 py-8">
+                  <div className="empty-state-panel text-center">
+                    <span className="empty-state-icon">i</span>
+                    <p className="text-sm font-semibold text-gray-800">Chưa có đề tài nào lưu trữ</p>
+                    <p className="text-xs text-gray-600 mt-1">Dữ liệu sẽ được cập nhật sau khi đề tài hoàn tất nghiệm thu và chuyển lưu trữ.</p>
+                  </div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

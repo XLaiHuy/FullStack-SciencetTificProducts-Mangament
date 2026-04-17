@@ -18,6 +18,13 @@ const TemplateManagementPage: React.FC = () => {
   const [formTypeCode, setFormTypeCode] = useState('general');
   const [roleFilter, setRoleFilter] = useState('');
 
+  useEffect(() => {
+    // Keep contract templates isolated under a dedicated role to avoid ambiguity.
+    if (formTypeCode === 'contract_template' && role !== 'hop_dong') {
+      setRole('hop_dong');
+    }
+  }, [formTypeCode, role]);
+
   const refresh = async () => {
     const data = await templateService.getAll();
     setTemplates(data);
@@ -44,6 +51,10 @@ const TemplateManagementPage: React.FC = () => {
       showToast('Vui lòng nhập đủ thông tin và chọn file.', 'error');
       return;
     }
+    if (formTypeCode === 'contract_template' && role !== 'hop_dong') {
+      showToast('Template hợp đồng phải dùng Vai trò áp dụng = Hợp đồng.', 'error');
+      return;
+    }
     setLoading(true);
     try {
       await templateService.upload({
@@ -56,7 +67,7 @@ const TemplateManagementPage: React.FC = () => {
       });
       await refresh();
       setName('');
-      setRole('chu_tich');
+      setRole(formTypeCode === 'contract_template' ? 'hop_dong' : 'chu_tich');
       setVersion('');
       setEffectiveDate('');
       setNote('');
@@ -149,6 +160,7 @@ const TemplateManagementPage: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quản lý Biểu mẫu Hội đồng</h1>
         <p className="text-gray-500 text-sm mt-1">Quản lý và cập nhật các biểu mẫu nghiệm thu</p>
+        <p className="text-xs text-amber-700 mt-2 font-semibold">Luồng hợp đồng: khi upload mẫu cho Bước 1, nhập Loại biểu mẫu là contract_template và Vai trò áp dụng là Hợp đồng.</p>
       </div>
 
       {/* Upload card */}
@@ -168,6 +180,7 @@ const TemplateManagementPage: React.FC = () => {
                 <div>
                   <label className="block text-[13px] font-bold text-gray-700 mb-2">Vai trò áp dụng</label>
                   <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full h-11 rounded-xl border-gray-200 text-sm focus:ring-primary">
+                    <option value="hop_dong">Hợp đồng</option>
                     <option value="chu_tich">Chủ tịch Hội đồng</option>
                     <option value="phan_bien">Người phản biện</option>
                     <option value="thu_ky">Thư ký</option>

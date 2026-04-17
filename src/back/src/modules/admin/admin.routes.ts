@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';
 import prisma from '../../prisma';
@@ -34,8 +35,14 @@ const CreateUserSchema = z.object({
 const UpdateUserSchema = CreateUserSchema.omit({ password: true }).partial();
 
 const ResetPasswordSchema = z.object({
-  temporaryPassword: z.string().min(6),
+  temporaryPassword: z.string().min(6).optional(),
 });
+
+const generateTemporaryPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+  const bytes = crypto.randomBytes(12);
+  return Array.from(bytes).map((byte) => alphabet[byte % alphabet.length]).join('');
+};
 
 const CategoryCreateSchema = z.object({
   type: z.string().trim().min(1).max(100),
@@ -242,7 +249,8 @@ router.put('/users/:id', async (req: Request, res: Response) => {
 
 router.post('/users/:id/reset-password', async (req: Request, res: Response) => {
   try {
-    const { temporaryPassword } = ResetPasswordSchema.parse(req.body);
+    const { temporaryPassword: requestedTemporaryPassword } = ResetPasswordSchema.parse(req.body);
+    const temporaryPassword = requestedTemporaryPassword?.trim() || generateTemporaryPassword();
     const user = await prisma.user.findFirst({ where: { id: req.params.id, is_deleted: false } });
     if (!user) {
       R.notFound(res, 'Nguoi dung khong ton tai.');
@@ -259,7 +267,7 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response) => 
     await prisma.refreshToken.deleteMany({ where: { userId: req.params.id } });
 
     await logBusiness(req.user!.userId, req.user!.name, `Dat mat khau tam thoi cho ${user.email}`, 'Admin');
-    R.ok(res, null, 'Dat lai mat khau tam thoi thanh cong.');
+    R.ok(res, { temporaryPassword }, 'Dat lai mat khau tam thoi thanh cong. Mat khau chi hien thi mot lan.');
   } catch (err) {
     R.badRequest(res, (err as Error).message);
   }

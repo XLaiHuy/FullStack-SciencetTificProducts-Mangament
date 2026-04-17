@@ -152,7 +152,12 @@ router.get('/:topicId/download', requireRole('archive_staff', 'superadmin', 'rep
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const pages = pdfDoc.getPages();
       const stampDate = new Date().toLocaleString('vi-VN');
-      const watermark = `LOGO_TRUONG | ${req.user.name} | ${req.user.userId} | ${stampDate}`;
+      const toPdfText = (value: string) =>
+        value
+          .replace(/[Đđ]/g, 'D')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+      const watermark = toPdfText(`LOGO_TRUONG | ${req.user.name} | ${req.user.userId} | ${stampDate}`);
 
       for (const page of pages) {
         const { width, height } = page.getSize();

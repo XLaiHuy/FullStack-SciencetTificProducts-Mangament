@@ -5,7 +5,7 @@
 import { axiosClient } from './axiosClient';
 import type { Contract } from '../../types';
 import { downloadFromApi } from './downloadUtil';
-import { normalizeUploadPath } from '../../utils/urlUtil';
+import { buildApiUrl, normalizeUploadPath } from '../../utils/urlUtil';
 
 export type ParsedContractProposal = {
   sourceType: 'pdf' | 'docx' | 'text';
@@ -54,6 +54,12 @@ export const contractService = {
     return (res.data ?? []).map(mapContract);
   },
 
+  // GET /api/contracts/my
+  async getMine(): Promise<Contract[]> {
+    const res = await axiosClient.get('/contracts/my');
+    return (res.data ?? []).map(mapContract);
+  },
+
   // GET /api/contracts/{id}
   async getById(id: string): Promise<Contract | undefined> {
     const res = await axiosClient.get(`/contracts/${id}`);
@@ -63,6 +69,36 @@ export const contractService = {
   // GET /api/contracts/{id}/pdf
   async downloadPdf(id: string, fallbackFileName?: string): Promise<void> {
     await downloadFromApi(`/contracts/${id}/pdf`, fallbackFileName ?? `contract_${id}.pdf`);
+  },
+
+  async previewPdf(id: string): Promise<void> {
+    const token = localStorage.getItem('nckh_token');
+    const response = await fetch(buildApiUrl(`/contracts/${id}/pdf`), {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!response.ok) {
+      let message = 'Không thể xem PDF.';
+      try {
+        const body = await response.json();
+        if (body?.error) message = body.error;
+      } catch {
+        // Keep fallback message.
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+    if (!opened) {
+      window.URL.revokeObjectURL(blobUrl);
+      throw new Error('Trình duyệt đã chặn cửa sổ xem PDF.');
+    }
+
+    window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
   },
 
   // GET /api/contracts/{id}/export-excel

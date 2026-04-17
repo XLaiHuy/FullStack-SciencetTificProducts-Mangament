@@ -122,8 +122,12 @@ export const adminService = {
     return res.data;
   },
 
-  async resetPassword(id: string, temporaryPassword: string): Promise<void> {
-    await axiosClient.post(`/admin/users/${id}/reset-password`, { temporaryPassword });
+  async resetPassword(id: string, temporaryPassword?: string): Promise<{ temporaryPassword: string }> {
+    const payload = temporaryPassword?.trim() ? { temporaryPassword } : {};
+    const res = await axiosClient.post(`/admin/users/${id}/reset-password`, payload);
+    return {
+      temporaryPassword: String(res.data?.temporaryPassword ?? ''),
+    };
   },
 
   async toggleLock(id: string): Promise<{ isLocked: boolean }> {

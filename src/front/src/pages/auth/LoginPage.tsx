@@ -69,7 +69,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <AuthShell title={mustChangeMode ? 'Đổi mật khẩu lần đầu' : 'Đăng nhập hệ thống'} subtitle="Hệ thống Quản lý Nghiên cứu Khoa học">
+    <AuthShell title={mustChangeMode ? 'Đổi mật khẩu lần đầu' : 'Đăng nhập hệ thống'} subtitle="Cổng NCKH Trường ĐH Mở TPHCM">
       {error && <div className="mb-4 p-3 bg-error-50 border border-error-200 rounded-xl text-sm text-error-700 font-medium">{error}</div>}
       {success && <div className="mb-4 p-3 bg-success-50 border border-success-200 rounded-xl text-sm text-success-700 font-medium">{success}</div>}
 

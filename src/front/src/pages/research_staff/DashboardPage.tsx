@@ -1,13 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../../components/StatusBadge';
 import type { Project } from '../../types';
 import { projectService } from '../../services/api/projectService';
 import { reportService } from '../../services/api/reportService';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
+import { notificationService, type NotificationItem } from '../../services/api/notificationService';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+const ProjectStatusDonut = lazy(() => import('../../components/charts/ProjectStatusDonut'));
+
+const scheduleIdle = (work: () => void) => {
+  const w = window as Window & { requestIdleCallback?: (callback: () => void) => number };
+  if (typeof w.requestIdleCallback === 'function') {
+    w.requestIdleCallback(work);
+    return;
+  }
+  window.setTimeout(work, 220);
+};
 
 const ResearchStaffDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +24,8 @@ const ResearchStaffDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
+  const [allowChartRender, setAllowChartRender] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -50,8 +60,34 @@ const ResearchStaffDashboard: React.FC = () => {
     fetchDashboard();
   }, []);
 
-  const pendingCouncil = projects.filter(p => p.status === 'cho_nghiem_thu');
-  const overdue = projects.filter(p => p.status === 'tre_han');
+  useEffect(() => {
+    scheduleIdle(() => setAllowChartRender(true));
+  }, []);
+
+  useEffect(() => {
+    notificationService
+      .list(1, 4)
+      .then((res) => setNotifications(res.items))
+      .catch(() => setNotifications([]));
+  }, []);
+
+  const formatNotifTime = (iso: string) => {
+    const created = new Date(iso).getTime();
+    const deltaMinutes = Math.max(1, Math.floor((Date.now() - created) / (1000 * 60)));
+    if (deltaMinutes < 60) return `${deltaMinutes} phút trước`;
+    const deltaHours = Math.floor(deltaMinutes / 60);
+    if (deltaHours < 24) return `${deltaHours} giờ trước`;
+    return `${Math.floor(deltaHours / 24)} ngày trước`;
+  };
+
+  const notifClass = (type: NotificationItem['type']) => {
+    if (type === 'warning') return 'bg-warning-50 border-warning-200';
+    if (type === 'request') return 'bg-info-50 border-info-200';
+    return 'bg-gray-50 border-gray-200';
+  };
+
+  const pendingCouncil = React.useMemo(() => projects.filter((p) => p.status === 'cho_nghiem_thu'), [projects]);
+  const overdue = React.useMemo(() => projects.filter((p) => p.status === 'tre_han'), [projects]);
   
   const activeCount = stats.activeProjects;
   const overdueCount = stats.overdueProjects;
@@ -59,19 +95,21 @@ const ResearchStaffDashboard: React.FC = () => {
   const pendingCount = pendingCouncil.length;
   const otherCount = Math.max(0, projects.length - (activeCount + overdueCount + completedCount + pendingCount));
 
-  const statusDataRaw = [
-    { label: 'Đang thực hiện', count: activeCount, color: '#3b82f6' },
-    { label: 'Chờ nghiệm thu', count: pendingCount, color: '#f59e0b' },
-    { label: 'Trễ hạn', count: overdueCount, color: '#ef4444' },
-    { label: 'Đã nghiệm thu', count: completedCount, color: '#22c55e' },
-    { label: 'Khác (Hủy/Chờ duyệt)', count: otherCount, color: '#94a3b8' }
-  ].filter(s => s.count > 0);
+  const statusData = React.useMemo(() => {
+    const statusDataRaw = [
+      { label: 'Đang thực hiện', count: activeCount, color: '#3b82f6' },
+      { label: 'Chờ nghiệm thu', count: pendingCount, color: '#f59e0b' },
+      { label: 'Trễ hạn', count: overdueCount, color: '#ef4444' },
+      { label: 'Đã nghiệm thu', count: completedCount, color: '#22c55e' },
+      { label: 'Khác (Hủy/Chờ duyệt)', count: otherCount, color: '#94a3b8' },
+    ].filter((s) => s.count > 0);
 
-  const totalForRatio = Math.max(projects.length, 1);
-  const statusData = statusDataRaw.map(s => ({
-    ...s,
-    value: Math.round((s.count / totalForRatio) * 100)
-  }));
+    const totalForRatio = Math.max(projects.length, 1);
+    return statusDataRaw.map((s) => ({
+      ...s,
+      value: Math.round((s.count / totalForRatio) * 100),
+    }));
+  }, [activeCount, pendingCount, overdueCount, completedCount, otherCount, projects.length]);
 
   return (
     <div className="space-y-8">
@@ -83,6 +121,22 @@ const ResearchStaffDashboard: React.FC = () => {
       <div>
         <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Tổng quan hệ thống</h1>
         <p className="text-gray-600 mt-2">Hệ thống Quản lý Nghiên cứu Khoa học — Năm học 2023-2024</p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/research-staff/project-management')}
+          className="btn-primary"
+        >
+          + Tạo đề tài mới
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/research-staff/contract-management')}
+          className="btn-secondary"
+        >
+          Quản lý hợp đồng
+        </button>
       </div>
       {error && (
         <div className="card border-error-200 bg-error-50">
@@ -114,48 +168,46 @@ const ResearchStaffDashboard: React.FC = () => {
           <div className="card">
             <h2 className="text-lg font-bold text-gray-900 mb-6 px-6 py-4 border-b border-gray-200">Trạng thái Đề tài</h2>
             <div className="flex flex-col items-center px-6 pb-6">
-              <div className="w-full max-w-[200px]">
-                <Pie 
-                  data={{
-                    labels: statusData.map(s => s.label),
-                    datasets: [{
-                      data: statusData.map(s => s.value),
-                      backgroundColor: statusData.map(s => s.color),
-                      borderWidth: 2,
-                      borderColor: '#ffffff',
-                      hoverOffset: 6
-                    }]
-                  }}
-                  options={{
-                    plugins: {
-                      legend: { display: false },
-                      tooltip: {
-                        callbacks: {
-                          label: function(context) {
-                            return ` ${context.label}: ${context.raw}%`;
-                          }
-                        }
-                      }
-                    },
-                    cutout: '65%',
-                    animation: { animateScale: true }
-                  }}
-                />
-              </div>
-              <div className="space-y-2 w-full mt-6">
-                {statusData.map(s => (
-                  <div key={s.label} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded" style={{ backgroundColor: s.color }} />
-                      <span className="text-sm font-semibold text-gray-700">{s.label}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">{s.count}</span>
-                      <span className="text-sm font-bold w-10 text-right" style={{ color: s.color }}>{s.value}%</span>
-                    </div>
+              {statusData.length > 0 ? (
+                <>
+                  <div className="w-full max-w-[200px]">
+                    {allowChartRender ? (
+                      <Suspense fallback={<div className="skeleton-line h-[200px] w-full" />}>
+                        <ProjectStatusDonut data={statusData} />
+                      </Suspense>
+                    ) : (
+                      <div className="skeleton-line h-[200px] w-full" />
+                    )}
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-2 w-full mt-6">
+                    {statusData.map(s => (
+                      <div key={s.label} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                        <div className="flex items-center gap-3">
+                          <span className="w-3 h-3 rounded" style={{ backgroundColor: s.color }} />
+                          <span className="text-sm font-semibold text-gray-700">{s.label}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">{s.count}</span>
+                          <span className="text-sm font-bold w-10 text-right" style={{ color: s.color }}>{s.value}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="empty-state-panel w-full text-center">
+                  <p className="text-2xl mb-2" aria-hidden="true">◌</p>
+                  <p className="text-sm font-semibold text-gray-800">Chưa có dữ liệu trạng thái</p>
+                  <p className="text-xs text-gray-600 mt-1">Tạo đề tài đầu tiên để hệ thống bắt đầu thống kê biểu đồ.</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/research-staff/project-management')}
+                    className="btn-secondary text-xs mt-4"
+                  >
+                    Tạo đề tài mới
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -163,14 +215,18 @@ const ResearchStaffDashboard: React.FC = () => {
           <div className="card">
             <h2 className="text-lg font-bold text-gray-900 mb-4 px-6 py-4 border-b border-gray-200">Thông báo mới</h2>
             <div className="space-y-3 px-6 pb-6">
-              <div className="p-4 rounded-lg bg-info-50 border border-info-200">
-                <p className="text-sm font-semibold text-gray-900">Báo cáo quý II đã nộp</p>
-                <p className="text-xs text-gray-600 mt-1">10 phút trước</p>
-              </div>
-              <div className="p-4 rounded-lg bg-warning-50 border border-warning-200">
-                <p className="text-sm font-semibold text-gray-900">Nhắc nhở hạn quyết toán</p>
-                <p className="text-xs text-gray-600 mt-1">1 giờ trước</p>
-              </div>
+              {notifications.length === 0 && (
+                <div className="empty-state-panel text-center">
+                  <p className="text-sm font-semibold text-gray-800">Chưa có thông báo mới</p>
+                  <p className="text-xs text-gray-600 mt-1">Thông báo hệ thống sẽ xuất hiện tại đây.</p>
+                </div>
+              )}
+              {notifications.map((notif) => (
+                <div key={notif.id} className={`p-4 rounded-lg border ${notifClass(notif.type)}`}>
+                  <p className="text-sm font-semibold text-gray-900">{notif.message}</p>
+                  <p className="text-xs text-gray-600 mt-1">{formatNotifTime(notif.createdAt)}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -195,6 +251,21 @@ const ResearchStaffDashboard: React.FC = () => {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {overdue.length === 0 && (
+            <div className="card border-success-200 bg-gradient-to-r from-success-50 to-white">
+              <div className="px-6 py-4 border-b border-success-100">
+                <h2 className="text-lg font-bold text-success-700">Tiến độ ổn định</h2>
+              </div>
+              <div className="px-6 py-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Hiện chưa có đề tài trễ hạn.</p>
+                  <p className="text-xs text-gray-600 mt-1">Tiếp tục theo dõi định kỳ để giữ tiến độ toàn hệ thống.</p>
+                </div>
+                <span className="badge-success">Đúng hạn</span>
               </div>
             </div>
           )}
@@ -230,7 +301,14 @@ const ResearchStaffDashboard: React.FC = () => {
                   </tr>
                 ))}
                 {pendingCouncil.length === 0 && (
-                  <tr><td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">Không có đề tài chờ nghiệm thu</td></tr>
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8">
+                      <div className="empty-state-panel text-center">
+                        <p className="text-sm font-semibold text-gray-800">Không có đề tài chờ nghiệm thu</p>
+                        <p className="text-xs text-gray-600 mt-1">Danh sách sẽ tự động hiển thị khi đề tài chuyển trạng thái.</p>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

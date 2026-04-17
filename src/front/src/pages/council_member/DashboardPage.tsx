@@ -70,7 +70,13 @@ const CouncilMemberDashboard: React.FC = () => {
         {loading ? (
           <div className="p-6 text-sm text-gray-600">Đang tải dữ liệu...</div>
         ) : councils.length === 0 ? (
-          <div className="p-6 text-sm text-gray-600">Bạn chưa được phân công hội đồng nào.</div>
+          <div className="p-6">
+            <div className="empty-state-panel text-center">
+              <span className="empty-state-icon">i</span>
+              <p className="text-sm font-semibold text-gray-800">Bạn chưa được phân công hội đồng nào</p>
+              <p className="text-xs text-gray-600 mt-1">Khi có quyết định mới, hệ thống sẽ cập nhật danh sách tại đây.</p>
+            </div>
+          </div>
         ) : (
           <div className="divide-y divide-gray-100">
             {councils.map((council) => {

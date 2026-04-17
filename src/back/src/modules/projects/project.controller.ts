@@ -4,6 +4,14 @@ import { ProjectStatus } from '@prisma/client';
 import * as R from '../../utils/apiResponse';
 
 export const ProjectController = {
+  /** GET /api/projects/owners */
+  async getProjectOwners(_req: Request, res: Response) {
+    try {
+      const owners = await ProjectService.getProjectOwners();
+      R.ok(res, owners);
+    } catch (err) { R.serverError(res, (err as Error).message); }
+  },
+
   /** GET /api/projects */
   async getAll(req: Request, res: Response) {
     try {

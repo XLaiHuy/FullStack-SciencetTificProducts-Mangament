@@ -23,7 +23,7 @@ const SettlementPage: React.FC = () => {
 
   // Load danh sách đề tài của GV
   useEffect(() => {
-    projectService.getAll()
+    projectService.getMine()
       .then((list) => {
         setProjects(list);
         if (list.length > 0) setSelectedProjectId(list[0].id);

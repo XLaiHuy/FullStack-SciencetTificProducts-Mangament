@@ -6,6 +6,14 @@ import { axiosClient } from './axiosClient';
 import type { Project } from '../../types';
 import { downloadFromApi } from './downloadUtil';
 
+export type ProjectOwnerOption = {
+  id: string;
+  name: string;
+  email: string;
+  title?: string | null;
+  department?: string | null;
+};
+
 /** Normalize backend Project (owner is object) → frontend Project (owner is string) */
 const mapProject = (p: any): Project => ({
   ...p,
@@ -20,6 +28,12 @@ const mapProject = (p: any): Project => ({
 });
 
 export const projectService = {
+  // GET /api/projects/owners
+  async getOwners(): Promise<ProjectOwnerOption[]> {
+    const res = await axiosClient.get('/projects/owners');
+    return res.data ?? [];
+  },
+
   // GET /api/projects
   async getAll(): Promise<Project[]> {
     const res = await axiosClient.get('/projects');
@@ -47,9 +61,14 @@ export const projectService = {
   },
 
   // GET /api/projects/my
-  async getByOwnerEmail(_ownerEmail: string): Promise<Project[]> {
+  async getMine(): Promise<Project[]> {
     const res = await axiosClient.get('/projects/my');
     return (res.data ?? []).map(mapProject);
+  },
+
+  // Backward-compatible alias
+  async getByOwnerEmail(_ownerEmail: string): Promise<Project[]> {
+    return this.getMine();
   },
 
   // PUT /api/projects/{id}/status

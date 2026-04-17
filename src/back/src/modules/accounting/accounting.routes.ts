@@ -4,6 +4,7 @@ import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { logBusiness } from '../../middleware/requestLogger';
 import * as R from '../../utils/apiResponse';
+import { SettlementService } from '../settlements/settlement.service';
 
 const router = Router();
 router.use(authenticate);
@@ -75,18 +76,13 @@ router.put('/documents/:id/verify',
       });
       if (!settlement) { R.notFound(res, 'Hồ sơ không tồn tại.'); return; }
 
-      const updated = await prisma.settlement.update({
-        where: { id: req.params.id },
-        data: {
-          status: status as never,
-          auditLog: {
-            create: [{
-              content: `Kế toán xác nhận: ${settlement.status} → ${status}${notes ? `. Ghi chú: ${notes}` : ''}.`,
-              author:  req.user!.name,
-            }],
-          },
-        },
-      });
+      const updated = await SettlementService.updateStatus(
+        req.params.id,
+        status,
+        req.user!.userId,
+        req.user!.name,
+        notes,
+      );
 
       await logBusiness(req.user!.userId, req.user!.name, `Kế toán xác nhận QT ${settlement.code}: ${status}`, 'Accounting');
       R.ok(res, updated, 'Cập nhật xác nhận kế toán thành công.');
@@ -105,18 +101,7 @@ router.post('/liquidation/:id/confirm',
       });
       if (!settlement) { R.notFound(res, 'Hồ sơ không tồn tại.'); return; }
 
-      const updated = await prisma.settlement.update({
-        where: { id: req.params.id },
-        data: {
-          status: 'da_xac_nhan',
-          auditLog: {
-            create: [{
-              content: `Xác nhận thanh lý quyết toán bởi ${req.user!.name}.`,
-              author:  req.user!.name,
-            }],
-          },
-        },
-      });
+      const updated = await SettlementService.approve(req.params.id, req.user!.userId, req.user!.name);
 
       await logBusiness(req.user!.userId, req.user!.name,
         `Xác nhận thanh lý QT ${settlement.code} cho đề tài ${settlement.project.code}`,

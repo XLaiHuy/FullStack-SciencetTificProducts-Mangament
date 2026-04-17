@@ -54,8 +54,36 @@ type ContractExcelPayload = {
   fileName: string;
 };
 
-const normalizeText = (raw: string) =>
-  raw
+const coerceToText = (raw: unknown): string => {
+  if (typeof raw === 'string') return raw;
+  if (raw == null) return '';
+  if (Buffer.isBuffer(raw)) return raw.toString('utf8');
+  if (Array.isArray(raw)) return raw.map((item) => coerceToText(item)).join('\n');
+
+  if (typeof raw === 'object') {
+    const candidate = raw as { text?: unknown; value?: unknown; pages?: unknown[] };
+    if (typeof candidate.text === 'string') return candidate.text;
+    if (typeof candidate.value === 'string') return candidate.value;
+    if (Array.isArray(candidate.pages)) {
+      const pageText = candidate.pages
+        .map((page) => {
+          if (typeof page === 'string') return page;
+          if (page && typeof page === 'object' && typeof (page as { text?: unknown }).text === 'string') {
+            return (page as { text: string }).text;
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join('\n');
+      if (pageText) return pageText;
+    }
+  }
+
+  return String(raw);
+};
+
+const normalizeText = (raw: unknown) =>
+  coerceToText(raw)
     .replace(/\r/g, '\n')
     .replace(/\n{2,}/g, '\n')
     .replace(/[ \t]{2,}/g, ' ')

@@ -38,13 +38,7 @@ export const logout = () => {
 /** Returns the landing URL after login based on role and councilRole. */
 export const getRoleDashboard = (role: UserRole, councilRole?: CouncilRole | null): string => {
   if (role === 'council_member') {
-    const cRoutes: Record<CouncilRole, string> = {
-      chairman: '/council-member/chairman',
-      reviewer: '/council-member/reviewer',
-      secretary: '/council-member/secretary',
-      member: '/council-member/member',
-    };
-    return councilRole ? cRoutes[councilRole] : '/council-member/dashboard';
+    return '/council-member/dashboard';
   }
   const map: Partial<Record<UserRole, string>> = {
     research_staff: '/research-staff/dashboard',

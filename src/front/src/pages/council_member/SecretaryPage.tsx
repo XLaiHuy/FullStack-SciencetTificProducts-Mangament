@@ -157,10 +157,16 @@ const SecretaryPage: React.FC = () => {
 
   const downloadableDocs = React.useMemo<DownloadItem[]>(() => {
     if (!activeCouncil) return [];
-    const docs: DownloadItem[] = [
-      { kind: 'decision', label: `Quyết định ${activeCouncil.decisionCode}.pdf` },
-      { kind: 'minutes', label: `Biên bản ${activeCouncil.decisionCode}.pdf` },
-    ];
+    const docs: DownloadItem[] = [];
+
+    if (activeCouncil.decisionPdfUrl) {
+      docs.push({ kind: 'decision', label: `Quyết định ${activeCouncil.decisionCode}.pdf` });
+    }
+
+    if (activeCouncil.minutesFileUrl) {
+      docs.push({ kind: 'minutes', label: `Biên bản ${activeCouncil.decisionCode}.pdf` });
+    }
+
     for (const report of activeCouncil.projectReports ?? []) {
       if (!report.fileUrl) continue;
       docs.push({
@@ -171,6 +177,16 @@ const SecretaryPage: React.FC = () => {
     }
     return docs;
   }, [activeCouncil]);
+
+  const canFinalizeCouncil = React.useMemo(() => {
+    if (!activeCouncil) return false;
+    if (rows.length === 0) return false;
+
+    const submittedRows = rows.filter((row) => row.isSubmitted);
+    if (submittedRows.length < 3) return false;
+
+    return submittedRows.every((row) => row.decisionStatus === 'accepted');
+  }, [activeCouncil, rows]);
 
   const handleDownloadDoc = async (doc: DownloadItem) => {
     if (!activeCouncil) return;
@@ -265,6 +281,10 @@ const SecretaryPage: React.FC = () => {
 
   const finalizeCouncil = async () => {
     if (!councilId) return;
+    if (!canFinalizeCouncil) {
+      setError('Chưa đủ điều kiện hoàn tất: cần tối thiểu 3 điểm đã nộp và được thư ký xác nhận hợp lệ.');
+      return;
+    }
     setError('');
     try {
       await councilService.updateStatus(councilId, 'da_hoan_thanh', 'secretary');
@@ -452,7 +472,8 @@ const SecretaryPage: React.FC = () => {
                 <div className="flex flex-col justify-end">
                   <button
                     onClick={() => finalizeCouncil().catch(() => undefined)}
-                    className="w-full bg-[#1E40AF] text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                    disabled={!canFinalizeCouncil}
+                    className="w-full bg-[#1E40AF] text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Xác nhận hoàn thành chỉnh sửa
                   </button>

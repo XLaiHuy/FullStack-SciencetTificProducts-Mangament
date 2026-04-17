@@ -63,6 +63,8 @@ const AccountManagementPage: React.FC = () => {
   const [resettingUser, setResettingUser] = React.useState<AdminUser | null>(null);
   const [form, setForm] = React.useState<UserFormState>(DEFAULT_FORM);
   const [temporaryPassword, setTemporaryPassword] = React.useState('');
+  const [resetReveal, setResetReveal] = React.useState<{ email: string; temporaryPassword: string } | null>(null);
+  const [copyHint, setCopyHint] = React.useState('');
 
   const showToast = (message: string) => {
     setToast(message);
@@ -113,8 +115,33 @@ const AccountManagementPage: React.FC = () => {
     setEditingUser(null);
     setResettingUser(null);
     setTemporaryPassword('');
+    setCopyHint('');
     setForm(DEFAULT_FORM);
     setSubmitting(false);
+  };
+
+  const generateTemporaryPassword = () => {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+    const bytes = new Uint32Array(12);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes).map((value) => alphabet[value % alphabet.length]).join('');
+  };
+
+  const fillRandomTemporaryPassword = () => {
+    setTemporaryPassword(generateTemporaryPassword());
+    setCopyHint('');
+  };
+
+  const copyText = async (value: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyHint('Đã copy mật khẩu.');
+      window.setTimeout(() => setCopyHint(''), 1800);
+    } catch {
+      setCopyHint('Không thể copy tự động.');
+      window.setTimeout(() => setCopyHint(''), 1800);
+    }
   };
 
   const openCreate = () => {
@@ -201,10 +228,16 @@ const AccountManagementPage: React.FC = () => {
     setSubmitting(true);
     setError('');
     try {
-      await adminService.resetPassword(resettingUser.id, temporaryPassword.trim());
-      closeAllModals();
+      const resetResult = await adminService.resetPassword(resettingUser.id, temporaryPassword.trim());
+      const oneTimePassword = resetResult.temporaryPassword || temporaryPassword.trim();
+      setResettingUser(null);
+      setTemporaryPassword('');
+      setResetReveal({
+        email: resettingUser.email,
+        temporaryPassword: oneTimePassword,
+      });
       await loadUsers();
-      showToast('Đã đặt mật khẩu tạm thời và bắt buộc đổi mật khẩu.');
+      showToast('Đã reset mật khẩu tạm thời.');
     } catch (e) {
       setError(typeof e === 'string' ? e : 'Đặt lại mật khẩu thất bại.');
     } finally {
@@ -505,6 +538,23 @@ const AccountManagementPage: React.FC = () => {
                 placeholder="Tối thiểu 6 ký tự"
               />
             </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={fillRandomTemporaryPassword}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+              >
+                Tạo ngẫu nhiên
+              </button>
+              <button
+                type="button"
+                onClick={() => copyText(temporaryPassword.trim()).catch(() => undefined)}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+              >
+                Copy 1 chạm
+              </button>
+              {copyHint && <span className="text-xs font-semibold text-emerald-600">{copyHint}</span>}
+            </div>
             <p className="text-xs text-gray-500">
               Sau thao tác này, user phải đổi mật khẩu ở lần đăng nhập tiếp theo.
             </p>
@@ -516,6 +566,41 @@ const AccountManagementPage: React.FC = () => {
             className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-50"
           >
             {submitting ? 'Đang cập nhật...' : 'Xác nhận đặt mật khẩu'}
+          </button>,
+        )}
+
+      {resetReveal &&
+        renderModal(
+          'Mật khẩu tạm thời mới',
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Tài khoản: <span className="font-semibold">{resetReveal.email}</span>
+            </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-bold text-amber-700 uppercase">Hiển thị một lần duy nhất</p>
+              <p className="mt-1 text-base font-black tracking-wide text-gray-900">{resetReveal.temporaryPassword}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => copyText(resetReveal.temporaryPassword).catch(() => undefined)}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+            >
+              Copy 1 chạm
+            </button>
+            {copyHint && <p className="text-xs font-semibold text-emerald-600">{copyHint}</p>}
+            <p className="text-xs text-gray-500">
+              Khi đóng popup này, hệ thống sẽ không hiển thị lại mật khẩu tạm.
+            </p>
+          </div>,
+          <button
+            type="button"
+            onClick={() => {
+              setResetReveal(null);
+              setCopyHint('');
+            }}
+            className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold"
+          >
+            Tôi đã lưu an toàn
           </button>,
         )}
     </div>

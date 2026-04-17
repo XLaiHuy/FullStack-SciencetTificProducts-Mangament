@@ -325,6 +325,7 @@ model Extension {
   projectId      String
   project        Project         @relation(fields: [projectId], references: [id])
   reason         String          @db.Text
+  supportingDocument String?      @db.Text
   proposedDate   DateTime
   extensionDays  Int
   extensionCount Int             @default(1)

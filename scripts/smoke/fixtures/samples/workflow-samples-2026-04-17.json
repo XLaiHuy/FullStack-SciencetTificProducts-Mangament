@@ -1,0 +1,350 @@
+{
+  "meta": {
+    "version": "2026-04-17",
+    "scope": "full-chain-workflow",
+    "totalSteps": 22,
+    "categories": [
+      "auth",
+      "template",
+      "project",
+      "contract",
+      "report",
+      "council",
+      "settlement",
+      "extension",
+      "archive",
+      "scheduler-email"
+    ]
+  },
+  "steps": [
+    {
+      "stepId": "STP-01",
+      "category": "template",
+      "sampleId": "S-TPL-01",
+      "actor": "research_staff",
+      "name": "Upload template hop dong",
+      "payload": {
+        "name": "TMP-CT-260417-01",
+        "version": "2026.04.17.1",
+        "targetRole": "hop_dong",
+        "formTypeCode": "contract_template",
+        "effectiveDate": "2026-04-17T00:00:00.000Z",
+        "filePath": "scripts/smoke/fixtures/pdf/13_TemplateHopDong_DeTai.pdf"
+      },
+      "expected": {
+        "templateCreated": true,
+        "isDefault": true
+      }
+    },
+    {
+      "stepId": "STP-02",
+      "category": "project-contract",
+      "sampleId": "S-PRJ-01",
+      "actor": "research_staff",
+      "name": "Tao project + hop dong",
+      "payload": {
+        "projectCode": "AI26-P001",
+        "contractCode": "HD-26-001",
+        "budget": 650000000,
+        "contractFile": "scripts/smoke/fixtures/pdf/14_HopDongNghienCuu_BanNhap.pdf"
+      },
+      "expected": {
+        "projectCreated": true,
+        "contractCreated": true
+      }
+    },
+    {
+      "stepId": "STP-03",
+      "category": "contract",
+      "sampleId": "S-CT-01",
+      "actor": "project_owner",
+      "name": "Chu nhiem ky hop dong",
+      "payload": {
+        "actionCode": "SIGN-CT-001"
+      },
+      "expected": {
+        "status": "da_ky"
+      }
+    },
+    {
+      "stepId": "STP-04",
+      "category": "contract",
+      "sampleId": "S-CT-02",
+      "actor": "research_staff",
+      "name": "Upload scan da ky",
+      "payload": {
+        "scanFile": "scripts/smoke/fixtures/pdf/15_HopDongNghienCuu_DaKyScan.pdf"
+      },
+      "expected": {
+        "pdfUrlUpdated": true
+      }
+    },
+    {
+      "stepId": "STP-05",
+      "category": "scheduler-email",
+      "sampleId": "MIDTERM-REM-260417-01",
+      "actor": "system",
+      "name": "Nhac han giua ky",
+      "payload": {
+        "emailMock": true,
+        "ownerEmail": "owner@nckh.edu.vn"
+      },
+      "expected": {
+        "emailLogCreated": true
+      }
+    },
+    {
+      "stepId": "STP-06",
+      "category": "report",
+      "sampleId": "S-RPT-MID-01",
+      "actor": "project_owner",
+      "name": "Nop bao cao giua ky",
+      "payload": {
+        "reportCode": "MID-RPT-26-001",
+        "file": "scripts/smoke/fixtures/pdf/16_BaoCaoTienDoGiuaKy_Upload.pdf"
+      },
+      "expected": {
+        "midtermReportCreated": true
+      }
+    },
+    {
+      "stepId": "STP-07",
+      "category": "report",
+      "sampleId": "S-RPT-FIN-01",
+      "actor": "project_owner",
+      "name": "Nop ket qua cuoi ky",
+      "payload": {
+        "reportCode": "FINAL-RPT-26-001",
+        "files": [
+          "scripts/smoke/fixtures/pdf/17_BaoCaoTongKetDeTai_Upload.pdf",
+          "scripts/smoke/fixtures/docx/02_ThuyetMinhKetQuaNghienCuu.docx",
+          "scripts/smoke/fixtures/zip/01_PhuLucVaDuLieuGoc_AI2023V1.zip"
+        ]
+      },
+      "expected": {
+        "status": "cho_nghiem_thu"
+      }
+    },
+    {
+      "stepId": "STP-08",
+      "category": "project-review",
+      "sampleId": "ADM-VALID-26-001",
+      "actor": "admin",
+      "name": "Xac nhan san pham",
+      "payload": {
+        "verifyFinalPack": true
+      },
+      "expected": {
+        "eligibleForCouncil": true
+      }
+    },
+    {
+      "stepId": "STP-09",
+      "category": "council",
+      "sampleId": "S-CNL-01",
+      "actor": "research_staff",
+      "name": "Thanh lap hoi dong",
+      "payload": {
+        "decisionCode": "QD-26-005",
+        "decisionFile": "scripts/smoke/fixtures/pdf/01_QuyetDinhThanhLapHoiDong.pdf",
+        "requiredRoles": [
+          "chu_tich",
+          "phan_bien_1",
+          "phan_bien_2",
+          "thu_ky",
+          "uy_vien"
+        ]
+      },
+      "expected": {
+        "councilCreated": true,
+        "status": "dang_danh_gia"
+      }
+    },
+    {
+      "stepId": "STP-10",
+      "category": "auth",
+      "sampleId": "S-AUTH-06..10",
+      "actor": "council_members",
+      "name": "Dang nhap thanh vien hoi dong",
+      "payload": {
+        "accounts": [
+          "chairman@demo.com",
+          "reviewer@demo.com",
+          "council@nckh.edu.vn",
+          "secretary@demo.com",
+          "member@demo.com"
+        ]
+      },
+      "expected": {
+        "roleRoutingOk": true
+      }
+    },
+    {
+      "stepId": "STP-11",
+      "category": "template-fill",
+      "sampleId": "RV-TPL-26-001",
+      "actor": "reviewer",
+      "name": "Tai phieu nhan xet",
+      "payload": {
+        "targetRole": "phan_bien"
+      },
+      "expected": {
+        "downloadOk": true
+      }
+    },
+    {
+      "stepId": "STP-12",
+      "category": "council-review",
+      "sampleId": "S-CNL-02",
+      "actor": "reviewer1",
+      "name": "Phan bien 1 nop diem",
+      "payload": {
+        "score": 82,
+        "code": "RV1-26-001"
+      },
+      "expected": {
+        "reviewSaved": true
+      }
+    },
+    {
+      "stepId": "STP-13",
+      "category": "council-review",
+      "sampleId": "S-CNL-03",
+      "actor": "reviewer2",
+      "name": "Phan bien 2 nop diem",
+      "payload": {
+        "score": 78,
+        "code": "RV2-26-001"
+      },
+      "expected": {
+        "reviewSaved": true
+      }
+    },
+    {
+      "stepId": "STP-14",
+      "category": "council-review",
+      "sampleId": "S-CNL-04",
+      "actor": "chairman",
+      "name": "Chu tich ket luan",
+      "payload": {
+        "score": 86,
+        "file": "scripts/smoke/fixtures/pdf/18_BienBanChuTich_DaKy.pdf"
+      },
+      "expected": {
+        "chairmanDecisionSaved": true
+      }
+    },
+    {
+      "stepId": "STP-15",
+      "category": "council-validation",
+      "sampleId": "SEC-VALID-26-001",
+      "actor": "secretary",
+      "name": "Thu ky xac nhan hop le",
+      "payload": {
+        "acceptedCount": 3
+      },
+      "expected": {
+        "aggregationValid": true
+      }
+    },
+    {
+      "stepId": "STP-16",
+      "category": "council-minutes",
+      "sampleId": "S-CNL-05",
+      "actor": "secretary",
+      "name": "Gui bien ban chinh thuc",
+      "payload": {
+        "minutesCode": "MN-26-001",
+        "file": "scripts/smoke/fixtures/pdf/02_BienBanNghiemThu_DaKy.pdf"
+      },
+      "expected": {
+        "minutesSaved": true
+      }
+    },
+    {
+      "stepId": "STP-17",
+      "category": "project-status",
+      "sampleId": "CLOSE-ACPT-26-001",
+      "actor": "research_staff",
+      "name": "Hoan tat nghiem thu",
+      "payload": {
+        "markComplete": true
+      },
+      "expected": {
+        "status": "da_nghiem_thu"
+      }
+    },
+    {
+      "stepId": "STP-18",
+      "category": "settlement-request",
+      "sampleId": "S-SET-01",
+      "actor": "admin",
+      "name": "Yeu cau quyet toan",
+      "payload": {
+        "requestCode": "SET-REQ-26-001"
+      },
+      "expected": {
+        "settlementRequestCreated": true
+      }
+    },
+    {
+      "stepId": "STP-19",
+      "category": "settlement-submission",
+      "sampleId": "S-SET-02",
+      "actor": "project_owner",
+      "name": "Nop ho so quyet toan",
+      "payload": {
+        "settlementCode": "STF-26-001",
+        "files": [
+          "scripts/smoke/fixtures/pdf/03_HoSoQuyetToan_TongHop.pdf",
+          "scripts/smoke/fixtures/pdf/04_ChungTuChiTieu_HoaDon.pdf"
+        ]
+      },
+      "expected": {
+        "settlementCreated": true
+      }
+    },
+    {
+      "stepId": "STP-20",
+      "category": "liquidation-archive",
+      "sampleId": "S-SET-03",
+      "actor": "accounting_archive",
+      "name": "Thanh ly va luu tru",
+      "payload": {
+        "liquidationCode": "LIQ-26-001",
+        "file": "scripts/smoke/fixtures/pdf/05_BienBanThanhLy_DaKy.pdf"
+      },
+      "expected": {
+        "projectStatus": "da_thanh_ly",
+        "archiveRecordCreated": true
+      }
+    },
+    {
+      "stepId": "STP-21",
+      "category": "extension",
+      "sampleId": "S-EXT-01",
+      "actor": "project_owner",
+      "name": "Gui yeu cau gia han",
+      "payload": {
+        "extensionCode": "EXT-26-001",
+        "supportingDocument": "scripts/smoke/fixtures/pdf/06_DonXinGiaHan_DeTai.pdf"
+      },
+      "expected": {
+        "extensionCreated": true
+      }
+    },
+    {
+      "stepId": "STP-22",
+      "category": "extension-approval",
+      "sampleId": "S-EXT-02",
+      "actor": "research_staff",
+      "name": "Phe duyet gia han",
+      "payload": {
+        "annex": "scripts/smoke/fixtures/pdf/07_PhuLucGiaHan_TienDo.pdf"
+      },
+      "expected": {
+        "status": "approved_or_rejected"
+      }
+    }
+  ]
+}

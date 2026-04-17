@@ -3,6 +3,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import type { Contract, Project } from '../../types';
 import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
+import { templateService } from '../../services/api/templateService';
 
 type ToastType = 'success' | 'error';
 const CONTRACT_DRAFT_KEY = 'research_staff_contract_draft';
@@ -107,14 +108,21 @@ const ContractManagementPage: React.FC = () => {
   const [contractPage, setContractPage] = useState(1);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [defaultContractTemplateId, setDefaultContractTemplateId] = useState('');
 
   const refresh = async () => {
-    const [contractsRes, projectsRes] = await Promise.all([
+    const [contractsRes, projectsRes, templateRes] = await Promise.all([
       contractService.getAll(),
       projectService.getAll(),
+      templateService.getAll('contract_template').catch(() => []),
     ]);
+
+    const contractRoleTemplates = templateRes.filter((t) => t.role === 'hop_dong');
+    const defaultTemplate = contractRoleTemplates.find((t) => t.is_default) ?? contractRoleTemplates[0];
+
     setContracts(contractsRes);
     setProjects(projectsRes);
+    setDefaultContractTemplateId(defaultTemplate?.id ?? '');
   };
 
   useEffect(() => {
@@ -185,6 +193,7 @@ const ContractManagementPage: React.FC = () => {
     selectedProject &&
     agencyName.trim() &&
     partyARepresentative.trim() &&
+    defaultContractTemplateId &&
     Number.isFinite(effectiveBudget) &&
     effectiveBudget > 0
   );
@@ -218,6 +227,27 @@ const ContractManagementPage: React.FC = () => {
       notes: 'Ký kết trực tiếp qua cổng quản lý.',
     }, `HopDong_Nhap_${selectedProject.code}.doc`);
     showToast('Đã xuất nháp Word.', 'success');
+  };
+
+  const handleExportDefaultTemplateDraft = async () => {
+    if (!selectedProject) {
+      showToast('Vui lòng chọn đề tài.', 'error');
+      return;
+    }
+    if (!defaultContractTemplateId) {
+      showToast('Chưa có template hợp đồng mặc định. Vào Quản lý Biểu mẫu để tải lên trước.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await templateService.fill(defaultContractTemplateId, selectedProject.id);
+      showToast('Đã tải nháp từ template hợp đồng mặc định.', 'success');
+    } catch (error) {
+      showToast('Không thể tải nháp từ template mặc định.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExportExcel = async () => {
@@ -405,6 +435,14 @@ const ContractManagementPage: React.FC = () => {
                 </div>
               )}
 
+              {!defaultContractTemplateId && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-700">
+                    Chưa có template hợp đồng mặc định. Vui lòng vào Quản lý Biểu mẫu, tải file mẫu với Loại biểu mẫu = contract_template và Vai trò áp dụng = Hợp đồng rồi quay lại tạo hợp đồng.
+                  </p>
+                </div>
+              )}
+
               <div className="card p-0">
                 <label className="block px-6 py-4 text-sm font-semibold text-gray-700 border-b border-gray-200">Ngân sách (VNĐ)</label>
                 <input
@@ -427,6 +465,9 @@ const ContractManagementPage: React.FC = () => {
               </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+              <button onClick={() => { void handleExportDefaultTemplateDraft(); }} disabled={loading || !selectedProject || !defaultContractTemplateId} className="btn-secondary">
+                TẢI NHÁP TỪ TEMPLATE MẶC ĐỊNH
+              </button>
               <button onClick={handleExportContractDraft} className="btn-secondary">XUẤT NHÁP WORD</button>
               <button onClick={handleSaveDraft} className="btn-secondary">LƯU NHÁP</button>
               <button onClick={handleCreateContract} disabled={loading || !canCreateContract} className="btn-primary uppercase">TẠO HỢP ĐỒNG</button>
@@ -536,7 +577,13 @@ const ContractManagementPage: React.FC = () => {
               <p className="text-gray-700"><strong>Chủ nhiệm:</strong> {detailContract.owner}</p>
               <p className="text-gray-700"><strong>Ngân sách:</strong> {formatCurrency(detailContract.budget)}</p>
               <div className="pt-4 flex gap-3">
-                {detailContract.pdfUrl && <a href={detailContract.pdfUrl} target="_blank" rel="noreferrer" className="btn-primary text-xs">MỞ PDF</a>}
+                <button
+                  onClick={() => contractService.previewPdf(detailContract.id).catch((error) => showToast(typeof error === 'string' ? error : 'Không thể xem PDF.', 'error'))}
+                  className="btn-primary text-xs"
+                >
+                  Xem PDF
+                </button>
+                {detailContract.pdfUrl && <a href={detailContract.pdfUrl} target="_blank" rel="noreferrer" className="btn-secondary text-xs">Mở PDF đã tải lên</a>}
                 <button onClick={handleExportDetailTemplate} className="btn-secondary text-xs">TẢI MẪU WORD</button>
               </div>
             </div>

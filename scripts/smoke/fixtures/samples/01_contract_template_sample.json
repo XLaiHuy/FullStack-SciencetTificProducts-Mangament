@@ -1,0 +1,23 @@
+{
+  "id": "sample-01-contract-template",
+  "phase": "PHASE 1 - CONTRACT INIT",
+  "step": 1,
+  "title": "Upload template hop dong",
+  "payload": {
+    "name": "TMP-CT-260417-01",
+    "version": "2026.04.17.1",
+    "targetRole": "hop_dong",
+    "formTypeCode": "contract_template",
+    "effectiveDate": "2026-04-17T00:00:00.000Z",
+    "filePath": "scripts/smoke/fixtures/pdf/13_TemplateHopDong_DeTai.pdf"
+  },
+  "expected": {
+    "httpStatus": 201,
+    "templateCreated": true,
+    "isDefault": true
+  },
+  "notes": [
+    "Dung cho test buoc 1 trong workflow smoke.",
+    "Co the thay filePath sang scripts/smoke/fixtures/docx/01_TemplateHopDong_DeTai.docx neu muon test docx upload."
+  ]
+}

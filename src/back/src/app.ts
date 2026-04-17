@@ -19,6 +19,7 @@ import archiveRoutes    from './modules/archive/archive.routes';
 import accountingRoutes from './modules/accounting/accounting.routes';
 import adminRoutes      from './modules/admin/admin.routes';
 import revisionRoutes   from './modules/revisions/revision.routes';
+import notificationRoutes from './modules/notifications/notification.routes';
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use(`${BASE}/accounting`,  accountingRoutes);
 app.use(`${BASE}/admin`,       adminRoutes);
 app.use(`${BASE}/revisions`,   revisionRoutes);
 app.use(`${BASE}/council`,     councilRoutes);
+app.use(`${BASE}/notifications`, notificationRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

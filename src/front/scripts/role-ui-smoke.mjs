@@ -84,7 +84,48 @@ function isDownloadAssertionTarget(routePath, label) {
   );
 }
 
-const DEFAULT_PDF_BUFFER = Buffer.from('%PDF-1.4\n% smoke test file');
+function createMinimalPdfBuffer() {
+  const chunks = [];
+  const offsets = [0];
+  let currentOffset = 0;
+
+  const push = (chunk) => {
+    chunks.push(chunk);
+    currentOffset += Buffer.byteLength(chunk, 'utf8');
+  };
+
+  const markObject = () => {
+    offsets.push(currentOffset);
+  };
+
+  push('%PDF-1.4\n% smoke test file\n');
+
+  markObject();
+  push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+
+  markObject();
+  push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+
+  markObject();
+  push('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << >> >>\nendobj\n');
+
+  const contentStream = '0.2 0.2 0.2 rg\n60 700 220 36 re f\n';
+  markObject();
+  push(`4 0 obj\n<< /Length ${Buffer.byteLength(contentStream, 'utf8')} >>\nstream\n${contentStream}endstream\nendobj\n`);
+
+  const xrefOffset = currentOffset;
+  let xref = 'xref\n0 5\n';
+  xref += '0000000000 65535 f \n';
+  for (let index = 1; index < offsets.length; index += 1) {
+    xref += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  xref += `trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  push(xref);
+
+  return Buffer.from(chunks.join(''), 'utf8');
+}
+
+const DEFAULT_PDF_BUFFER = createMinimalPdfBuffer();
 
 async function attachRouteUploadFixtures(page, routePath) {
   const trySetInputFile = async (selector, file) => {
@@ -535,7 +576,7 @@ async function testRole(browser, account) {
       .setFiles({
         name: 'smoke-test.pdf',
         mimeType: 'application/pdf',
-        buffer: Buffer.from('%PDF-1.4\n% smoke test file'),
+        buffer: DEFAULT_PDF_BUFFER,
       })
       .catch(() => undefined);
   });

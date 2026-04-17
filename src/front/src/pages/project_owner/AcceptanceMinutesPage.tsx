@@ -4,6 +4,8 @@ import type { Council } from '../../types';
 
 const AcceptanceMinutesPage: React.FC = () => {
   const [toast, setToast] = useState('');
+  const [councils, setCouncils] = useState<Council[]>([]);
+  const [selectedCouncilId, setSelectedCouncilId] = useState('');
   const [council, setCouncil] = useState<Council | null>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -16,8 +18,11 @@ const AcceptanceMinutesPage: React.FC = () => {
     const loadCouncil = async () => {
       try {
         const list = await councilService.getAll();
+        setCouncils(list);
         if (!list.length) return;
-        const detail = await councilService.getById(list[0].id);
+        const defaultId = list[0].id;
+        setSelectedCouncilId(defaultId);
+        const detail = await councilService.getById(defaultId);
         if (detail) setCouncil(detail);
       } catch (err) {
         console.error(err);
@@ -26,6 +31,20 @@ const AcceptanceMinutesPage: React.FC = () => {
     };
     loadCouncil();
   }, []);
+
+  useEffect(() => {
+    const loadDetail = async () => {
+      if (!selectedCouncilId) return;
+      try {
+        const detail = await councilService.getById(selectedCouncilId);
+        if (detail) setCouncil(detail);
+      } catch (err) {
+        console.error(err);
+        showToast('Không thể tải chi tiết hội đồng đã chọn.');
+      }
+    };
+    loadDetail();
+  }, [selectedCouncilId]);
 
   const statusLabel = useMemo(() => {
     if (!council) return 'Không có dữ liệu';
@@ -60,12 +79,26 @@ const AcceptanceMinutesPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-slate-800">Biên bản Nghiệm thu</h1>
         <p className="text-slate-500 text-sm mt-1">Xem biên bản nghiệm thu và kết quả đánh giá từ Hội đồng</p>
       </div>
+      {councils.length > 1 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-card p-4">
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chọn hội đồng</label>
+          <select
+            value={selectedCouncilId}
+            onChange={(e) => setSelectedCouncilId(e.target.value)}
+            className="w-full rounded-lg border-slate-300 text-sm"
+          >
+            {councils.map((item) => (
+              <option key={item.id} value={item.id}>{item.decisionCode} - {item.projectTitle}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-slate-200 shadow-card p-6">
         <div id="acceptance-printable">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-lg font-bold text-slate-800">Biên bản Nghiệm thu — {council?.decisionCode ?? 'N/A'}</h2>
-              <p className="text-sm text-slate-500">Ngày họp: {council?.createdDate ?? 'N/A'} | Địa điểm: Phòng họp A — Tầng 3</p>
+              <p className="text-sm text-slate-500">Ngày họp: {council?.createdDate ?? 'N/A'}</p>
             </div>
             <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold uppercase">{statusLabel}</span>
           </div>

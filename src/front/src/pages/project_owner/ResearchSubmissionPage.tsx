@@ -13,7 +13,7 @@ const ResearchSubmissionPage: React.FC = () => {
   const selectedProject = React.useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
 
   React.useEffect(() => {
-    projectService.getAll().then((list) => {
+    projectService.getMine().then((list) => {
       setProjects(list);
       if (list.length > 0) setProjectId(list[0].id);
     }).catch(console.error);

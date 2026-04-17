@@ -36,24 +36,18 @@ const ExtensionManagementPage: React.FC = () => {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const triggerDownload = (filename: string, content: string, mimeType = 'application/msword;charset=utf-8') => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
   const handleDownloadSupportingDoc = (ext: LocalExtension) => {
-    triggerDownload(
-      `GiaiTrinhGiaHan_${ext.projectCode}.doc`,
-      `De tai: ${ext.projectCode}\nChủ nhiệm: ${ext.projectOwner}\nLy do gia han: ${ext.reason}`
-    );
-    showToast(`Da tai file giai trinh cua ${ext.projectCode}.`);
+    if (!ext.supportingDocument) {
+      showToast(`Không có file đính kèm cho ${ext.projectCode}.`);
+      return;
+    }
+
+    extensionService.downloadSupportingDocument(ext.id, `GiaiTrinhGiaHan_${ext.projectCode}.pdf`)
+      .then(() => showToast(`Đã tải file đính kèm của ${ext.projectCode}.`))
+      .catch((error) => {
+        console.error(error);
+        showToast('Không thể tải file đính kèm.');
+      });
   };
 
   const countBadge = (count: number) => {
@@ -122,13 +116,35 @@ const ExtensionManagementPage: React.FC = () => {
       {/* Stats */}
       <div className="bg-white rounded-2xl shadow-card border border-gray-200 p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Tạo yêu cầu gia hạn</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="rounded-xl border-gray-300 text-sm w-full py-2.5">
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.code} - {p.title}</option>)}
-          </select>
-          <input value={requestedDeadline} onChange={(e) => setRequestedDeadline(e.target.value)} type="date" className="rounded-xl border-gray-300 text-sm w-full py-2.5" />
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Lý do gia hạn" className="rounded-xl border-gray-300 text-sm w-full py-2.5" />
-          <input type="file" onChange={(e) => setSupportingDocument(e.target.files?.[0] ?? null)} className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-center">
+          <div className="relative min-w-0 md:col-span-2 xl:col-span-1">
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="rounded-xl border-gray-300 text-sm w-full py-2.5 pr-10 min-w-0 truncate appearance-none"
+              title={projects.find((p) => p.id === projectId)?.title ?? ''}
+            >
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.code} - {p.title}</option>)}
+            </select>
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400 text-xs">▼</span>
+          </div>
+          <input
+            value={requestedDeadline}
+            onChange={(e) => setRequestedDeadline(e.target.value)}
+            type="date"
+            className="rounded-xl border-gray-300 text-sm w-full py-2.5 min-w-0"
+          />
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Lý do gia hạn"
+            className="rounded-xl border-gray-300 text-sm w-full py-2.5 min-w-0"
+          />
+          <input
+            type="file"
+            onChange={(e) => setSupportingDocument(e.target.files?.[0] ?? null)}
+            className="w-full text-sm text-gray-500 min-w-0 md:col-span-2 xl:col-span-1 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100"
+          />
         </div>
         <div className="flex justify-end mt-6">
           <button onClick={handleCreate} className="bg-primary hover:bg-primary-dark shadow-md text-white px-6 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-colors">Gửi yêu cầu</button>
@@ -153,7 +169,7 @@ const ExtensionManagementPage: React.FC = () => {
         <table className="w-full">
           <thead className="bg-gray-50/50">
             <tr>
-              {['Mã Đề Tài', 'Lý Do Gia Hạn', 'Giải Trình', 'Hạn Đề Xuất', 'Trạng thái', 'Thao Tác'].map(h => (
+              {['Mã Đề Tài', 'Lý Do Gia Hạn', 'Tệp Đính Kèm', 'Hạn Đề Xuất', 'Trạng thái', 'Thao Tác'].map(h => (
                 <th key={h} className="px-8 py-5 text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
               ))}
             </tr>
@@ -170,14 +186,20 @@ const ExtensionManagementPage: React.FC = () => {
                     <span className="text-[11px] text-gray-400 font-medium">{ext.projectOwner}</span>
                   </div>
                 </td>
-                <td className="px-8 py-6 text-sm text-gray-600 max-w-[280px]">{ext.reason}</td>
                 <td className="px-8 py-6">
-                  <button
-                    onClick={() => handleDownloadSupportingDoc(ext)}
-                    className="text-[11px] font-bold uppercase tracking-tight text-primary hover:text-primary-dark"
-                  >
-                    Xem file
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm text-gray-600 max-w-[280px]">{ext.reason}</p>
+                    {ext.supportingDocument ? (
+                      <button
+                        onClick={() => handleDownloadSupportingDoc(ext)}
+                        className="text-[11px] font-bold uppercase tracking-tight text-primary hover:text-primary-dark"
+                      >
+                        Xem file
+                      </button>
+                    ) : (
+                      <span className="text-[11px] font-semibold uppercase tracking-tight text-gray-400">Không có file</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-8 py-6">
                   <div className="text-sm font-bold text-gray-900">{ext.proposedDate}</div>

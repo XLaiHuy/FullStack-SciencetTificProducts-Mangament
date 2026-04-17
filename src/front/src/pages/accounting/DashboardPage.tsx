@@ -40,6 +40,8 @@ const AccountingDashboard: React.FC = () => {
     { label: 'Khoa học Xã hội', pct: 20, color: 'bg-slate-400' },
   ];
 
+  const pendingRows = projects.filter(p => p.status === 'cho_nghiem_thu' || p.status === 'dang_thuc_hien').slice(0, 4);
+
   return (
     <div className="space-y-8">
       {toast && (
@@ -78,7 +80,7 @@ const AccountingDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {projects.filter(p => p.status === 'cho_nghiem_thu' || p.status === 'dang_thuc_hien').slice(0, 4).map(p => (
+              {pendingRows.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 font-semibold text-gray-900 text-sm">{p.code}</td>
                   <td className="px-6 py-4 text-sm text-gray-700 max-w-[200px] truncate">{p.title}</td>
@@ -97,6 +99,17 @@ const AccountingDashboard: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {pendingRows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8">
+                    <div className="empty-state-panel text-center">
+                      <span className="empty-state-icon">i</span>
+                      <p className="text-sm font-semibold text-gray-800">Không có hồ sơ chờ xử lý</p>
+                      <p className="text-xs text-gray-600 mt-1">Khi đề tài bước vào giai đoạn quyết toán, bảng sẽ tự động cập nhật.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

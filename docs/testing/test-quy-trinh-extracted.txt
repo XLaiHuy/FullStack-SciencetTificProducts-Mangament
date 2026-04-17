@@ -1,0 +1,288 @@
+﻿PHỤ LỤC A - QUY TRÌNH CHI TIẾT FULL CHAIN (CẬP NHẬT 2026-04-17)
+
+Mục tiêu tài liệu:
+- Chuẩn hóa toàn bộ sample data cho full workflow.
+- Bao phủ all categories và chi tiết theo từng bước.
+- Bổ sung các phần còn thiếu để có thể chạy/đối chiếu test nhất quán.
+
+Nguyên tắc dữ liệu:
+- Mỗi bước dùng sample riêng, không tái sử dụng mã tài liệu giữa các bước.
+- Mọi sample đều có Step ID, Category, Actor, Input, Expected rõ ràng.
+- Ưu tiên dùng fixture trong scripts/smoke/fixtures để tái lập được.
+
+================================================================================
+I. SAMPLE CATALOG THEO CATEGORY (ALL CATEGORIES)
+================================================================================
+
+1) AUTH
+- S-AUTH-01: staff@nckh.edu.vn / 123456
+- S-AUTH-02: owner@nckh.edu.vn / 123456
+- S-AUTH-03: accounting@nckh.edu.vn / 123456
+- S-AUTH-04: archive@nckh.edu.vn / 123456
+- S-AUTH-05: admin@nckh.edu.vn / 123456
+- S-AUTH-06..10: chairman@demo.com, reviewer@demo.com, council@nckh.edu.vn, secretary@demo.com, member@demo.com
+
+2) TEMPLATE MANAGEMENT
+- S-TPL-01: TMP-CT-260417-01 (contract template default)
+  - formTypeCode: contract_template
+  - targetRole: hop_dong
+  - version: 2026.04.17.1
+  - file: scripts/smoke/fixtures/pdf/13_TemplateHopDong_DeTai.pdf
+
+3) PROJECT
+- S-PRJ-01: AI26-P001 (project tạo mới cho workflow)
+  - budget: 650000000
+  - durationMonths: 12
+  - owner: owner@nckh.edu.vn
+
+4) CONTRACT
+- S-CT-01: HD-26-001 (tạo hợp đồng)
+  - file draft/upload: scripts/smoke/fixtures/pdf/14_HopDongNghienCuu_BanNhap.pdf
+- S-CT-02: SCAN-CT-001 (bản scan ký)
+  - file: scripts/smoke/fixtures/pdf/15_HopDongNghienCuu_DaKyScan.pdf
+
+5) REPORT / SUBMISSION
+- S-RPT-MID-01: MID-RPT-26-001
+  - file: scripts/smoke/fixtures/pdf/16_BaoCaoTienDoGiuaKy_Upload.pdf
+- S-RPT-FIN-01: FINAL-RPT-26-001
+  - file PDF: scripts/smoke/fixtures/pdf/17_BaoCaoTongKetDeTai_Upload.pdf
+  - file DOCX: scripts/smoke/fixtures/docx/02_ThuyetMinhKetQuaNghienCuu.docx
+  - file ZIP: scripts/smoke/fixtures/zip/01_PhuLucVaDuLieuGoc_AI2023V1.zip
+
+6) COUNCIL / ACCEPTANCE
+- S-CNL-01: QD-26-005 (council decision)
+  - file decision: scripts/smoke/fixtures/pdf/01_QuyetDinhThanhLapHoiDong.pdf
+- S-CNL-02: RV1-26-001 (reviewer 1)
+- S-CNL-03: RV2-26-001 (reviewer 2)
+- S-CNL-04: CHAIR-26-001 (chairman)
+  - file: scripts/smoke/fixtures/pdf/18_BienBanChuTich_DaKy.pdf
+- S-CNL-05: MN-26-001 (minutes)
+  - file: scripts/smoke/fixtures/pdf/02_BienBanNghiemThu_DaKy.pdf
+
+7) SETTLEMENT / LIQUIDATION
+- S-SET-01: SET-REQ-26-001 (request)
+- S-SET-02: STF-26-001 (settlement files)
+  - file 1: scripts/smoke/fixtures/pdf/03_HoSoQuyetToan_TongHop.pdf
+  - file 2: scripts/smoke/fixtures/pdf/04_ChungTuChiTieu_HoaDon.pdf
+- S-SET-03: LIQ-26-001 (liquidation)
+  - file: scripts/smoke/fixtures/pdf/05_BienBanThanhLy_DaKy.pdf
+
+8) EXTENSION (BỔ SUNG PHẦN THIẾU)
+- S-EXT-01: EXT-26-001 (request)
+  - reason doc: scripts/smoke/fixtures/pdf/06_DonXinGiaHan_DeTai.pdf
+- S-EXT-02: EXT-26-001-ANNEX (phụ lục)
+  - file: scripts/smoke/fixtures/pdf/07_PhuLucGiaHan_TienDo.pdf
+
+9) ARCHIVE
+- S-ARC-01: ARCH-26-001
+  - archive source files: 02, 03, 05 (minutes/settlement/liquidation)
+
+================================================================================
+II. WORKFLOW CHI TIẾT THEO TỪNG BƯỚC (BỔ SUNG ĐẦY ĐỦ)
+================================================================================
+
+BƯỚC 1 - Upload template hợp đồng
+- Step ID: STP-01
+- Category: TEMPLATE
+- Actor: admin/research_staff
+- Sample: S-TPL-01
+- Input:
+  - name=TMP-CT-260417-01
+  - version=2026.04.17.1
+  - formTypeCode=contract_template
+  - targetRole=hop_dong
+  - file=13_TemplateHopDong_DeTai.pdf
+- Mục tiêu: tạo template default cho luồng hợp đồng.
+- PASS: template xuất hiện, isDefault=true.
+
+BƯỚC 2 - Tạo hợp đồng mới
+- Step ID: STP-02
+- Category: PROJECT + CONTRACT
+- Actor: research_staff
+- Sample: S-PRJ-01 + S-CT-01
+- Input:
+  - project AI26-P001
+  - budget 650000000
+  - upload 14_HopDongNghienCuu_BanNhap.pdf
+- PASS: sinh HD-26-001, trạng thái cho_duyet/cho_ky theo nghiệp vụ.
+
+BƯỚC 3 - Chủ nhiệm xác nhận và ký
+- Step ID: STP-03
+- Category: CONTRACT
+- Actor: project_owner
+- Sample: S-CT-01
+- Input: action SIGN-CT-001
+- PASS: hợp đồng chuyển da_ky.
+
+BƯỚC 4 - Upload bản scan đã ký
+- Step ID: STP-04
+- Category: CONTRACT
+- Actor: research_staff
+- Sample: S-CT-02
+- Input: file 15_HopDongNghienCuu_DaKyScan.pdf
+- PASS: pdfUrl được cập nhật, file mở được.
+
+BƯỚC 5 - Hệ thống nhắc hạn giữa kỳ
+- Step ID: STP-05
+- Category: SCHEDULER + EMAIL
+- Actor: system/admin
+- Sample: MIDTERM-REM-260417-01
+- Input: EMAIL_MOCK=true, trigger scheduler
+- PASS: có record email/log tương ứng.
+
+BƯỚC 6 - Nộp báo cáo giữa kỳ
+- Step ID: STP-06
+- Category: REPORT
+- Actor: project_owner
+- Sample: S-RPT-MID-01
+- Input: file 16_BaoCaoTienDoGiuaKy_Upload.pdf
+- PASS: report midterm được tạo.
+
+BƯỚC 7 - Nộp kết quả cuối kỳ (3 file)
+- Step ID: STP-07
+- Category: REPORT
+- Actor: project_owner
+- Sample: S-RPT-FIN-01
+- Input:
+  - 17_BaoCaoTongKetDeTai_Upload.pdf
+  - 02_ThuyetMinhKetQuaNghienCuu.docx
+  - 01_PhuLucVaDuLieuGoc_AI2023V1.zip
+- PASS: final submission thành công, project sang cho_nghiem_thu.
+
+BƯỚC 8 - Admin xác nhận sản phẩm
+- Step ID: STP-08
+- Category: PROJECT REVIEW
+- Actor: admin/research_staff
+- Sample: ADM-VALID-26-001
+- Input: xác nhận bộ 3 tài liệu ở STP-07
+- PASS: project đủ điều kiện sang pha hội đồng.
+
+BƯỚC 9 - Thành lập hội đồng
+- Step ID: STP-09
+- Category: COUNCIL
+- Actor: research_staff
+- Sample: S-CNL-01
+- Input:
+  - decision file 01_QuyetDinhThanhLapHoiDong.pdf
+  - 5 roles bắt buộc: chu_tich, phan_bien_1, phan_bien_2, thu_ky, uy_vien
+- PASS: sinh QD-26-005, status dang_danh_gia.
+
+BƯỚC 10 - Thành viên hội đồng đăng nhập
+- Step ID: STP-10
+- Category: AUTH + RBAC
+- Actor: chairman/reviewers/secretary/member
+- Sample: S-AUTH-06..10
+- Input: login từng account, đổi mật khẩu nếu bắt buộc
+- PASS: điều hướng đúng dashboard theo role.
+
+BƯỚC 11 - Tải phiếu nhận xét phản biện
+- Step ID: STP-11
+- Category: TEMPLATE FILL
+- Actor: reviewer
+- Sample: RV-TPL-26-001
+- Input: tải phiếu theo role phan_bien
+- PASS: tải file thành công, nội dung đúng template.
+
+BƯỚC 12 - Phản biện 1 nộp điểm
+- Step ID: STP-12
+- Category: COUNCIL REVIEW
+- Actor: reviewer 1
+- Sample: S-CNL-02
+- Input: score=82, comment set A
+- PASS: bản ghi RV1-26-001 được lưu.
+
+BƯỚC 13 - Phản biện 2 nộp điểm
+- Step ID: STP-13
+- Category: COUNCIL REVIEW
+- Actor: reviewer 2
+- Sample: S-CNL-03
+- Input: score=78, comment set B
+- PASS: tổng review hợp lệ >= 2.
+
+BƯỚC 14 - Chủ tịch kết luận
+- Step ID: STP-14
+- Category: COUNCIL REVIEW
+- Actor: chairman
+- Sample: S-CNL-04
+- Input: score=86 + upload 18_BienBanChuTich_DaKy.pdf
+- PASS: quyết định chủ tịch được ghi nhận.
+
+BƯỚC 15 - Thư ký xác nhận hợp lệ
+- Step ID: STP-15
+- Category: COUNCIL VALIDATION
+- Actor: secretary
+- Sample: S-CNL-05 (pre-minutes)
+- Input: đối chiếu điểm, mark accepted/rework
+- PASS: aggregate hợp lệ, không duplicate decision.
+
+BƯỚC 16 - Thư ký gửi biên bản chính thức
+- Step ID: STP-16
+- Category: COUNCIL MINUTES
+- Actor: secretary
+- Sample: S-CNL-05
+- Input: upload 02_BienBanNghiemThu_DaKy.pdf
+- PASS: minutes lưu thành công, tải lại được.
+
+BƯỚC 17 - Hoàn tất nghiệm thu
+- Step ID: STP-17
+- Category: PROJECT STATUS
+- Actor: research_staff
+- Sample: CLOSE-ACPT-26-001
+- Input: complete council
+- PASS: project sang da_nghiem_thu.
+
+BƯỚC 18 - Admin yêu cầu quyết toán
+- Step ID: STP-18
+- Category: SETTLEMENT REQUEST
+- Actor: admin/research_staff
+- Sample: S-SET-01
+- Input: tạo request cho AI26-P001
+- PASS: xuất hiện yêu cầu quyết toán mới.
+
+BƯỚC 19 - Chủ nhiệm nộp hồ sơ quyết toán
+- Step ID: STP-19
+- Category: SETTLEMENT SUBMISSION
+- Actor: project_owner
+- Sample: S-SET-02
+- Input:
+  - 03_HoSoQuyetToan_TongHop.pdf
+  - 04_ChungTuChiTieu_HoaDon.pdf
+- PASS: hồ sơ được tạo, trạng thái dang_quyet_toan/hop_le theo xử lý.
+
+BƯỚC 20 - Admin xác nhận thanh lý + lưu trữ
+- Step ID: STP-20
+- Category: LIQUIDATION + ARCHIVE
+- Actor: accounting + archive_staff
+- Sample: S-SET-03 + S-ARC-01
+- Input: 05_BienBanThanhLy_DaKy.pdf + push archive
+- PASS: project da_thanh_ly, record archive xuất hiện.
+
+BƯỚC 21 - (BỔ SUNG) Chủ nhiệm gửi yêu cầu gia hạn
+- Step ID: STP-21
+- Category: EXTENSION
+- Actor: project_owner
+- Sample: S-EXT-01
+- Input:
+  - reason text
+  - supporting document: 06_DonXinGiaHan_DeTai.pdf
+- PASS: extension request EXT-26-001 được tạo.
+
+BƯỚC 22 - (BỔ SUNG) Research staff phê duyệt gia hạn
+- Step ID: STP-22
+- Category: EXTENSION APPROVAL
+- Actor: research_staff
+- Sample: S-EXT-02
+- Input:
+  - review note
+  - optional annex: 07_PhuLucGiaHan_TienDo.pdf
+- PASS: trạng thái yêu cầu gia hạn chuyển approved/rejected đúng nghiệp vụ.
+
+================================================================================
+III. CHECKLIST ĐÓNG GÓI
+================================================================================
+
+- PASS toàn bộ STP-01..STP-22.
+- Mỗi sample ID chỉ dùng một lần theo đúng step chỉ định.
+- Dùng đúng fixture path trong scripts/smoke/fixtures.
+- Có bằng chứng upload/download cho PDF, DOCX, ZIP.
+- Không còn gap category: AUTH, TEMPLATE, PROJECT, CONTRACT, REPORT, COUNCIL, SETTLEMENT, EXTENSION, ARCHIVE.

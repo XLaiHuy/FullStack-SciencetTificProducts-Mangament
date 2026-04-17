@@ -176,8 +176,12 @@ const SuperAdminDashboard: React.FC = () => {
               <tbody className="divide-y divide-gray-50">
                 {auditLogs.length === 0 ? (
                   <tr>
-                    <td className="px-6 py-6 text-gray-400 text-sm" colSpan={4}>
-                      Chưa có dữ liệu audit log.
+                    <td className="px-6 py-6" colSpan={4}>
+                      <div className="empty-state-panel text-center">
+                        <span className="empty-state-icon">i</span>
+                        <p className="text-sm font-semibold text-gray-800">Chưa có dữ liệu audit log</p>
+                        <p className="text-xs text-gray-600 mt-1">Nhật ký sẽ tự động xuất hiện khi có thao tác hệ thống mới.</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (

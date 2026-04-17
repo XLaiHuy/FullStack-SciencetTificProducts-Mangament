@@ -40,13 +40,20 @@ const TemplateService = {
   },
 
   async upload(data: z.infer<typeof CreateTemplateSchema>, filePath: string, fileSize: string, actorId: string, actorName: string) {
+    const formTypeCode = data.formTypeCode.trim().toLowerCase();
+    const targetRole = data.targetRole.trim().toLowerCase();
+
+    if (formTypeCode === 'contract_template' && targetRole !== 'hop_dong') {
+      throw new Error('Biểu mẫu hợp đồng chỉ được áp dụng cho vai trò hop_dong.');
+    }
+
     const formType = await prisma.formType.upsert({
-      where: { code: data.formTypeCode },
-      create: { code: data.formTypeCode, name: data.formTypeCode },
+      where: { code: formTypeCode },
+      create: { code: formTypeCode, name: formTypeCode },
       update: {},
     });
     await prisma.formTemplate.updateMany({
-      where: { formTypeId: formType.id, targetRole: data.targetRole, isDefault: true, isDeleted: false },
+      where: { formTypeId: formType.id, targetRole, isDefault: true, isDeleted: false },
       data: { isDefault: false },
     });
     const template = await prisma.formTemplate.create({
@@ -54,7 +61,7 @@ const TemplateService = {
         formTypeId: formType.id,
         name: data.name,
         version: data.version,
-        targetRole: data.targetRole,
+        targetRole,
         fileUrl: filePath,
         size: fileSize,
         isDefault: true,
@@ -76,7 +83,7 @@ const TemplateService = {
 const router = Router();
 router.use(authenticate);
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireRole('research_staff', 'superadmin', 'project_owner'), async (req: Request, res: Response) => {
   try {
     R.ok(res, await TemplateService.getAll(req.query.category as string));
   } catch (err) { R.serverError(res, (err as Error).message); }
@@ -89,7 +96,7 @@ router.get('/form-types', async (_req: Request, res: Response) => {
   } catch (err) { R.serverError(res, (err as Error).message); }
 });
 
-router.get('/:id/fill', async (req: Request, res: Response) => {
+router.get('/:id/fill', requireRole('research_staff', 'superadmin', 'project_owner'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const projectId = req.query.projectId as string;
@@ -103,6 +110,9 @@ router.get('/:id/fill', async (req: Request, res: Response) => {
       include: { owner: true }
     });
     if (!project) return R.notFound(res, 'Đề tài không tồn tại.');
+    if (req.user!.role === 'project_owner' && project.ownerId !== req.user!.userId) {
+      return R.forbidden(res, 'Bạn không có quyền sử dụng biểu mẫu cho đề tài này.');
+    }
 
     const data = {
       project_name: project.title,

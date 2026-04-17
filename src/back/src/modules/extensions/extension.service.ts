@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import prisma from '../../prisma';
 import { logBusiness } from '../../middleware/requestLogger';
+import path from 'path';
+import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/uploadFile';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 export const CreateExtensionSchema = z.object({
@@ -64,6 +66,19 @@ export const ExtensionService = {
     return ext;
   },
 
+  /** GET /api/extensions/:id/supporting-document */
+  async getSupportingDocumentDownload(id: string, userId: string, userRole: string) {
+    const ext = await this.getById(id, userId, userRole);
+    const filePath = await resolveExistingUploadFile(ext.supportingDocument ?? undefined);
+    if (!filePath) {
+      throw new Error('Không tìm thấy file đính kèm gia hạn.');
+    }
+
+    const extname = path.extname(filePath) || '.dat';
+    const fileName = `${sanitizeDownloadName(ext.project.code, `extension_${ext.id}`)}_supporting_document${extname}`;
+    return { absolutePath: filePath, fileName };
+  },
+
   /** POST /api/extensions — owner submits extension request */
   async create(data: z.infer<typeof CreateExtensionSchema>, submittedBy: string, actorId: string) {
     const project = await prisma.project.findFirst({ where: { id: data.projectId, is_deleted: false } });
@@ -79,7 +94,8 @@ export const ExtensionService = {
     const ext = await prisma.extension.create({
       data: {
         projectId:      data.projectId,
-        reason:         data.supporting_document ? `${data.reason}\n[Supporting Document]: ${data.supporting_document}` : data.reason,
+        reason:         data.reason,
+        supportingDocument: data.supporting_document ?? undefined,
         proposedDate:   new Date(data.requested_deadline),
         extensionDays:  data.extensionDays,
         extensionCount: count + 1,

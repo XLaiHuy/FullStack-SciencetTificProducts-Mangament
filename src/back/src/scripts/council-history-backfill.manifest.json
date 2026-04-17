@@ -1,0 +1,114 @@
+{
+  "councils": [
+    {
+      "decisionCode": "QĐ/2026/003",
+      "replaceMemberships": false,
+      "members": [
+        {
+          "name": "TS. Phan Bien Auto",
+          "email": "autoreviewer@deltajohnsons.com",
+          "role": "phan_bien_2"
+        },
+        {
+          "name": "ThS. Nguyễn Minh E",
+          "email": "member@demo.com",
+          "role": "uy_vien"
+        }
+      ]
+    },
+    {
+      "decisionCode": "QĐ/2026/002",
+      "replaceMemberships": false,
+      "members": [
+        {
+          "name": "TS. Phan Bien Auto",
+          "email": "autoreviewer@deltajohnsons.com",
+          "role": "phan_bien_1"
+        },
+        {
+          "name": "GS.TS. Hoàng Văn E",
+          "email": "chairman@demo.com",
+          "role": "chu_tich"
+        },
+        {
+          "name": "PGS.TS. Phan Bien 2",
+          "email": "reviewer2@demo.com",
+          "role": "phan_bien_2"
+        },
+        {
+          "name": "TS. Phạm Thị D",
+          "email": "secretary@demo.com",
+          "role": "thu_ky"
+        }
+      ]
+    },
+    {
+      "decisionCode": "QĐ/2026/001",
+      "replaceMemberships": false,
+      "members": [
+        {
+          "name": "TS. Phan Bien Auto",
+          "email": "autoreviewer@deltajohnsons.com",
+          "role": "phan_bien_1"
+        },
+        {
+          "name": "GS.TS. Hoàng Văn E",
+          "email": "chairman@demo.com",
+          "role": "chu_tich"
+        },
+        {
+          "name": "PGS.TS. Phan Bien 2",
+          "email": "reviewer2@demo.com",
+          "role": "phan_bien_2"
+        },
+        {
+          "name": "TS. Phạm Thị D",
+          "email": "secretary@demo.com",
+          "role": "thu_ky"
+        }
+      ]
+    },
+    {
+      "decisionCode": "QĐ/2023/156",
+      "replaceMemberships": false,
+      "members": [
+        {
+          "name": "TS. Phan Bien Auto",
+          "email": "autoreviewer@deltajohnsons.com",
+          "role": "phan_bien_2"
+        },
+        {
+          "name": "TS. Phạm Thị D",
+          "email": "secretary@demo.com",
+          "role": "thu_ky"
+        }
+      ]
+    },
+    {
+      "decisionCode": "QĐ/2023/142",
+      "replaceMemberships": false,
+      "members": [
+        {
+          "name": "PGS.TS. Lê Quang C",
+          "email": "reviewer@demo.com",
+          "role": "phan_bien_1"
+        },
+        {
+          "name": "TS. Phan Bien Auto",
+          "email": "autoreviewer@deltajohnsons.com",
+          "role": "phan_bien_2"
+        },
+        {
+          "name": "TS. Phạm Thị D",
+          "email": "secretary@demo.com",
+          "role": "thu_ky"
+        },
+        {
+          "name": "ThS. Nguyễn Minh E",
+          "email": "member@demo.com",
+          "role": "uy_vien"
+        }
+      ]
+    }
+  ]
+}

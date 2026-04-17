@@ -29,6 +29,10 @@ router.get('/my',
   requireRole('project_owner'),
   ProjectController.getMyProjects
 );
+router.get('/owners',
+  requireRole('research_staff', 'superadmin'),
+  ProjectController.getProjectOwners
+);
 router.get('/:id/reports/:reportId/download',
   requireRole('research_staff', 'superadmin', 'project_owner', 'accounting', 'archive_staff', 'report_viewer', 'council_member'),
   ProjectController.downloadReportFile

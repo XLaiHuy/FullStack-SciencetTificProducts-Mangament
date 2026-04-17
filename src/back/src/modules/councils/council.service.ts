@@ -9,6 +9,14 @@ import path from 'path';
 import mammoth from 'mammoth';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { resolveExistingUploadFile, sanitizeDownloadName } from '../../utils/uploadFile';
+import { NotificationService } from '../notifications/notification.service';
+
+type NewCouncilAccountCsvRow = {
+  name: string;
+  email: string;
+  role: MemberInput['role'];
+  temporaryPassword: string;
+};
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 export const MemberSchema = z.object({
@@ -24,7 +32,7 @@ export const MemberSchema = z.object({
 
 export const CreateCouncilSchema = z.object({
   projectId: z.string().cuid(),
-  members:   z.array(MemberSchema).min(1, 'Hội đồng phải có ít nhất 1 thành viên'),
+  members:   z.array(MemberSchema).min(5, 'Hội đồng phải có ít nhất 5 thành viên'),
 });
 
 export const AddMemberSchema = MemberSchema;
@@ -76,6 +84,11 @@ const mapMemberRoleToCouncilRole = (role: MemberInput['role']) => {
   return 'member';
 };
 
+const REQUIRED_COUNCIL_ROLES: Array<MemberInput['role']> = ['chu_tich', 'phan_bien_1', 'phan_bien_2', 'thu_ky'];
+
+const getMissingCouncilRoles = (members: Array<{ role: MemberInput['role'] }>) =>
+  REQUIRED_COUNCIL_ROLES.filter((role) => !members.some((member) => member.role === role));
+
 const generateTemporaryPassword = () => `NCKH@${Math.random().toString(36).slice(-6)}A1`;
 
 const getConfiguredCouncilDefaultPassword = async () => {
@@ -85,6 +98,36 @@ const getConfiguredCouncilDefaultPassword = async () => {
   });
   const value = row?.value?.trim();
   return value && value.length >= 6 ? value : undefined;
+};
+
+const toCsvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+const buildNewCouncilAccountsCsv = (
+  decisionCode: string,
+  projectCode: string,
+  rows: NewCouncilAccountCsvRow[],
+) => {
+  const header = [
+    'HoiDongCode',
+    'DeTaiCode',
+    'HoTen',
+    'EmailDangNhap',
+    'VaiTroHoiDong',
+    'MatKhauTam',
+    'GhiChu',
+  ].map(toCsvCell).join(',');
+
+  const body = rows.map((row) => ([
+    decisionCode,
+    projectCode,
+    row.name,
+    row.email,
+    row.role,
+    row.temporaryPassword,
+    'Chi hien thi mot lan. Yeu cau doi mat khau khi dang nhap dau tien.',
+  ].map(toCsvCell).join(',')));
+
+  return [header, ...body].join('\n');
 };
 
 const buildCouncilPdfBuffer = async (title: string, lines: string[]) => {
@@ -144,16 +187,6 @@ const ensureCouncilUserAccount = async (member: MemberInput, defaultTemporaryPas
   const existing = byId ?? await prisma.user.findFirst({ where: { email: member.email, is_deleted: false } });
 
   if (existing) {
-    if (existing.role === 'council_member') {
-      const targetRole = mapMemberRoleToCouncilRole(member.role);
-      if (existing.councilRole !== targetRole) {
-        await prisma.user.update({
-          where: { id: existing.id },
-          data: { councilRole: targetRole as never },
-        });
-      }
-    }
-
     return {
       userId: existing.id,
       loginEmail: existing.email,
@@ -188,12 +221,73 @@ const ensureCouncilUserAccount = async (member: MemberInput, defaultTemporaryPas
 
 // ─── Utilities for file parsing ───────────────────────────────────────────────
 
-const normalizeText = (raw: string) =>
-  raw
+const coerceToText = (raw: unknown): string => {
+  if (typeof raw === 'string') return raw;
+  if (raw == null) return '';
+  if (Buffer.isBuffer(raw)) return raw.toString('utf8');
+  if (Array.isArray(raw)) return raw.map((item) => coerceToText(item)).join('\n');
+
+  if (typeof raw === 'object') {
+    const candidate = raw as { text?: unknown; value?: unknown; pages?: unknown[] };
+    if (typeof candidate.text === 'string') return candidate.text;
+    if (typeof candidate.value === 'string') return candidate.value;
+    if (Array.isArray(candidate.pages)) {
+      const pageText = candidate.pages
+        .map((page) => {
+          if (typeof page === 'string') return page;
+          if (page && typeof page === 'object' && typeof (page as { text?: unknown }).text === 'string') {
+            return (page as { text: string }).text;
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join('\n');
+      if (pageText) return pageText;
+    }
+  }
+
+  return String(raw);
+};
+
+const normalizeText = (raw: unknown) =>
+  coerceToText(raw)
     .replace(/\r/g, '\n')
     .replace(/\n{2,}/g, '\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
+
+const stripVietnamese = (value: string) =>
+  value
+    .replace(/[Đđ]/g, 'D')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+const detectRole = (value: string): z.infer<typeof MemberSchema>['role'] | undefined => {
+  const normalized = stripVietnamese(value).toLowerCase();
+  if (normalized.includes('chu tich hoi dong') || normalized.includes('chu tich')) return 'chu_tich';
+  if (normalized.includes('phan bien 1') || normalized.includes('pb1')) return 'phan_bien_1';
+  if (normalized.includes('phan bien 2') || normalized.includes('pb2')) return 'phan_bien_2';
+  if (normalized.includes('thu ky')) return 'thu_ky';
+  if (normalized.includes('uy vien')) return 'uy_vien';
+  return undefined;
+};
+
+const sanitizeName = (value: string): { name?: string; title?: string } => {
+  const compact = value
+    .replace(/\b(stt|tt)\b\s*[:\-]?\s*\d+/ig, '')
+    .replace(/^\d+[\).\-\s]*/, '')
+    .replace(/\b(vai\s*tro|vai\s*tro:|chuc\s*vu|email|don\s*vi|co\s*quan|sdt|dien\s*thoai)\b.*$/i, '')
+    .replace(/\b(chu\s*tich\s*hoi\s*dong|chu\s*tich|phan\s*bien\s*1|phan\s*bien\s*2|thu\s*ky|uy\s*vien)\b/ig, '')
+    .replace(/[|;:,]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (!compact || compact.length < 3) return {};
+  const title = compact.match(/^(GS\.TS|PGS\.TS|TS|ThS)\.?/i)?.[0];
+  const name = compact.replace(/^(GS\.TS|PGS\.TS|TS|ThS)\.?\s*/i, '').trim();
+  if (!name || name.length < 3) return {};
+  return { name, title };
+};
 
 type ParsedMember = {
   name?: string;
@@ -206,12 +300,35 @@ type ParsedMember = {
   rawLine: string;
 };
 
+const detectProposalOwnerAsMember = (text: string): ParsedMember | null => {
+  const ownerLine = text.match(/(?:chủ\s*nhiệm(?:\s*đề\s*tài)?|chu\s*nhiem(?:\s*de\s*tai)?)\s*[:\-]\s*([^\n]+)/i)?.[1]?.trim() ?? '';
+  const ownerEmail =
+    text.match(/(?:email)\s*[:\-]\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i)?.[1]?.toLowerCase() ??
+    text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
+
+  const { name, title } = sanitizeName(ownerLine || '');
+  if (!name && !ownerEmail) return null;
+
+  const confidence = [name, ownerEmail].filter(Boolean).length === 2 ? 70 : 45;
+  return {
+    name,
+    title,
+    email: ownerEmail,
+    role: 'uy_vien',
+    confidence,
+    rawLine: ownerLine || text.slice(0, 120),
+  };
+};
+
 /**
  * Parses raw text to detect council member information based on regex.
  * This is the core parsing logic and likely needs adjustment based on real-world file formats.
  */
 const detectCouncilMembers = (text: string): ParsedMember[] => {
-  const lines = text.split('\n').filter(line => line.trim().length > 10);
+  const lines = text
+    .split('\n')
+    .map((line) => line.replace(/\t+/g, ' ').replace(/\s{2,}/g, ' ').trim())
+    .filter((line) => line.length > 6);
   const detectedMembers: ParsedMember[] = [];
 
   const roleMap: Record<string, z.infer<typeof MemberSchema>['role']> = {
@@ -229,39 +346,55 @@ const detectCouncilMembers = (text: string): ParsedMember[] => {
   };
 
   for (const line of lines) {
-    const email = line.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+    const email = line.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
     const phone = line.match(/(?:\d{10,11}\b)/)?.[0];
 
-    const roleText = line.match(/(?:vai trò|chức vụ|vi trí)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim().toLowerCase();
-    const role = roleText ? Object.keys(roleMap).find(k => roleText.includes(k)) : undefined;
+    const roleText = line.match(/(?:vai trò|vai tro|chức vụ|chuc vu|vi trí|vi tri|role)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim().toLowerCase();
+    const roleKey = roleText ? Object.keys(roleMap).find((k) => roleText.includes(k)) : undefined;
+    const role = roleKey ? roleMap[roleKey] : detectRole(line);
 
-    const nameText =
-      line.match(/(?:họ và tên|họ tên)\s*[:\-]?\s*([^\n,]+)/i)?.[1] ??
-      line.split(/[,;]/)[0]; // Fallback: assume name is the first part of the line
+    const nameByLabel = line.match(/(?:họ và tên|ho va ten|họ tên|ho ten)\s*[:\-]?\s*([^\n,]+)/i)?.[1] ?? '';
+    const beforeEmail = email ? line.slice(0, line.toLowerCase().indexOf(email.toLowerCase())) : line;
+    const nameCandidate = nameByLabel || beforeEmail.split(/[,;|]/)[0] || beforeEmail;
+    const { name, title } = sanitizeName(nameCandidate);
 
-    const name = nameText?.replace(/(?:GS\.TS|PGS\.TS|TS|ThS)\.?/ig, '').trim();
-    const title = nameText?.match(/(GS\.TS|PGS\.TS|TS|ThS)\.?/i)?.[0];
-
-    const institution = line.match(/(?:đơn vị|cơ quan)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim();
+    const institution = line.match(/(?:đơn vị|don vi|cơ quan|co quan)\s*[:\-]?\s*([^\n,]+)/i)?.[1]?.trim();
 
     const points = [name, email, role, institution].filter(Boolean).length;
     const confidence = Math.round((points / 4) * 100);
 
-    if (confidence > 25) {
+    const identitySignals = [name, email, role].filter(Boolean).length;
+    if (identitySignals >= 2) {
       detectedMembers.push({
         name,
         email,
         phone,
         title,
         institution,
-        role: role ? roleMap[role] : undefined,
+        role,
         confidence,
         rawLine: line.slice(0, 200),
       });
     }
   }
 
-  return detectedMembers;
+  const deduped = new Map<string, ParsedMember>();
+  for (const member of detectedMembers) {
+    const key = (member.email || `${member.name || ''}|${member.role || ''}`).toLowerCase();
+    if (!key.trim()) continue;
+    const existing = deduped.get(key);
+    if (!existing || member.confidence > existing.confidence) {
+      deduped.set(key, member);
+    }
+  }
+
+  const refined = Array.from(deduped.values());
+  if (refined.length > 0) {
+    return refined;
+  }
+
+  const fallback = detectProposalOwnerAsMember(text);
+  return fallback ? [fallback] : [];
 };
 
 
@@ -269,31 +402,32 @@ const detectCouncilMembers = (text: string): ParsedMember[] => {
 export const CouncilService = {
   /** POST /api/councils/parse-members */
   async parseMembersFromFile(filePath: string, originalName: string): Promise<ParsedMember[]> {
-    const ext = path.extname(originalName).toLowerCase();
-    let rawText = '';
+    try {
+      const ext = path.extname(originalName).toLowerCase();
+      let rawText = '';
 
-    if (ext === '.docx' || ext === '.doc') {
-      const parsed = await mammoth.extractRawText({ path: filePath });
-      rawText = parsed.value ?? '';
-    } else {
-      const buffer = await fs.readFile(filePath);
-      rawText = buffer.toString('utf8');
+      if (ext === '.docx' || ext === '.doc') {
+        const parsed = await mammoth.extractRawText({ path: filePath });
+        rawText = parsed.value ?? '';
+      } else {
+        const buffer = await fs.readFile(filePath);
+        rawText = buffer.toString('utf8');
+      }
+
+      const text = normalizeText(rawText);
+      if (!text) {
+        throw new Error('Không thể trích xuất nội dung từ tệp. Vui lòng kiểm tra định dạng file.');
+      }
+
+      const members = detectCouncilMembers(text);
+      if (members.length === 0) {
+        throw new Error('Không nhận diện được thành viên nào từ file. Vui lòng kiểm tra nội dung và định dạng.');
+      }
+
+      return members;
+    } finally {
+      await fs.unlink(filePath).catch(() => undefined);
     }
-
-    const text = normalizeText(rawText);
-    if (!text) {
-      throw new Error('Không thể trích xuất nội dung từ tệp. Vui lòng kiểm tra định dạng file.');
-    }
-
-    const members = detectCouncilMembers(text);
-    if (members.length === 0) {
-      throw new Error('Không nhận diện được thành viên nào từ file. Vui lòng kiểm tra nội dung và định dạng.');
-    }
-
-    // Clean up uploaded file
-    await fs.unlink(filePath);
-
-    return members;
   },
 
   /** GET /api/councils */
@@ -396,7 +530,18 @@ export const CouncilService = {
 
     // Check for COI before creating
     const hasChairman = data.members.some(m => m.role === 'chu_tich');
-    if (!hasChairman) throw new Error('Hội đồng phải có Chủ tịch.');
+    const hasSecretary = data.members.some(m => m.role === 'thu_ky');
+    const hasReviewer1 = data.members.some(m => m.role === 'phan_bien_1');
+    const hasReviewer2 = data.members.some(m => m.role === 'phan_bien_2');
+
+    if (!hasChairman || !hasSecretary || !hasReviewer1 || !hasReviewer2) {
+      throw new Error('Hội đồng bắt buộc phải có Chủ tịch, Thư ký, Phản biện 1 và Phản biện 2.');
+    }
+
+    const uniqueEmails = new Set(data.members.map(m => m.email));
+    if (uniqueEmails.size !== data.members.length) {
+      throw new Error('Thành viên trong hội đồng không được trùng email.');
+    }
 
     const decisionCode = await nextCouncilCode();
 
@@ -472,6 +617,30 @@ export const CouncilService = {
       'Councils'
     );
 
+    await NotificationService.createForUsers(
+      preparedMembers
+        .map((m) => m.userId)
+        .filter((id): id is string => Boolean(id)),
+      'request',
+      `Ban duoc moi tham gia hoi dong ${decisionCode} cho de tai ${project.code}.`
+    );
+
+    const newAccounts = preparedMembers
+      .filter((member) => member.isNewAccount && member.temporaryPassword)
+      .map((member) => ({
+        name: member.name,
+        email: member.loginEmail,
+        role: member.role,
+        temporaryPassword: member.temporaryPassword as string,
+      }));
+
+    const csvText = newAccounts.length > 0
+      ? buildNewCouncilAccountsCsv(decisionCode, project.code, newAccounts)
+      : undefined;
+    const csvFileName = newAccounts.length > 0
+      ? `${sanitizeDownloadName(`new_accounts_${decisionCode}`, `council_${council.id}`)}.csv`
+      : undefined;
+
     return {
       ...council,
       invitationSummary: {
@@ -479,6 +648,9 @@ export const CouncilService = {
         failed: invitationFailures.length,
         failures: invitationFailures,
       },
+      newAccountsCount: newAccounts.length,
+      newAccountsCsvBase64: csvText ? Buffer.from(csvText, 'utf8').toString('base64') : undefined,
+      newAccountsCsvFileName: csvFileName,
     };
   },
 
@@ -523,8 +695,30 @@ export const CouncilService = {
       isNewAccount: account.isNewAccount,
     });
 
+    if (account.userId) {
+      await NotificationService.createForUser(
+        account.userId,
+        'request',
+        `Ban duoc them vao hoi dong ${council.decisionCode} cho de tai ${council.project.code}.`
+      );
+    }
+
+    const csvText = account.isNewAccount && account.temporaryPassword
+      ? buildNewCouncilAccountsCsv(council.decisionCode, council.project.code, [{
+          name: member.name,
+          email: account.loginEmail,
+          role: member.role,
+          temporaryPassword: account.temporaryPassword,
+        }])
+      : undefined;
+
     await logBusiness(actorId, actorName, `Thêm thành viên ${member.name} vào HĐ ${council.decisionCode}`, 'Councils');
-    return added;
+    return {
+      ...added,
+      newAccountsCount: account.isNewAccount ? 1 : 0,
+      newAccountsCsvBase64: csvText ? Buffer.from(csvText, 'utf8').toString('base64') : undefined,
+      newAccountsCsvFileName: csvText ? `${sanitizeDownloadName(`new_account_${council.decisionCode}`, `council_${council.id}`)}.csv` : undefined,
+    };
   },
 
   /** POST /api/councils/:id/decision */
@@ -715,8 +909,21 @@ export const CouncilService = {
 
   /** PUT /api/councils/:id/complete */
   async complete(id: string, actorId: string, actorName: string, actorRole: string) {
-    const council = await prisma.council.findFirst({ where: { id, is_deleted: false } });
+    const council = await prisma.council.findFirst({
+      where: { id, is_deleted: false },
+      include: {
+        members: {
+          where: { is_deleted: false },
+          select: { role: true },
+        },
+      },
+    });
     if (!council) throw new Error('Hội đồng không tồn tại.');
+
+    const missingRoles = getMissingCouncilRoles(council.members);
+    if (council.members.length < 5 || missingRoles.length > 0) {
+      throw new Error('Hội đồng chưa đủ thành phần bắt buộc để hoàn thành nghiệm thu.');
+    }
 
     if (actorRole === 'council_member') {
       const member = await prisma.councilMembership.findFirst({

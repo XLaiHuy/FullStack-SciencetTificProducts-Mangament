@@ -7,9 +7,19 @@ export default defineConfig({
     port: 5173,
     open: true
   },
+  esbuild: {
+    drop: ['debugger'],
+  },
   build: {
+    target: 'es2020',
+    cssCodeSplit: true,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/');
 
