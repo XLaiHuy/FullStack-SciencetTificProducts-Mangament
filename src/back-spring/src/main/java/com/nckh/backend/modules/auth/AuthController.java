@@ -33,6 +33,24 @@ public class AuthController {
         return ApiResponse.ok(null, "Dang xuat thanh cong");
     }
 
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ApiResponse.ok(null, "Neu email ton tai, he thong se gui huong dan dat lai mat khau");
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ApiResponse.ok(null, "Dat lai mat khau thanh cong");
+    }
+
+    @PutMapping("/change-password")
+    public ApiResponse<Void> changePassword(@AuthenticationPrincipal User user, @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(user, request);
+        return ApiResponse.ok(null, "Doi mat khau thanh cong");
+    }
+
     @GetMapping("/me")
     public ApiResponse<UserPayload> me(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(authService.me(user));

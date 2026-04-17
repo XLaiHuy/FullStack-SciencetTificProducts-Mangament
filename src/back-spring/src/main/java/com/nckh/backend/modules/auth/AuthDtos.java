@@ -12,6 +12,12 @@ public class AuthDtos {
 
     public record LogoutRequest(@NotBlank String refreshToken) {}
 
+    public record ForgotPasswordRequest(@Email @NotBlank String email) {}
+
+    public record ResetPasswordRequest(@Email @NotBlank String email, @NotBlank String newPassword) {}
+
+    public record ChangePasswordRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {}
+
     public record UserPayload(String id, String name, String email, UserRole role) {}
 
     public record LoginResponse(String accessToken, String refreshToken, UserPayload user) {}

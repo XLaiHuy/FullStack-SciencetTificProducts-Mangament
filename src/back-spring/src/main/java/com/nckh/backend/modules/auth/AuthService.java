@@ -76,6 +76,40 @@ public class AuthService {
         refreshTokenRepository.deleteByToken(request.refreshToken());
     }
 
+    public void forgotPassword(ForgotPasswordRequest request) {
+        // Keep response neutral to avoid user enumeration.
+        userRepository.findByEmailAndIsDeletedFalse(request.email()).ifPresent(user -> {
+            // Placeholder for email integration in next phase.
+        });
+    }
+
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmailAndIsDeletedFalse(request.email())
+            .orElseThrow(() -> new IllegalArgumentException("Tai khoan khong ton tai"));
+
+        if (request.newPassword().length() < 6) {
+            throw new IllegalArgumentException("Mat khau moi phai co it nhat 6 ky tu");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        refreshTokenRepository.deleteByUserId(user.getId());
+    }
+
+    public void changePassword(User actor, ChangePasswordRequest request) {
+        if (!passwordEncoder.matches(request.currentPassword(), actor.getPassword())) {
+            throw new IllegalArgumentException("Mat khau hien tai khong dung");
+        }
+
+        if (request.newPassword().length() < 6) {
+            throw new IllegalArgumentException("Mat khau moi phai co it nhat 6 ky tu");
+        }
+
+        actor.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(actor);
+        refreshTokenRepository.deleteByUserId(actor.getId());
+    }
+
     public UserPayload me(User user) {
         return toPayload(user);
     }
