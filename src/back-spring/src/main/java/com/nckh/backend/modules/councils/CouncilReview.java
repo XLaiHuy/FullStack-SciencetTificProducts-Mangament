@@ -49,4 +49,7 @@ public class CouncilReview {
     public void setComments(String comments) { this.comments = comments; }
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

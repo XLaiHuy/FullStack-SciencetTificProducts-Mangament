@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { settlementService } from '../../services/api/settlementService';
+import { normalizeUploadPath } from '../../utils/urlUtil';
 
 interface BudgetItem {
   id: string;
@@ -8,6 +9,7 @@ interface BudgetItem {
   planned: number;
   spent: number;
   evidenceFile: string | null;
+  evidenceUrl?: string | null;
   status: 'khop' | 'vuot_muc' | 'chua_nop';
 }
 
@@ -70,6 +72,7 @@ const SettlementDetailPage: React.FC = () => {
             planned: Number(item.planned ?? 0),
             spent: Number(item.spent ?? 0),
             evidenceFile: cleanFile,
+            evidenceUrl: normalizeUploadPath(rawFile ?? undefined),
             status: item.status ?? 'chua_nop',
           };
         });
@@ -215,7 +218,14 @@ const SettlementDetailPage: React.FC = () => {
   };
 
   const handleDownloadEvidence = (filename: string) => {
-    showToast(`Đang tải tệp minh chứng: ${filename}`, 'info');
+    const item = budget.find((row) => row.evidenceFile === filename);
+    const url = item?.evidenceUrl;
+    if (!url) {
+      showToast(`Không tìm thấy link minh chứng: ${filename}`, 'info');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    showToast(`Đang mở minh chứng: ${filename}`, 'info');
   };
 
   const totalPlanned  = budget.reduce((s, b) => s + b.planned, 0);

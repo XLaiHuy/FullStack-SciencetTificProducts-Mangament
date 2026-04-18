@@ -149,6 +149,8 @@ const SettlementPage: React.FC = () => {
       localStorage.removeItem(SETTLEMENT_DRAFT_KEY);
       setContent('');
       setRows([mkRow()]);
+      setSettlementDone(true);
+      setPendingSupplementNote(null);
       showToast(`Đã nộp hồ sơ quyết toán thành công! ${allFiles.length > 0 ? `Đã đính kèm ${allFiles.length} chứng từ.` : ''} Phòng NCKH sẽ xem xét trong 5–7 ngày.`);
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? (typeof e === 'string' ? e : 'Nộp hồ sơ thất bại. Kiểm tra lại kết nối.');

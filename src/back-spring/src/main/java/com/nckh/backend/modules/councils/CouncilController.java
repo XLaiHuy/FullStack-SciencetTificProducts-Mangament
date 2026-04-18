@@ -38,31 +38,20 @@ public class CouncilController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('research_staff','superadmin','council_member','project_owner')")
-    public ApiResponse<List<CouncilItem>> getAll(@AuthenticationPrincipal User user) {
+    public ApiResponse<List<Map<String, Object>>> getAll(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(councilService.getAll(user));
     }
 
     @GetMapping("/mine")
     @PreAuthorize("hasAnyRole('council_member','project_owner')")
-    public ApiResponse<List<CouncilItem>> getMine(@AuthenticationPrincipal User user) {
+    public ApiResponse<List<Map<String, Object>>> getMine(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(councilService.getMine(user));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('research_staff','superadmin','council_member','project_owner')")
     public ApiResponse<Map<String, Object>> getById(@PathVariable String id, @AuthenticationPrincipal User user) {
-        CouncilItem item = councilService.getById(id, user);
-        return ApiResponse.ok(Map.<String, Object>of(
-            "id", item.id(),
-            "decisionCode", item.decisionCode(),
-            "projectId", item.projectId(),
-            "projectCode", item.projectCode(),
-            "projectTitle", item.projectTitle(),
-            "status", item.status(),
-            "decisionPdfUrl", item.decisionPdfUrl() == null ? "" : item.decisionPdfUrl(),
-            "minutesFile", councilService.getMinutesFileUrl(id),
-            "members", councilService.getMembers(id)
-        ));
+        return ApiResponse.ok(councilService.getById(id, user));
     }
 
     @PostMapping
@@ -88,7 +77,7 @@ public class CouncilController {
     @PostMapping("/check-conflict")
     @PreAuthorize("hasAnyRole('research_staff','superadmin')")
     public ApiResponse<Map<String, Object>> checkConflict(@RequestBody Map<String, Object> req) {
-        return ApiResponse.ok(Map.<String, Object>of("hasConflict", false, "memberEmail", String.valueOf(req.getOrDefault("memberEmail", ""))));
+        return ApiResponse.ok(councilService.checkConflict(String.valueOf(req.getOrDefault("memberEmail", "")), String.valueOf(req.getOrDefault("projectId", ""))));
     }
 
     @PostMapping(path = "/parse-members", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -489,46 +478,38 @@ public class CouncilController {
 
     @GetMapping("/{id}/decision-file")
     @PreAuthorize("hasAnyRole('research_staff','superadmin','council_member','project_owner')")
-    public ResponseEntity<byte[]> decisionFile(@PathVariable String id) throws IOException {
-        String url = councilService.getDecisionFileUrl(id);
-        if (url == null || url.isBlank()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"error\":\"Hội đồng này chưa tải lên file Quyết định.\"}".getBytes(StandardCharsets.UTF_8));
+    public ResponseEntity<byte[]> decisionFile(@PathVariable String id, @AuthenticationPrincipal User user) throws IOException {
+        CouncilService.DownloadPayload payload = councilService.getDecisionDownload(id, user);
+        if ("file".equals(payload.kind())) {
+            Path path = payload.filePath();
+            byte[] data = Files.readAllBytes(path);
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + path.getFileName())
+                .body(data);
         }
-        Path path = resolveUploadPath(url);
-        if (!Files.exists(path)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"error\":\"File Quyết định không còn tồn tại trên máy chủ.\"}".getBytes(StandardCharsets.UTF_8));
-        }
-        byte[] data = Files.readAllBytes(path);
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + path.getFileName())
-            .body(data);
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + payload.fileName())
+            .body(payload.fileBuffer());
     }
 
     @GetMapping("/{id}/minutes-file")
     @PreAuthorize("hasAnyRole('research_staff','superadmin','council_member','project_owner')")
-    public ResponseEntity<byte[]> minutesFile(@PathVariable String id) throws IOException {
-        String url = councilService.getMinutesFileUrl(id);
-        if (url == null || url.isBlank()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"error\":\"Hội đồng này chưa tải lên file Biên bản nghiệm thu. Trạng thái Hội đồng chưa hoàn thành đánh giá hoặc chưa tải tệp lên!\"}".getBytes(StandardCharsets.UTF_8));
+    public ResponseEntity<byte[]> minutesFile(@PathVariable String id, @AuthenticationPrincipal User user) throws IOException {
+        CouncilService.DownloadPayload payload = councilService.getMinutesDownload(id, user);
+        if ("file".equals(payload.kind())) {
+            Path path = payload.filePath();
+            byte[] data = Files.readAllBytes(path);
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + path.getFileName())
+                .body(data);
         }
-        Path path = resolveUploadPath(url);
-        if (!Files.exists(path)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"error\":\"File Biên bản nghiệm thu không còn tồn tại trên máy chủ.\"}".getBytes(StandardCharsets.UTF_8));
-        }
-        byte[] data = Files.readAllBytes(path);
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + path.getFileName())
-            .body(data);
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + payload.fileName())
+            .body(payload.fileBuffer());
     }
 
     @PostMapping("/{id}/resend-invitations")
@@ -562,10 +543,10 @@ public class CouncilController {
 
     @PostMapping("/{id}/review")
     @PreAuthorize("hasAnyRole('council_member','research_staff','superadmin')")
-    public ApiResponse<ScoreSummary> review(@PathVariable String id, @RequestBody Map<String, Object> request, @AuthenticationPrincipal User user) {
+    public ApiResponse<CouncilReview> review(@PathVariable String id, @RequestBody Map<String, Object> request, @AuthenticationPrincipal User user) {
         java.math.BigDecimal score = new java.math.BigDecimal(String.valueOf(request.getOrDefault("score", "0")));
         String comments = String.valueOf(request.getOrDefault("comments", ""));
-        return ApiResponse.ok(councilService.score(id, new ScoreRequest(user == null ? null : user.getId(), score, comments)), "Gui nhan xet thanh cong");
+        return ApiResponse.ok(councilService.submitReview(id, user == null ? null : user.getId(), Map.of("score", score, "comments", comments)), "Gui nhan xet thanh cong");
     }
 
     @PostMapping(path = "/{id}/minutes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -593,22 +574,19 @@ public class CouncilController {
 
     @PostMapping("/{id}/score-decisions")
     @PreAuthorize("hasAnyRole('council_member','research_staff','superadmin')")
-    public ApiResponse<Map<String, Object>> scoreDecisions(@PathVariable String id, @RequestBody Map<String, Object> req) {
-        return ApiResponse.ok(Map.<String, Object>of("councilId", id, "decision", req.getOrDefault("decision", "accepted")), "Da ghi nhan quyet dinh diem");
+    public ApiResponse<Map<String, Object>> scoreDecisions(@PathVariable String id, @RequestBody Map<String, Object> req, @AuthenticationPrincipal User user) {
+        return ApiResponse.ok(councilService.submitScoreDecision(id, user == null ? null : user.getId(), user == null ? "superadmin" : user.getRole().name(), req), "Da ghi nhan quyet dinh diem");
     }
 
     @GetMapping("/{id}/score-summary")
     @PreAuthorize("hasAnyRole('council_member','research_staff','superadmin','project_owner')")
-    public ApiResponse<Map<String, Object>> scoreSummary(@PathVariable String id) {
-        ScoreSummary summary = councilService.scoreSummary(id);
-        int totalMembers = (int) councilService.memberCount(id);
-        return ApiResponse.ok(Map.<String, Object>of(
-            "councilId", id,
-            "averageScore", summary.averageScore(),
-            "passed", summary.passed(),
-            "totalMembers", totalMembers,
-            "submittedCount", summary.totalScores()
-        ));
+    public ApiResponse<Map<String, Object>> scoreSummary(@PathVariable String id, @AuthenticationPrincipal User user) {
+        Map<String, Object> payload = new LinkedHashMap<>(councilService.scoreSummaryDetails(id, user));
+        payload.put("councilId", id);
+        Object avgValue = payload.getOrDefault("averageScore", 0);
+        double avg = avgValue instanceof Number ? ((Number) avgValue).doubleValue() : 0.0;
+        payload.put("passed", avg >= 5.0);
+        return ApiResponse.ok(payload);
     }
 
     private Map<String, Object> parseMemberLine(String line) {

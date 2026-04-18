@@ -49,7 +49,7 @@ router.put('/:id/status',
 
 // Standardized endpoint alias for liquidation approval
 router.put('/:id/approve',
-  requireRole('accounting', 'superadmin'),
+  requireRole('research_staff', 'accounting', 'superadmin'),
   SettlementController.approve
 );
 
