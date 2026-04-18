@@ -18,8 +18,8 @@ export type ProjectOwnerOption = {
 const mapProject = (p: any): Project => ({
   ...p,
   ownerId: p.owner?.id ?? p.ownerId,
-  ownerEmail: p.owner?.email,
-  owner: typeof p.owner === 'object' && p.owner !== null ? p.owner.name ?? '' : p.owner ?? '',
+  ownerEmail: p.owner?.email ?? p.ownerEmail ?? '',
+  owner: typeof p.owner === 'object' && p.owner !== null ? p.owner.name ?? '' : p.owner ?? p.ownerName ?? '',
   ownerTitle: p.owner?.title ?? p.ownerTitle ?? '',
   budget: Number(p.budget ?? 0),
   advancedAmount: Number(p.advancedAmount ?? 0),

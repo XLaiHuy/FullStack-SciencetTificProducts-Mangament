@@ -5,17 +5,32 @@ import com.nckh.backend.modules.users.User;
 import com.nckh.backend.modules.users.UserRepository;
 import com.nckh.backend.security.JwtService;
 import java.time.Instant;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final JavaMailSender mailSender;
+
+    @Value("${app.frontend.base-url:http://localhost:5173}")
+    private String frontendBaseUrl;
+
+    @Value("${spring.mail.username:no-reply@nckh.local}")
+    private String mailFrom;
 
     @Value("${app.security.jwt.refresh-expiration-ms}")
     private long refreshExpirationMs;
@@ -24,12 +39,14 @@ public class AuthService {
         UserRepository userRepository,
         RefreshTokenRepository refreshTokenRepository,
         JwtService jwtService,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        @org.springframework.beans.factory.annotation.Autowired(required = false) JavaMailSender mailSender
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
+        this.mailSender = mailSender;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -73,18 +90,51 @@ public class AuthService {
     }
 
     public void logout(LogoutRequest request) {
-        refreshTokenRepository.deleteByToken(request.refreshToken());
+        if (request != null && request.refreshToken() != null && !request.refreshToken().isBlank()) {
+            refreshTokenRepository.deleteByToken(request.refreshToken());
+        }
+    }
+
+    public void logoutAllByUserId(String userId) {
+        if (userId != null && !userId.isBlank()) {
+            refreshTokenRepository.deleteByUserId(userId);
+        }
     }
 
     public void forgotPassword(ForgotPasswordRequest request) {
         // Keep response neutral to avoid user enumeration.
         userRepository.findByEmailAndIsDeletedFalse(request.email()).ifPresent(user -> {
-            // Placeholder for email integration in next phase.
+            try {
+                String encodedToken = URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
+                String resetLink = frontendBaseUrl + "/reset-password?token=" + encodedToken + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
+
+                if (mailSender != null) {
+                    SimpleMailMessage message = new SimpleMailMessage();
+                    message.setFrom(mailFrom);
+                    message.setTo(user.getEmail());
+                    message.setSubject("Huong dan dat lai mat khau - He thong NCKH");
+                    message.setText("Xin chao " + user.getName() + ",\n\nVui long truy cap lien ket sau de dat lai mat khau:\n" + resetLink + "\n\nNeu ban khong yeu cau, hay bo qua email nay.");
+                    mailSender.send(message);
+                } else {
+                    log.info("Mail sender is not configured. Reset link (masked) generated for {}", user.getEmail());
+                }
+            } catch (Exception ex) {
+                // Do not leak mail failures to caller; keep endpoint behavior compatible.
+                log.warn("Forgot-password email send failed for {}: {}", user.getEmail(), ex.getMessage());
+            }
         });
     }
 
     public void resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByEmailAndIsDeletedFalse(request.email())
+        String email = request.email();
+        if ((email == null || email.isBlank()) && request.token() != null && request.token().contains("@")) {
+            email = request.token();
+        }
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Thong tin dat lai mat khau khong hop le");
+        }
+
+        User user = userRepository.findByEmailAndIsDeletedFalse(email)
             .orElseThrow(() -> new IllegalArgumentException("Tai khoan khong ton tai"));
 
         if (request.newPassword().length() < 6) {

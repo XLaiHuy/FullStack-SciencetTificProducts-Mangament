@@ -5,6 +5,7 @@ import { projectService } from '../../services/api/projectService';
 import { contractService, type ParsedContractProposal } from '../../services/api/contractService';
 import type { Council, CouncilMember, Project } from '../../types';
 import { buildRoleCounts, canAssignUniqueRole, findMissingRequiredRoles, validateCouncilComposition } from '../../utils/councilRules';
+import { useDataSync } from '../../hooks/useDataSync';
 
 type ToastType = 'success' | 'error';
 type ProposalSuggestionSource = 'principal_investigator' | 'role_placeholder' | 'parsed_candidate';
@@ -49,6 +50,105 @@ const ROLE_SUGGESTION_TEMPLATE: Array<Pick<ProposalSuggestion, 'role' | 'roleDis
   { role: 'uy_vien', roleDisplay: 'UY VIEN' },
 ];
 
+const normalizeText = (value?: string) =>
+  (value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const NOISE_NAME_PREFIXES = [
+  'vai tro',
+  'email',
+  'ho va ten',
+  'hoc ham',
+  'nhap hoc ham',
+  'nhap email',
+  'don vi',
+  'chuc danh',
+  'chu nhiem',
+];
+
+const rebalanceRecognizedRoles = (rows: CouncilMember[]) => {
+  if (rows.length < 4) return rows;
+  const requiredRoles: CouncilMember['role'][] = ['chu_tich', 'phan_bien_1', 'phan_bien_2', 'thu_ky'];
+  const counts = buildRoleCounts(rows);
+  const missing = requiredRoles.filter((role) => counts[role] === 0);
+
+  if (missing.length === 0) return rows;
+
+  const rowsWithIndex = rows.map((member, index) => ({ member, index }));
+  const mutable = rows.map((member) => ({ ...member }));
+
+  // Prefer reassigning rows currently marked as 'uy_vien' and with weaker semantics.
+  const candidates = rowsWithIndex
+    .filter(({ member }) => member.role === 'uy_vien')
+    .map(({ index }) => index);
+
+  if (candidates.length === 0) return rows;
+
+  let cursor = 0;
+  for (const role of missing) {
+    if (cursor >= candidates.length) break;
+    mutable[candidates[cursor]].role = role;
+    cursor += 1;
+  }
+
+  return mutable;
+};
+
+const isNoiseMember = (member: CouncilMember) => {
+  const normalizedName = normalizeText(member.name);
+  const normalizedEmail = (member.email ?? '').trim().toLowerCase();
+
+  if (!normalizedName && !normalizedEmail) return true;
+  if (normalizedName.length > 0 && normalizedName.length < 3 && !normalizedEmail) return true;
+  return NOISE_NAME_PREFIXES.some((prefix) => normalizedName.startsWith(prefix));
+};
+
+const mergeMember = (base: CouncilMember, incoming: CouncilMember): CouncilMember => ({
+  ...base,
+  name: incoming.name || base.name,
+  title: incoming.title || base.title,
+  institution: incoming.institution || base.institution,
+  email: incoming.email || base.email,
+  phone: incoming.phone || base.phone,
+  affiliation: incoming.affiliation || base.affiliation,
+  role: incoming.role || base.role,
+});
+
+const memberKey = (member: CouncilMember) => {
+  const normalizedEmail = (member.email ?? '').trim().toLowerCase();
+  if (normalizedEmail) return `email:${normalizedEmail}`;
+  return `name:${normalizeText(member.name)}|role:${member.role}`;
+};
+
+const dedupeMembers = (rows: CouncilMember[]) => {
+  const deduped = new Map<string, CouncilMember>();
+
+  rows.forEach((rawMember) => {
+    const member: CouncilMember = {
+      ...rawMember,
+      name: (rawMember.name ?? '').trim(),
+      title: (rawMember.title ?? rawMember.hocHamHocVi ?? '').trim(),
+      email: (rawMember.email ?? '').trim().toLowerCase(),
+      institution: (rawMember.institution ?? '').trim(),
+      affiliation: (rawMember.affiliation ?? '').trim(),
+      phone: (rawMember.phone ?? '').trim(),
+      role: rawMember.role ?? 'uy_vien',
+    };
+
+    if (isNoiseMember(member)) return;
+
+    const key = memberKey(member);
+    const existing = deduped.get(key);
+    deduped.set(key, existing ? mergeMember(existing, member) : member);
+  });
+
+  return Array.from(deduped.values());
+};
+
 type ActivityEvent = {
   id: string;
   at: string;
@@ -63,6 +163,17 @@ type CredentialExportRecord = {
   count: number;
   fileName: string;
   csvBase64: string;
+};
+
+const COUNCIL_DRAFT_KEY = 'nckh:council-creation:draft';
+
+type CouncilDraftPayload = {
+  activeProjectId: string;
+  activeProjectSnapshot: { id?: string; code: string; title: string; owner?: string } | null;
+  members: CouncilMember[];
+  removedMemberIndexes: number[];
+  wizardStep: 1 | 2 | 3;
+  savedAt: string;
 };
 
 const CouncilCreationPage: React.FC = () => {
@@ -140,12 +251,56 @@ const CouncilCreationPage: React.FC = () => {
     setToast(null);
   };
 
+  const saveDraft = () => {
+    const payload: CouncilDraftPayload = {
+      activeProjectId,
+      activeProjectSnapshot,
+      members,
+      removedMemberIndexes,
+      wizardStep,
+      savedAt: new Date().toISOString(),
+    };
+
+    window.localStorage.setItem(COUNCIL_DRAFT_KEY, JSON.stringify(payload));
+    showToast('Đã lưu nháp cục bộ cho trang lập hội đồng.', 'success');
+    pushActivity('Lưu bản nháp lập hội đồng.', 'user');
+  };
+
+  const clearDraft = () => {
+    window.localStorage.removeItem(COUNCIL_DRAFT_KEY);
+  };
+
   useEffect(() => {
     Promise.all([councilService.getAll(), projectService.getAll()])
       .then(([councilRows, projectRows]) => {
         setCouncils(councilRows);
         setAllProjects(projectRows);
         setProjects(projectRows.filter((item) => item.status === 'cho_nghiem_thu'));
+
+        const rawDraft = window.localStorage.getItem(COUNCIL_DRAFT_KEY);
+        if (!rawDraft) return;
+
+        try {
+          const parsed = JSON.parse(rawDraft) as CouncilDraftPayload;
+          if (Array.isArray(parsed.members) && parsed.members.length > 0) {
+            setMembers(parsed.members);
+            setRemovedMemberIndexes(Array.isArray(parsed.removedMemberIndexes) ? parsed.removedMemberIndexes : []);
+            setWizardStep(parsed.wizardStep ?? 1);
+          }
+
+          if (parsed.activeProjectId) {
+            setActiveProjectId(parsed.activeProjectId);
+          }
+          if (parsed.activeProjectSnapshot) {
+            setActiveProjectSnapshot(parsed.activeProjectSnapshot);
+          }
+
+          if (parsed.savedAt) {
+            showToast(`Đã khôi phục nháp lưu lúc ${new Date(parsed.savedAt).toLocaleString('vi-VN')}.`, 'success');
+          }
+        } catch {
+          window.localStorage.removeItem(COUNCIL_DRAFT_KEY);
+        }
       })
       .catch((error) => {
         console.error(error);
@@ -172,6 +327,10 @@ const CouncilCreationPage: React.FC = () => {
     setAllProjects(projectRows);
     setProjects(projectRows.filter((item) => item.status === 'cho_nghiem_thu'));
   };
+
+  // Cross-tab sync: if another window creates/updates a council or project, refresh this page
+  const { broadcast: broadcastCouncil } = useDataSync('councils', () => { refreshCouncils(); });
+  const { broadcast: broadcastProject } = useDataSync('projects', () => { refreshProjects(); });
 
   const handleSelectProject = (project: Project) => {
     setActiveProjectId(project.id);
@@ -287,13 +446,23 @@ const CouncilCreationPage: React.FC = () => {
     try {
       const parsedMembers = await councilService.parseMembersFromFile(fileToParse);
       setCouncilFile(fileToParse);
-      
-      const newMembers = [...members.filter(m => m.name !== DEFAULT_MEMBER.name), ...parsedMembers];
-      const uniqueMembers = Array.from(new Map(newMembers.map(m => [(m.email || Math.random().toString()).toLowerCase(), m])).values());
-      
+      const normalizedParsedMembers = rebalanceRecognizedRoles(parsedMembers);
+
+      const currentActiveMembers = members
+        .filter((_, idx) => !removedMemberIndexes.includes(idx))
+        .filter((member) => member.name !== DEFAULT_MEMBER.name);
+
+      const uniqueMembers = dedupeMembers([...currentActiveMembers, ...normalizedParsedMembers]);
+
+      if (uniqueMembers.length === 0) {
+        showToast('Không nhận diện được thành viên hợp lệ. Vui lòng kiểm tra lại file đầu vào.', 'error');
+        return;
+      }
+
       setMembers(uniqueMembers);
+      setRemovedMemberIndexes([]);
       setWizardStep(3);
-      showToast(`Nhận diện thành công ${parsedMembers.length} thành viên!`, 'success');
+      showToast(`Nhận diện thành công ${uniqueMembers.length} thành viên hợp lệ!`, 'success');
       pushActivity(`Nhận diện danh sách hội đồng từ file ${fileToParse.name}.`, 'user');
     } catch (error: any) {
       console.error(error);
@@ -515,6 +684,8 @@ const CouncilCreationPage: React.FC = () => {
       setCouncils([created, ...councils]);
       await refreshProjects();
       await refreshCouncils();
+      broadcastCouncil({ type: 'created', id: created.id });
+      broadcastProject({ type: 'refreshed' });
       setActiveProjectId('');
       setActiveProjectSnapshot(null);
       setWizardStep(1);
@@ -522,6 +693,7 @@ const CouncilCreationPage: React.FC = () => {
       setRemovedMemberIndexes([]);
       setDecisionFile(null);
       resetCouncilState(null);
+      clearDraft();
       showToast('Hội đồng da duoc phe duyet va ban hanh thanh cong!', 'success');
       pushActivity(`Ban hành hội đồng ${created.decisionCode} cho de tai ${created.projectCode}.`, 'user');
     } catch (error) {
@@ -837,7 +1009,7 @@ const CouncilCreationPage: React.FC = () => {
         <div className="sticky bottom-3 z-30 bg-white/95 border border-gray-200 rounded-2xl p-3 shadow-card flex items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => showToast('Đã lưu bản nháp tạm thời trên màn hình.', 'success')}
+            onClick={saveDraft}
             className="px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50"
           >
             Lưu nháp

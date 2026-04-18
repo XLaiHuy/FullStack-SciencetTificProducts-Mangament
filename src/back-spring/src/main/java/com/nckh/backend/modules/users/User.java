@@ -21,6 +21,9 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true, length = 200)
     private String email;
 
+    @Column(length = 100)
+    private String title;
+
     @Column(name = "passwordHash", nullable = false, length = 255)
     private String passwordHash;
 
@@ -43,6 +46,8 @@ public class User implements UserDetails {
     public void setName(String name) { this.name = name; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }

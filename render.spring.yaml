@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: nckh-backend-spring
+    runtime: java
+    rootDir: src/back-spring
+    plan: free
+    buildCommand: ./mvnw -q clean package -DskipTests
+    startCommand: java -Dserver.port=$PORT -jar target/back-spring-0.0.1-SNAPSHOT.jar
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: JAVA_VERSION
+        value: 17
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JPA_DDL_AUTO
+        value: update
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRATION_MS
+        value: 900000
+      - key: JWT_REFRESH_EXPIRATION_MS
+        value: 604800000
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: nckh-frontend
+    runtime: static
+    rootDir: submission/source/front
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeployTrigger: commit
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false

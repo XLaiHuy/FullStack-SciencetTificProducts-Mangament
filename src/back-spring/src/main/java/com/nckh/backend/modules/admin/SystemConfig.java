@@ -28,6 +28,8 @@ public class SystemConfig {
     public String getValue() { return value; }
     public String getLabel() { return label; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public void setId(String id) { this.id = id; }
+    public void setKey(String key) { this.key = key; }
     public void setValue(String value) { this.value = value; }
     public void setLabel(String label) { this.label = label; }
 }

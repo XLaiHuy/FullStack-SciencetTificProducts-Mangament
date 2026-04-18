@@ -34,6 +34,9 @@ src/front/dist/
 src/back/node_modules/
 src/back/dist/
 src/back/uploads/
+src/back-spring/target/
+src/back-spring/*.mv.db
+src/back-spring/*.trace.db
 
 # Prisma local artifacts
 src/back/prisma/*.db
@@ -41,3 +44,6 @@ src/back/prisma/*.db-journal
 
 # Backup of previous nested git repo
 src/front/.git_front_backup/
+
+# Generated test artifacts
+src/front/test-results/

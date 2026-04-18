@@ -85,7 +85,7 @@ const SettlementTrackingPage: React.FC = () => {
     }
 
     const headers = ['Mã hồ sơ', 'Noi dung', 'De tai', 'So tien', 'Trạng thái'];
-    const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const escapeCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const body = filtered.map((s) => [
       s.code,
       s.content,

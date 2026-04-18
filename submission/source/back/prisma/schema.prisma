@@ -1,0 +1,529 @@
+// This is your Prisma schema file for MySQL
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// MODULE 1: USERS & AUTH
+// ============================================================
+
+enum UserRole {
+  research_staff
+  project_owner
+  council_member
+  accounting
+  archive_staff
+  report_viewer
+  superadmin
+}
+
+enum CouncilRole {
+  chairman
+  reviewer
+  secretary
+  member
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String      @db.VarChar(200)
+  email        String      @unique @db.VarChar(200)
+  passwordHash String      @db.VarChar(255)
+  role         UserRole
+  councilRole  CouncilRole?
+  title        String?     @db.VarChar(50)
+  department   String?     @db.VarChar(200)
+  avatar       String?     @db.Text
+  isActive     Boolean     @default(true)
+  isLocked     Boolean     @default(false)
+  mustChangePassword Boolean @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  is_deleted   Boolean     @default(false)
+
+  // Relations
+  ownedProjects     Project[]          @relation("ProjectOwner")
+  projectMemberships ProjectMember[]
+  councilMemberships CouncilMembership[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  refreshTokens     RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @db.Text
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// MODULE 2: PROJECTS (Đề tài)
+// ============================================================
+
+enum ProjectStatus {
+  dang_thuc_hien
+  tre_han
+  cho_nghiem_thu
+  da_nghiem_thu
+  da_thanh_ly
+  huy_bo
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  code           String        @unique @db.VarChar(50)  // ĐT-YYMM-nnnn
+  title          String        @db.VarChar(500)
+  ownerId        String
+  owner          User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  ownerTitle     String?       @db.VarChar(50)
+  department     String        @db.VarChar(200)
+  field          String        @db.VarChar(200)
+  startDate      DateTime
+  endDate        DateTime
+  durationMonths Int
+  budget         Decimal       @db.Decimal(15, 2)
+  advancedAmount Decimal       @default(0) @db.Decimal(15, 2)
+  status         ProjectStatus @default(dang_thuc_hien)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  is_deleted     Boolean       @default(false)
+
+  // Relations
+  members       ProjectMember[]
+  contracts     Contract[]
+  councils      Council[]
+  extensions    Extension[]
+  settlements   Settlement[]
+  reports       ProjectReport[]
+  archiveRecord ArchiveRecord?
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  is_deleted Boolean @default(false)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+// ============================================================
+// MODULE 3: CONTRACTS (Hợp đồng)
+// ============================================================
+
+enum ContractStatus {
+  cho_duyet
+  da_ky
+  hoan_thanh
+  huy
+}
+
+model Contract {
+  id         String         @id @default(cuid())
+  code       String         @unique @db.VarChar(50)  // HĐ-YYMM-nnnn
+  projectId  String
+  project    Project        @relation(fields: [projectId], references: [id])
+  budget     Decimal        @db.Decimal(15, 2)
+  signedDate DateTime?
+  status     ContractStatus @default(cho_duyet)
+  agencyName String?         @db.VarChar(300)
+  representative String?     @db.VarChar(200)
+  pdfUrl     String?        @db.Text  // Uploaded signed scan path
+  notes      String?        @db.Text
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  is_deleted Boolean        @default(false)
+
+  @@map("contracts")
+}
+
+// ============================================================
+// MODULE 4: COUNCILS (Hội đồng Nghiệm thu)
+// ============================================================
+
+enum CouncilStatus {
+  cho_danh_gia
+  dang_danh_gia
+  da_hoan_thanh
+}
+
+enum MemberRole {
+  chu_tich
+  phan_bien_1
+  phan_bien_2
+  thu_ky
+  uy_vien
+}
+
+model Council {
+  id             String        @id @default(cuid())
+  decisionCode   String        @unique @db.VarChar(50)  // QĐ/YYYY/NNN
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id])
+  createdDate    DateTime      @default(now())
+  status         CouncilStatus @default(cho_danh_gia)
+  decisionPdfUrl String?       @db.Text
+  is_deleted     Boolean       @default(false)
+
+  // Relations
+  members  CouncilMembership[]
+  reviews  CouncilReview[]
+  minutes  CouncilMinutes?
+
+  @@map("councils")
+}
+
+model CouncilMembership {
+  id          String     @id @default(cuid())
+  councilId   String
+  council     Council    @relation(fields: [councilId], references: [id], onDelete: Cascade)
+  userId      String?    // Nullable: external expert not in system
+  user        User?      @relation(fields: [userId], references: [id])
+  name        String     @db.VarChar(200)  // Stored for external experts
+  title       String?    @db.VarChar(100)
+  institution String?    @db.VarChar(300)
+  email       String     @db.VarChar(200)
+  phone       String?    @db.VarChar(20)
+  affiliation String?    @db.VarChar(300)
+  role        MemberRole
+  hasConflict Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  is_deleted  Boolean    @default(false)
+
+  // Opposite relation for CouncilReview.member
+  reviews     CouncilReview[]
+
+  @@map("council_memberships")
+}
+
+model CouncilReview {
+  id        String   @id @default(cuid())
+  councilId String
+  council   Council  @relation(fields: [councilId], references: [id])
+  memberId  String
+  member    CouncilMembership @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  score     Decimal? @db.Decimal(5, 2)
+  comments  String?  @db.Text
+  type      String   @db.VarChar(50)  // 'review', 'score'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([councilId, memberId, type])
+  @@map("council_reviews")
+}
+
+model CouncilMinutes {
+  id          String   @id @default(cuid())
+  councilId   String   @unique
+  council     Council  @relation(fields: [councilId], references: [id])
+  content     String?  @db.Text
+  fileUrl     String?  @db.Text
+  recordedBy  String   @db.VarChar(200)
+  recordedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("council_minutes")
+}
+
+// ============================================================
+// MODULE 5: SETTLEMENTS (Quyết toán)
+// ============================================================
+
+enum SettlementStatus {
+  cho_bo_sung
+  hop_le
+  da_xac_nhan
+  hoa_don_vat
+}
+
+enum BudgetItemStatus {
+  khop
+  vuot_muc
+  chua_nop
+}
+
+model Settlement {
+  id             String           @id @default(cuid())
+  code           String           @unique @db.VarChar(50)  // QT-YYYY-NNNN
+  projectId      String
+  project        Project          @relation(fields: [projectId], references: [id])
+  content        String           @db.Text
+  totalAmount    Decimal          @db.Decimal(15, 2)
+  status         SettlementStatus @default(cho_bo_sung)
+  submittedBy    String           @db.VarChar(200)
+  supplementNote String?          @db.Text               // Staff note visible to owner
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  is_deleted     Boolean          @default(false)
+
+  // Relations
+  budgetItems BudgetItem[]
+  auditLog    SettlementAudit[]
+
+  @@map("settlements")
+}
+
+model BudgetItem {
+  id           String           @id @default(cuid())
+  settlementId String
+  settlement   Settlement       @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  category     String           @db.VarChar(200)
+  planned      Decimal          @db.Decimal(15, 2)
+  spent        Decimal          @default(0) @db.Decimal(15, 2)
+  evidenceFile String?          @db.Text
+  status       BudgetItemStatus @default(chua_nop)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("budget_items")
+}
+
+model SettlementAudit {
+  id           String     @id @default(cuid())
+  settlementId String
+  settlement   Settlement @relation(fields: [settlementId], references: [id])
+  content      String     @db.Text
+  author       String     @db.VarChar(200)
+  timestamp    DateTime   @default(now())
+
+  @@map("settlement_audits")
+}
+
+// ============================================================
+// MODULE 6: EXTENSIONS (Gia hạn)
+// ============================================================
+
+enum ExtensionStatus {
+  da_phe_duyet
+  dang_cho
+  tu_choi
+}
+
+model Extension {
+  id             String          @id @default(cuid())
+  projectId      String
+  project        Project         @relation(fields: [projectId], references: [id])
+  reason         String          @db.Text
+  supportingDocument String?      @db.Text
+  proposedDate   DateTime
+  extensionDays  Int
+  extensionCount Int             @default(1)
+  boardStatus    ExtensionStatus @default(dang_cho)
+  decisionNote   String?         @db.Text
+  decidedBy      String?         @db.VarChar(200)
+  decidedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("extensions")
+}
+
+// ============================================================
+// MODULE 7: PROJECT REPORTS (Báo cáo định kỳ)
+// ============================================================
+
+enum ReportType {
+  midterm
+  final
+}
+
+model ProjectReport {
+  id          String     @id @default(cuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id])
+  type        ReportType
+  content     String?    @db.Text
+  fileUrl     String?    @db.Text
+  submittedBy String     @db.VarChar(200)
+  submittedAt DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("project_reports")
+}
+
+// ============================================================
+// MODULE 8: TEMPLATES (Biểu mẫu)
+// ============================================================
+
+model Template {
+  id            String   @id @default(cuid())
+  name          String   @db.VarChar(300)
+  version       String   @db.VarChar(30)
+  role          String   @db.VarChar(100)
+  category      String   @db.VarChar(100)
+  fileUrl       String   @db.Text
+  size          String?  @db.VarChar(30)
+  effectiveDate DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  is_default    Boolean  @default(false)
+  is_deleted    Boolean  @default(false)
+
+  @@map("templates")
+}
+
+model FormType {
+  id          String         @id @default(cuid())
+  code        String         @unique @db.VarChar(100)
+  name        String         @db.VarChar(255)
+  description String?        @db.Text
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  templates   FormTemplate[]
+
+  @@map("form_types")
+}
+
+model FormTemplate {
+  id          String   @id @default(cuid())
+  formTypeId  String
+  formType    FormType @relation(fields: [formTypeId], references: [id])
+  name        String   @db.VarChar(300)
+  version     String   @db.VarChar(30)
+  targetRole  String   @db.VarChar(100)
+  fileUrl     String   @db.Text
+  size        String?  @db.VarChar(30)
+  isDefault   Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([formTypeId, targetRole, isDefault])
+  @@map("form_templates")
+}
+
+// ============================================================
+// MODULE 9: CATEGORIES (Danh mục)
+// ============================================================
+
+model Category {
+  id          String   @id @default(cuid())
+  type        String   @db.VarChar(50)  // 'field', 'department', 'role_category', etc.
+  value       String   @db.VarChar(200)
+  label       String   @db.VarChar(200)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, value])
+  @@map("categories")
+}
+
+// ============================================================
+// MODULE 10: ARCHIVE (Lưu trữ)
+// ============================================================
+
+model ArchiveRecord {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  project     Project  @relation(fields: [projectId], references: [id])
+  archivedAt  DateTime @default(now())
+  archivedBy  String   @db.VarChar(200)
+  fileUrlsJson String  @db.Text  // JSON array of file URLs (MySQL no native array)
+  notes       String?  @db.Text
+
+  @@map("archive_records")
+}
+
+// ============================================================
+// MODULE 11: AUDIT LOGS
+// ============================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  userName  String   @db.VarChar(200)  // Denormalized for display
+  action    String   @db.VarChar(500)
+  module    String   @db.VarChar(100)
+  details   String?  @db.Text
+  ipAddress String?  @db.VarChar(45)
+  timestamp DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+// ============================================================
+// MODULE 12: NOTIFICATIONS
+// ============================================================
+
+enum NotificationType {
+  warning
+  info
+  request
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  message   String           @db.Text
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+// ============================================================
+// MODULE 13: SYSTEM CONFIG
+// ============================================================
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  label     String?  @db.VarChar(200)
+  updatedAt DateTime @updatedAt
+
+  @@map("system_configs")
+}
+
+// ============================================================
+// MODULE 14: EMAIL LOGS
+// ============================================================
+
+model EmailLog {
+  id           String   @id @default(cuid())
+  toAddress    String   @db.VarChar(1000)
+  ccAddress    String?  @db.VarChar(1000)
+  subject      String   @db.VarChar(500)
+  bodyPreview  String?  @db.Text
+  provider     String   @default("smtp") @db.VarChar(50)
+  isMock       Boolean  @default(true)
+  status       String   @db.VarChar(30)
+  attempts     Int      @default(0)
+  messageId    String?  @db.VarChar(255)
+  errorMessage String?  @db.Text
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("email_logs")
+}

@@ -10,11 +10,11 @@ public class AuthDtos {
 
     public record RefreshRequest(@NotBlank String refreshToken) {}
 
-    public record LogoutRequest(@NotBlank String refreshToken) {}
+    public record LogoutRequest(String refreshToken) {}
 
     public record ForgotPasswordRequest(@Email @NotBlank String email) {}
 
-    public record ResetPasswordRequest(@Email @NotBlank String email, @NotBlank String newPassword) {}
+    public record ResetPasswordRequest(String email, String token, @NotBlank String newPassword) {}
 
     public record ChangePasswordRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {}
 

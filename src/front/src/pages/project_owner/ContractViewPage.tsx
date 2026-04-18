@@ -77,7 +77,7 @@ const ContractViewPage: React.FC = () => {
       showToast('Đã tải hợp đồng PDF từ hệ thống.');
     } catch (err) {
       console.error(err);
-      showToast(typeof err === 'string' ? err : 'Không thể tải file hợp đồng.');
+      showToast(err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Không thể tải file hợp đồng.'), 'error');
     } finally {
       setDownloading(false);
     }

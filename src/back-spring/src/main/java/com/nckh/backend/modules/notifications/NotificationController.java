@@ -30,6 +30,12 @@ public class NotificationController {
         return ApiResponse.ok(data);
     }
 
+    @GetMapping("/unread-count")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<java.util.Map<String, Long>> unreadCount(@AuthenticationPrincipal User user) {
+        return ApiResponse.ok(java.util.Map.of("unread", notificationRepository.countByUserIdAndIsReadFalse(user.getId())));
+    }
+
     @PutMapping("/{id}/read")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> markRead(@PathVariable String id, @AuthenticationPrincipal User user) {
@@ -41,6 +47,15 @@ public class NotificationController {
         n.setIsRead(true);
         notificationRepository.save(n);
         return ApiResponse.ok(null, "Da danh dau da doc");
+    }
+
+    @PutMapping("/read-all")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> markAllRead(@AuthenticationPrincipal User user) {
+        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalse(user.getId());
+        unread.forEach(n -> n.setIsRead(true));
+        notificationRepository.saveAll(unread);
+        return ApiResponse.ok(null, "Da danh dau tat ca thong bao la da doc");
     }
 
     @PostMapping

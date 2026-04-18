@@ -2,6 +2,7 @@ package com.nckh.backend.modules.accounting;
 
 import com.nckh.backend.common.ApiResponse;
 import com.nckh.backend.modules.settlements.Settlement;
+import com.nckh.backend.modules.settlements.SettlementDtos.SettlementItem;
 import com.nckh.backend.modules.settlements.SettlementDtos.UpdateSettlementStatusRequest;
 import com.nckh.backend.modules.settlements.SettlementRepository;
 import com.nckh.backend.modules.settlements.SettlementService;
@@ -31,7 +32,14 @@ public class AccountingController {
         BigDecimal total = list.stream().map(Settlement::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         long pending = list.stream().filter(s -> s.getStatus() == SettlementStatus.cho_bo_sung).count();
         long approved = list.stream().filter(s -> s.getStatus() == SettlementStatus.da_xac_nhan).count();
-        return ApiResponse.ok(Map.of("totalSettlements", list.size(), "pending", pending, "approved", approved, "totalAmount", total));
+        return ApiResponse.ok(Map.of(
+            "totalSettlements", list.size(),
+            "pendingSettlements", pending,
+            "confirmedSettlements", approved,
+            "pending", pending,
+            "approved", approved,
+            "totalAmount", total
+        ));
     }
 
     @GetMapping("/documents")
@@ -51,16 +59,16 @@ public class AccountingController {
 
     @PutMapping("/documents/{id}/verify")
     @PreAuthorize("hasAnyRole('accounting','superadmin')")
-    public ApiResponse<Void> verify(@PathVariable String id, @RequestBody VerifyRequest request) {
-        settlementService.updateStatus(id, new UpdateSettlementStatusRequest(request.status(), request.note()));
-        return ApiResponse.ok(null, "Da cap nhat trang thai chung tu");
+    public ApiResponse<SettlementItem> verify(@PathVariable String id, @RequestBody VerifyRequest request) {
+        SettlementItem item = settlementService.updateStatus(id, new UpdateSettlementStatusRequest(request.status(), request.note()));
+        return ApiResponse.ok(item, "Da cap nhat trang thai chung tu");
     }
 
     @PostMapping("/liquidation/{id}/confirm")
     @PreAuthorize("hasAnyRole('accounting','superadmin')")
-    public ApiResponse<Void> liquidation(@PathVariable String id) {
-        settlementService.approve(id);
-        return ApiResponse.ok(null, "Da xac nhan thanh ly");
+    public ApiResponse<SettlementItem> liquidation(@PathVariable String id) {
+        SettlementItem item = settlementService.approve(id);
+        return ApiResponse.ok(item, "Da xac nhan thanh ly");
     }
 
     public record VerifyRequest(SettlementStatus status, String note) {}

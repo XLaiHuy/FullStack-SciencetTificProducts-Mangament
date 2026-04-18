@@ -1,0 +1,19 @@
+{
+    "success":  true,
+    "data":  {
+                 "accessToken":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbW5xejN6djkwMDAwaGtxODdiazFoanU1IiwiZW1haWwiOiJzdGFmZkBuY2toLmVkdS52biIsInJvbGUiOiJyZXNlYXJjaF9zdGFmZiIsIm5hbWUiOiJOZ3V54buFbiBUaOG7iyBBIiwiaWF0IjoxNzc1NzEwNTgwLCJleHAiOjE3NzYzMTUzODB9.X8EVQoJWCGnKCOaoMytMTNxxLs9Y3hzTvAkUKr1g8Ks",
+                 "refreshToken":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbW5xejN6djkwMDAwaGtxODdiazFoanU1IiwiZW1haWwiOiJzdGFmZkBuY2toLmVkdS52biIsInJvbGUiOiJyZXNlYXJjaF9zdGFmZiIsIm5hbWUiOiJOZ3V54buFbiBUaOG7iyBBIiwiaWF0IjoxNzc1NzEwNTgwLCJleHAiOjE3NzgzMDI1ODB9.5e0aEwGLIqF9cjGS9OTjw02aikLDgBdUsdKuT5gcXcM",
+                 "user":  {
+                              "id":  "cmnqz3zv90000hkq87bk1hju5",
+                              "name":  "Nguy?n Th? A",
+                              "email":  "staff@nckh.edu.vn",
+                              "role":  "research_staff",
+                              "councilRole":  null,
+                              "title":  "ThS.",
+                              "department":  "Phòng NCKH",
+                              "avatar":  null,
+                              "mustChangePassword":  false
+                          }
+             },
+    "message":  "Dang nhap thanh cong."
+}

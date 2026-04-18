@@ -1,0 +1,1191 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+\setotherlanguage{english}
+\setmainfont{Times New Roman}
+
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{caption}
+\usepackage{verbatim}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.multipart,fit,calc,automata}
+
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0.2em}
+\setlength{\headheight}{16pt}
+\setlength{\emergencystretch}{2em}
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\titleformat{\chapter}[hang]
+{\bfseries\fontsize{16}{18}\selectfont}
+{CHƯƠNG \thechapter.}{0.5em}{\MakeUppercase}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Báo cáo đồ án CNTT}
+\fancyhead[R]{Hệ thống quản lý NCKH}
+\fancyfoot[C]{\thepage}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=black
+}
+
+\begin{document}
+
+% ========================= COVER PAGE =========================
+\begin{titlepage}
+\begin{center}
+\textbf{\Large TRƯỜNG ĐẠI HỌC MỞ THÀNH PHỐ HỒ CHÍ MINH}\\[0.3cm]
+\textbf{\large KHOA ĐÀO TẠO ĐẶC BIỆT}\\[0.6cm]
+\includegraphics[width=3.2cm]{src/front/public/LoGoOu.png}\\[0.9cm]
+
+\textbf{\Large BÁO CÁO ĐỒ ÁN CÔNG NGHỆ THÔNG TIN}\\[0.4cm]
+\textbf{\large PHÁT TRIỂN HỆ THỐNG WEB FULLSTACK}\\[1.5cm]
+
+\textbf{\LARGE THỰC HIỆN ĐỀ TÀI -- NGHIỆM THU --}\\[0.2cm]
+\textbf{\LARGE LƯU TRỮ SẢN PHẨM NGHIÊN CỨU KHOA HỌC}\\[1.8cm]
+
+\begin{flushleft}
+\textbf{Giảng viên hướng dẫn:} TS. Huỳnh Hữu Nghĩa\\
+\textbf{Đơn vị:} Khoa Đào tạo Đặc biệt\\
+\textbf{Nền tảng triển khai:} Render (Frontend/Backend), Aiven for MySQL
+\end{flushleft}
+
+\vfill
+\textbf{Thành phố Hồ Chí Minh, tháng 04 năm 2026}
+\end{center}
+\end{titlepage}
+
+% ========================= ACKNOWLEDGEMENT =========================
+\chapter*{LỜI CẢM ƠN}
+\addcontentsline{toc}{chapter}{LỜI CẢM ƠN}
+Nhóm thực hiện xin trân trọng cảm ơn TS. Huỳnh Hữu Nghĩa đã định hướng phương pháp luận, góp ý kiến trúc hệ thống và liên tục phản biện để đề tài đạt được mức độ hoàn thiện về cả mặt học thuật và khả năng triển khai thực tế.
+
+Nhóm cũng xin cảm ơn các thầy cô thuộc Khoa Đào tạo Đặc biệt, Trường Đại học Mở Thành phố Hồ Chí Minh, đã trang bị nền tảng kiến thức về phân tích yêu cầu, thiết kế hệ thống, cơ sở dữ liệu, phát triển phần mềm và kiểm thử chất lượng.
+
+Trong quá trình thực hiện, nhóm tập trung giải quyết bài toán xuyên suốt vòng đời đề tài nghiên cứu khoa học: từ khởi tạo đề tài, quản lý hợp đồng, đánh giá nghiệm thu, quyết toán đến lưu trữ và báo cáo quản trị. Dù đã nỗ lực hoàn thiện, báo cáo vẫn còn một số giới hạn kỹ thuật do thời gian triển khai, nhóm rất mong nhận được thêm ý kiến đóng góp để tiếp tục nâng cấp hệ thống.
+
+% ========================= TOC/LOT/LOF =========================
+\tableofcontents
+\listoftables
+\listoffigures
+\newpage
+
+\chapter*{DANH MỤC TỪ VIẾT TẮT}
+\addcontentsline{toc}{chapter}{DANH MỤC TỪ VIẾT TẮT}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|L{8.8cm}|}
+\hline
+\textbf{STT} & \textbf{Từ viết tắt} & \textbf{Diễn giải} \\ \hline
+1 & NCKH & Nghiên cứu khoa học \\ \hline
+2 & RBAC & Role-Based Access Control (kiểm soát truy cập theo vai trò) \\ \hline
+3 & JWT & JSON Web Token (xác thực phiên người dùng) \\ \hline
+4 & API & Application Programming Interface \\ \hline
+5 & ORM & Object Relational Mapping \\ \hline
+6 & ERD & Entity Relationship Diagram \\ \hline
+7 & FR & Functional Requirement (yêu cầu chức năng) \\ \hline
+8 & NFR & Non-Functional Requirement (yêu cầu phi chức năng) \\ \hline
+9 & CI/CD & Continuous Integration / Continuous Deployment \\ \hline
+10 & UAT & User Acceptance Testing \\ \hline
+11 & SMTP & Simple Mail Transfer Protocol \\ \hline
+12 & COI & Conflict of Interest (xung đột lợi ích) \\ \hline
+\end{tabular}
+\caption{Danh mục từ viết tắt sử dụng trong báo cáo}
+\end{table}
+
+% ========================= CHAPTER 1 =========================
+\chapter{Tổng quan}
+
+\section{Bối cảnh và đặt vấn đề}
+Trong bối cảnh quản trị đề tài nghiên cứu khoa học tại cơ sở giáo dục đại học, dữ liệu nghiệp vụ thường phân tán qua biểu mẫu thủ công, email rời rạc, và các tệp văn bản không chuẩn hóa. Hệ quả là quá trình theo dõi tiến độ đề tài, tổ chức nghiệm thu, kiểm tra quyết toán và lưu trữ hồ sơ thường gặp các vấn đề: khó truy vết, chậm xác nhận trạng thái, khó tổng hợp báo cáo điều hành và tiềm ẩn rủi ro sai lệch dữ liệu.
+
+Đề tài này được xây dựng nhằm số hóa toàn bộ chuỗi nghiệp vụ từ ``thực hiện đề tài'' đến ``nghiệm thu'' và ``lưu trữ sản phẩm'', đồng thời duy trì năng lực kiểm soát truy cập theo vai trò, nhật ký thao tác và cơ chế chuyển trạng thái có ràng buộc.
+
+\section{Mục tiêu đề tài}
+\subsection{Mục tiêu tổng quát}
+Xây dựng hệ thống web fullstack hỗ trợ quản lý vòng đời đề tài NCKH theo mô hình dữ liệu tập trung, phân quyền rõ ràng, có thể vận hành trên hạ tầng đám mây, đáp ứng cả nhu cầu khai thác tác nghiệp và báo cáo quản trị.
+
+\subsection{Mục tiêu cụ thể}
+\begin{itemize}[leftmargin=1.2cm]
+\item Chuẩn hóa tiến trình xử lý đề tài theo state machine, hạn chế chuyển trạng thái sai nghiệp vụ.
+\item Quản lý vai trò theo RBAC, kết hợp ownership để ngăn truy cập chéo dữ liệu.
+\item Cung cấp đầy đủ phân hệ nghiệp vụ: đề tài, hợp đồng, hội đồng, gia hạn, quyết toán, lưu trữ, báo cáo.
+\item Triển khai hệ thống thực tế trên Render và Aiven for MySQL.
+\item Thiết kế bộ kiểm thử theo vai trò và theo kịch bản nghiệp vụ xuyên suốt.
+\end{itemize}
+
+\section{Phạm vi và giới hạn}
+\subsection{Trong phạm vi}
+\begin{itemize}[leftmargin=1.2cm]
+\item Quản lý đề tài, báo cáo giữa kỳ/cuối kỳ, sản phẩm nghiên cứu.
+\item Quản lý hợp đồng nghiên cứu và chữ ký nghiệp vụ.
+\item Thành lập hội đồng, chấm điểm, biên bản nghiệm thu.
+\item Quản lý quyết toán, yêu cầu bổ sung, phê duyệt thanh lý.
+\item Lưu trữ hồ sơ hoàn tất và báo cáo thống kê tổng hợp.
+\end{itemize}
+
+\subsection{Ngoài phạm vi}
+\begin{itemize}[leftmargin=1.2cm]
+\item Tích hợp chữ ký số pháp lý với nhà cung cấp chứng thư số bên ngoài.
+\item Hệ thống lưu trữ đối tượng bền vững (S3/R2) cho môi trường production quy mô lớn.
+\item Đồng bộ dữ liệu trực tiếp với ERP kế toán cấp trường.
+\end{itemize}
+
+\section{Thông tin tổng quan dự án}
+\begin{table}[H]
+\centering
+\begin{tabular}{|L{3.2cm}|L{5.0cm}|L{5.2cm}|}
+\hline
+\textbf{Hạng mục} & \textbf{Thông tin} & \textbf{Ghi chú} \\ \hline
+Tên đề tài & Thực hiện đề tài -- nghiệm thu -- lưu trữ sản phẩm nghiên cứu khoa học & Đề tài triển khai hệ thống quản lý NCKH theo vòng đời \\ \hline
+Mô tả ngắn & Nền tảng số hóa luồng đề tài từ tạo mới, ký hợp đồng, nghiệm thu, quyết toán đến lưu trữ và báo cáo & Tập trung truy vết nghiệp vụ, phân quyền và kiểm thử \\ \hline
+Công nghệ sử dụng & Frontend: React + TypeScript + Vite; Backend: Node.js + Express + Prisma; DB: MySQL & Có xử lý tài liệu PDF/DOCX, email và dashboard \\ \hline
+Đối tượng người dùng & 7 vai trò RBAC hệ thống, mở rộng 4 vai trò nghiệp vụ trong hội đồng & Vừa đáp ứng kỹ thuật hệ thống, vừa đáp ứng nghiệp vụ thực tế \\ \hline
+Nền tảng triển khai & Render (frontend/backend) + Aiven for MySQL & Triển khai cloud, tự động build/deploy \\ \hline
+\end{tabular}
+\caption{Thông tin tổng quan đề tài}
+\end{table}
+
+\section{Bảng module chức năng}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|C{1.2cm}|L{3.3cm}|L{5.4cm}|L{4.0cm}|}
+\hline
+\textbf{Mã} & \textbf{Module} & \textbf{Chức năng chính} & \textbf{Đầu ra nghiệp vụ} \\ \hline
+M01 & Xác thực và tài khoản & Đăng nhập, đổi mật khẩu, quên mật khẩu, kiểm tra phiên JWT, khóa tài khoản & Tài khoản hoạt động đúng quyền \\ \hline
+M02 & Quản lý đề tài & Tạo/sửa đề tài, chuyển trạng thái, nộp báo cáo giữa kỳ/cuối kỳ, nộp sản phẩm & Dữ liệu đề tài theo trạng thái chuẩn \\ \hline
+M03 & Quản lý hợp đồng & Phân tích đề xuất từ PDF/DOCX, tạo hợp đồng, ký hợp đồng, cập nhật tệp PDF scan & Hợp đồng hợp lệ, truy vết chữ ký \\ \hline
+M04 & Quản lý hội đồng & Tạo hội đồng, thêm/xóa thành viên, kiểm tra COI, chấm điểm, biên bản & Kết quả nghiệm thu, điểm số, biên bản \\ \hline
+M05 & Quản lý gia hạn & Tạo yêu cầu gia hạn, phê duyệt/từ chối, cập nhật thời hạn đề tài & Lịch sử quyết định gia hạn \\ \hline
+M06 & Quản lý quyết toán & Nộp hồ sơ quyết toán, yêu cầu bổ sung, xác nhận thanh lý, xuất báo cáo & Trạng thái quyết toán và thanh lý \\ \hline
+M07 & Biểu mẫu và điền mẫu & Upload template, điền dữ liệu tự động theo đề tài, tải bản nháp & Tài liệu chuẩn hóa theo mẫu \\ \hline
+M08 & Kho lưu trữ & Lưu hồ sơ hoàn tất, tải gói lưu trữ theo quyền, tra cứu lịch sử & Archive record theo đề tài \\ \hline
+M09 & Thông báo và email & Tạo thông báo trong hệ thống, gửi thư mời hội đồng, ghi log gửi mail & Tăng độ bám sát luồng nghiệp vụ \\ \hline
+M10 & Báo cáo thống kê & Dashboard, thống kê theo lĩnh vực/trạng thái, xuất dữ liệu tổng hợp & Báo cáo phục vụ điều hành \\ \hline
+M11 & Quản trị hệ thống & Quản lý người dùng, danh mục, cấu hình, nhật ký audit & Kiểm soát và truy vết hệ thống \\ \hline
+M12 & Kiểm thử và smoke test & API smoke, UI role smoke, workflow smoke end-to-end & Chứng cứ chất lượng trước triển khai \\ \hline
+\end{tabular}
+\caption{Bảng module chức năng chính của hệ thống}
+\end{table}
+
+\section{Bảng user roles}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|C{0.9cm}|L{3.2cm}|L{3.0cm}|L{6.7cm}|}
+\hline
+\textbf{STT} & \textbf{Vai trò nghiệp vụ} & \textbf{Ánh xạ RBAC} & \textbf{Nhiệm vụ chính} \\ \hline
+1 & Cán bộ nghiên cứu khoa học & \texttt{research\_staff} & Tạo đề tài, quản lý hợp đồng, thành lập hội đồng, theo dõi quyết toán, xử lý gia hạn \\ \hline
+2 & Chủ nhiệm đề tài & \texttt{project\_owner} & Thực hiện đề tài, nộp báo cáo giữa kỳ/cuối kỳ, ký hợp đồng, nộp hồ sơ quyết toán \\ \hline
+3 & Chủ tịch hội đồng & \texttt{council\_member} + \texttt{chairman} & Điều phối chấm điểm, kết luận phiên nghiệm thu, xác nhận kết quả hội đồng \\ \hline
+4 & Phản biện hội đồng & \texttt{council\_member} + \texttt{reviewer} & Nhận xét, chấm điểm, đề xuất chỉnh sửa/bổ sung tài liệu \\ \hline
+5 & Thư ký hội đồng & \texttt{council\_member} + \texttt{secretary} & Tổng hợp điểm, lập biên bản nghiệm thu, ghi nhận quyết nghị cuối cùng \\ \hline
+6 & Ủy viên hội đồng & \texttt{council\_member} + \texttt{member} & Tham gia đánh giá, cho ý kiến theo tiêu chí chuyên môn \\ \hline
+7 & Kế toán & \texttt{accounting} & Kiểm tra hồ sơ quyết toán, xác nhận trạng thái tài chính, xác nhận thanh lý \\ \hline
+8 & Cán bộ lưu trữ & \texttt{archive\_staff} & Nhận bàn giao hồ sơ hoàn tất, lưu trữ và quản lý kho hồ sơ số \\ \hline
+9 & Cán bộ báo cáo & \texttt{report\_viewer} & Truy cập dashboard thống kê, xuất dữ liệu tổng hợp phục vụ quản trị \\ \hline
+10 & Quản trị hệ thống & \texttt{superadmin} & Quản trị tài khoản, danh mục, cấu hình SMTP/system, truy vết audit log \\ \hline
+\end{tabular}
+\caption{Bảng user roles và ánh xạ quyền hệ thống}
+\end{table}
+
+\section{Kết chương}
+Chương 1 đã xác lập bài toán, mục tiêu, phạm vi và cấu trúc đối tượng sử dụng hệ thống. Từ nền tảng này, chương tiếp theo trình bày cơ sở lý thuyết và công nghệ được áp dụng để hiện thực hóa mô hình xử lý nghiệp vụ theo vòng đời đề tài.
+
+% ========================= CHAPTER 2 =========================
+\chapter{Cơ sở lý thuyết và công nghệ}
+
+\section{Cơ sở lý thuyết áp dụng}
+\subsection{Kiểm soát truy cập theo vai trò kết hợp phạm vi dữ liệu}
+Hệ thống áp dụng mô hình RBAC ở tầng route và kết hợp kiểm tra ownership ở tầng service. Cách tiếp cận này bảo đảm hai mục tiêu đồng thời: (1) chỉ đúng vai trò mới truy cập được đúng chức năng; (2) cùng một vai trò nhưng chỉ thấy dữ liệu thuộc phạm vi nghiệp vụ của mình.
+
+\subsection{Quản lý nghiệp vụ theo state machine}
+Các thực thể chính (đề tài, hợp đồng, hội đồng, quyết toán, gia hạn) đều có vòng đời trạng thái tường minh. Khi người dùng thực hiện thao tác, backend kiểm tra tập chuyển trạng thái hợp lệ trước khi ghi dữ liệu. Cơ chế này giảm lỗi thao tác thủ công và tạo nền tảng truy vết audit.
+
+\subsection{Xử lý tài liệu số trong nghiệp vụ nghiên cứu}
+Hệ thống hỗ trợ nhiều kỹ thuật xử lý tài liệu:
+\begin{itemize}[leftmargin=1.2cm]
+\item Parse nội dung đề xuất từ PDF/DOCX/TXT để gợi ý thông tin hợp đồng.
+\item Upload tệp báo cáo, biên bản, chứng từ quyết toán theo multipart/form-data.
+\item Sinh bản DOCX điền sẵn từ template biểu mẫu.
+\item Tạo/xuất dữ liệu Excel phục vụ kiểm tra quyết toán và báo cáo.
+\end{itemize}
+
+\subsection{Đảm bảo khả năng vận hành thực tế trên cloud}
+Triển khai trên Render và Aiven giúp chuẩn hóa build/deploy, giảm phụ thuộc hạ tầng cục bộ, phù hợp mô hình dịch vụ web học thuật có nhiều vai trò truy cập đồng thời.
+
+\section{Công nghệ sử dụng}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|L{2.8cm}|L{4.0cm}|L{6.4cm}|}
+\hline
+\textbf{Nhóm công nghệ} & \textbf{Công cụ/Thư viện} & \textbf{Mục đích sử dụng} \\ \hline
+Frontend & React 18, TypeScript, Vite, Tailwind CSS & Xây dựng SPA theo vai trò, lazy loading theo route, giao diện quản trị nghiệp vụ \\ \hline
+Backend & Node.js, Express, TypeScript, Zod & Cung cấp REST API, kiểm soát đầu vào, tổ chức module theo domain \\ \hline
+Dữ liệu & Prisma ORM, MySQL (Aiven) & Quản lý schema, migration, quan hệ dữ liệu và truy vấn an toàn kiểu \\ \hline
+Bảo mật & JWT, bcryptjs, middleware RBAC & Xác thực phiên, mã hóa mật khẩu, kiểm soát quyền truy cập \\ \hline
+Tài liệu số & multer, pdf-lib, pdf-parse, mammoth, docxtemplater, pizzip & Upload/parse/sinh tài liệu trong các luồng hợp đồng, hội đồng, quyết toán \\ \hline
+Thông báo & nodemailer, email log, notification module & Gửi thư mời hội đồng, ghi nhận trạng thái gửi, cảnh báo nghiệp vụ \\ \hline
+Báo cáo & Chart.js, react-chartjs-2, ExcelJS & Dashboard trực quan và xuất dữ liệu phục vụ phân tích \\ \hline
+Kiểm thử & Playwright, smoke scripts PowerShell/Node.js & Kiểm thử vai trò người dùng, kiểm thử API và luồng end-to-end \\ \hline
+Triển khai & Render blueprint, Aiven for MySQL & Tự động build/deploy và vận hành cơ sở dữ liệu online \\ \hline
+\end{tabular}
+\caption{Bảng công nghệ sử dụng trong hệ thống}
+\end{table}
+
+\section{Bảng kỹ thuật xử lý theo function và role}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|L{3.0cm}|L{2.6cm}|L{4.0cm}|L{4.4cm}|}
+\hline
+\textbf{Vai trò} & \textbf{Function} & \textbf{Technique xử lý} & \textbf{Kết quả nghiệp vụ} \\ \hline
+\texttt{research\_staff} & Parse đề xuất hợp đồng & \texttt{mammoth} + \texttt{pdf-parse} + chuẩn hóa chuỗi và confidence score & Trích xuất mã đề tài, chủ nhiệm, ngân sách để tạo hợp đồng nhanh \\ \hline
+\texttt{research\_staff} & Tạo hội đồng & Kiểm tra trạng thái đề tài + kiểm tra COI + sinh mã quyết định & Chỉ đề tài đủ điều kiện mới được tạo hội đồng \\ \hline
+\texttt{project\_owner} & Nộp báo cáo cuối kỳ & Upload multipart qua \texttt{multer} + ghi \texttt{project\_reports} & Tự động chuyển đề tài sang \texttt{cho\_nghiem\_thu} \\ \hline
+\texttt{project\_owner} & Ký hợp đồng & Kiểm tra ownership + cập nhật trạng thái hợp đồng theo guard & Tránh ký nhầm hợp đồng không thuộc đề tài của mình \\ \hline
+\texttt{chairman} & Kết luận nghiệm thu & Upsert điểm số theo unique key hội đồng-thành viên-loại đánh giá & Điểm chấm không bị trùng bản ghi \\ \hline
+\texttt{reviewer} & Phản biện & Lưu nhận xét có truy vết tác giả và thời gian & Lịch sử phản biện minh bạch \\ \hline
+\texttt{secretary} & Ghi biên bản & Upload biên bản PDF + cập nhật bản ghi \texttt{council\_minutes} & Biên bản được lưu, tải lại được theo quyền \\ \hline
+\texttt{accounting} & Cập nhật quyết toán & Transition guard cho \texttt{settlement status} + ghi \texttt{settlement\_audit} & Tránh nhảy trạng thái sai quy trình \\ \hline
+\texttt{accounting} & Phê duyệt thanh lý & Transaction cập nhật quyết toán + đề tài + tạo archive record & Đồng bộ trạng thái tài chính và lưu trữ \\ \hline
+\texttt{archive\_staff} & Lưu trữ hồ sơ & Kiểm tra trạng thái đề tài hoàn tất + kiểm tra ownership phạm vi tải xuống & Không lộ dữ liệu lưu trữ chéo đề tài \\ \hline
+\texttt{report\_viewer} & Xem dashboard & Aggregate/groupBy theo trạng thái và lĩnh vực & Có số liệu điều hành nhất quán liên module \\ \hline
+\texttt{superadmin} & Quản trị hệ thống & Quản lý users/categories/config + audit log & Truy vết thay đổi và vận hành hệ thống ổn định \\ \hline
+\end{tabular}
+\caption{Bảng kỹ thuật xử lý theo từng function cho từng role}
+\end{table}
+
+\section{Nền tảng triển khai Render và Aiven}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.6cm, >=Stealth, font=\small, every node/.style={align=center}]
+\node[draw, rounded corners, fill=blue!10, minimum width=3.4cm, minimum height=1.2cm] (client) {Người dùng Web};
+\node[draw, rounded corners, fill=green!10, minimum width=4.0cm, minimum height=1.2cm, below left=of client, xshift=0.6cm] (front) {Render Static Service\\Frontend React + Vite};
+\node[draw, rounded corners, fill=orange!12, minimum width=4.0cm, minimum height=1.2cm, below right=of client, xshift=-0.6cm] (back) {Render Web Service\\Backend Node.js + Express};
+\node[draw, rounded corners, fill=purple!12, minimum width=3.8cm, minimum height=1.2cm, below=2.0cm of back] (db) {Aiven for MySQL\\Prisma ORM};
+\node[draw, rounded corners, fill=gray!15, minimum width=3.8cm, minimum height=1.2cm, below=2.0cm of front] (storage) {Uploads cục bộ\\(ephemeral trên Render Free)};
+
+\draw[->, thick] (client) -- node[left] {HTTPS} (front);
+\draw[->, thick] (front) -- node[above] {REST API + JWT} (back);
+\draw[->, thick] (back) -- node[right] {SQL qua Prisma} (db);
+\draw[->, thick] (back) -- node[left] {Multipart File} (storage);
+\end{tikzpicture}
+\caption{Kiến trúc triển khai thực tế trên Render và Aiven}
+\end{figure}
+
+\section{Kết chương}
+Cơ sở lý thuyết và công nghệ đã làm rõ nền tảng để hiện thực hệ thống: RBAC kết hợp ownership, quản lý trạng thái nghiệp vụ, xử lý tài liệu số và triển khai cloud. Chương 3 tiếp tục phân tích yêu cầu theo hướng đo lường được bằng tiêu chí chức năng và phi chức năng.
+
+% ========================= CHAPTER 3 =========================
+\chapter{Phân tích yêu cầu}
+
+\section{Phân tích bài toán nghiệp vụ}
+Hệ thống cần đồng thời xử lý hai lớp yêu cầu:
+\begin{itemize}[leftmargin=1.2cm]
+\item Lớp tác nghiệp: từng vai trò thực hiện đúng nhiệm vụ đúng thời điểm theo quy trình thực tế.
+\item Lớp kiểm soát: mọi thay đổi trạng thái phải có điều kiện, có audit và có khả năng kiểm chứng qua test case.
+\end{itemize}
+
+Từ dữ liệu nghiệp vụ đã chuẩn hóa, quy trình tổng thể gồm 7 giai đoạn chính: đăng ký đề tài, xử lý hợp đồng, thực hiện nghiên cứu, hội đồng nghiệm thu, quyết toán, thanh lý và lưu trữ.
+
+\section{Logic xử lý nghiệp vụ theo vòng đời đề tài}
+\subsection{Giai đoạn 1: Khởi tạo đề tài và hợp đồng}
+Luồng nghiệp vụ bắt đầu từ cán bộ NCKH khi tạo đề tài mới, gán chủ nhiệm, ngân sách, mốc thời gian và các thuộc tính quản trị học thuật. Ở bước này, logic kỹ thuật không chỉ dừng ở thao tác CRUD, mà còn phải bảo đảm: mã đề tài duy nhất, dữ liệu bắt buộc đầy đủ, và trạng thái khởi tạo nằm trong tập trạng thái hợp lệ. Sau khi đề tài được tạo, hệ thống hỗ trợ parse đề xuất từ tài liệu PDF/DOCX/TXT để giảm nhập tay khi tạo hợp đồng.
+
+Về hiện thực kỹ thuật, request đi qua lớp xác thực JWT, lớp kiểm tra quyền, lớp validate dữ liệu đầu vào, sau đó mới đến service xử lý nghiệp vụ và persistence bằng Prisma. Cách triển khai này giúp tách biệt rõ trách nhiệm và giảm nguy cơ chèn logic sai ở controller.
+
+\subsection{Giai đoạn 2: Thực hiện đề tài và nộp sản phẩm}
+Chủ nhiệm đề tài thực hiện hai nhóm thao tác chính: nộp báo cáo giữa kỳ và nộp báo cáo cuối kỳ. Báo cáo giữa kỳ là checkpoint theo dõi tiến độ, trong khi báo cáo cuối kỳ đóng vai trò trigger nghiệp vụ cho chuyển trạng thái sang chờ nghiệm thu. Điểm quan trọng ở đây là hệ thống dùng điều kiện dữ liệu làm cổng chuyển trạng thái: nếu chưa có dữ liệu cuối kỳ, đề tài không được chuyển vào pha nghiệm thu.
+
+Kỹ thuật được sử dụng là upload multipart với giới hạn dung lượng, lưu metadata tệp vào bảng báo cáo đề tài, và cập nhật trạng thái theo rule thay vì cập nhật tự do. Nhờ vậy, dữ liệu hồ sơ và dữ liệu trạng thái luôn đồng bộ.
+
+\subsection{Giai đoạn 3: Nghiệm thu hội đồng}
+Sau khi đề tài sang trạng thái chờ nghiệm thu, cán bộ NCKH mới có quyền thành lập hội đồng. Giai đoạn này gồm nhiều bước có phụ thuộc chặt: tạo hội đồng, thêm thành viên theo vai trò chuyên môn, kiểm tra xung đột lợi ích, gửi mời họp, chấm điểm/nhận xét, lập biên bản, và hoàn tất hội đồng.
+
+Về mặt xử lý, hệ thống bảo đảm mỗi thành viên chấm điểm/nhận xét theo cơ chế upsert có khóa duy nhất theo hội đồng-thành viên-loại đánh giá. Điều này ngăn ghi trùng khi thành viên chỉnh sửa kết quả. Khi hội đồng hoàn tất, service cập nhật đồng thời trạng thái hội đồng và đề tài, bảo đảm chuỗi chuyển trạng thái liên module.
+
+\subsection{Giai đoạn 4: Quyết toán, thanh lý và lưu trữ}
+Khi đề tài đã nghiệm thu, chủ nhiệm nộp hồ sơ quyết toán gồm nội dung quyết toán và danh mục hạng mục chi. Cán bộ NCKH có thể yêu cầu bổ sung nếu hồ sơ chưa đủ; kế toán là vai trò chịu trách nhiệm xác nhận trạng thái tài chính và phê duyệt thanh lý. Khi quyết toán đạt trạng thái xác nhận, hệ thống tự động đưa đề tài sang trạng thái thanh lý và tạo bản ghi lưu trữ.
+
+Kỹ thuật hiện thực ở pha này dựa trên transition guard cho quyết toán, audit trail cho mọi thay đổi trạng thái, và transaction khi cập nhật các thực thể liên quan. Cách làm này tránh tình trạng cập nhật nửa chừng (ví dụ quyết toán duyệt nhưng đề tài chưa thanh lý).
+
+\section{Luật kiểm soát nghiệp vụ và dữ liệu}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|L{2.5cm}|L{3.0cm}|L{2.8cm}|L{4.1cm}|}
+\hline
+\textbf{Đối tượng} & \textbf{Sự kiện} & \textbf{Điều kiện} & \textbf{Kết quả hệ thống} \\ \hline
+Đề tài & Chuyển sang \texttt{cho\_nghiem\_thu} & Có nộp báo cáo cuối kỳ & Cập nhật trạng thái đề tài, mở luồng thành lập hội đồng \\ \hline
+Hội đồng & Hoàn tất nghiệm thu & Có dữ liệu đánh giá/biên bản theo luồng & Hội đồng \texttt{da\_hoan\_thanh}, đề tài \texttt{da\_nghiem\_thu} \\ \hline
+Quyết toán & Chuyển trạng thái & Thuộc tập transition hợp lệ & Tránh nhảy trạng thái trái nghiệp vụ \\ \hline
+Quyết toán & Duyệt thanh lý & Vai trò kế toán hoặc quản trị & Quyết toán xác nhận, đề tài \texttt{da\_thanh\_ly} \\ \hline
+Lưu trữ & Tạo archive record & Đề tài đã nghiệm thu/thanh lý theo chính sách module & Bản ghi lưu trữ được tạo và tải theo scope \\ \hline
+Truy cập dữ liệu & Đọc danh sách/chi tiết & Đúng role + đúng ownership nếu là chủ nhiệm & Không lộ dữ liệu chéo giữa người dùng \\ \hline
+\end{tabular}
+\caption{Luật kiểm soát nghiệp vụ trọng yếu}
+\end{table}
+
+\section{Bảng yêu cầu chức năng (FR)}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|C{1.2cm}|L{4.9cm}|L{2.8cm}|L{4.2cm}|}
+\hline
+\textbf{Mã FR} & \textbf{Mô tả yêu cầu chức năng} & \textbf{Vai trò chính} & \textbf{Tiêu chí chấp nhận} \\ \hline
+FR01 & Đăng nhập và xác thực phiên người dùng bằng JWT & Tất cả vai trò & Đăng nhập đúng tài khoản, trả token hợp lệ \\ \hline
+FR02 & Tạo đề tài mới và sinh mã đề tài tự động & research\_staff & Mã đề tài duy nhất, trạng thái khởi tạo đúng \\ \hline
+FR03 & Cập nhật trạng thái đề tài theo luật chuyển trạng thái & research\_staff & Không cho phép chuyển trạng thái trái luật \\ \hline
+FR04 & Nộp báo cáo giữa kỳ và lưu tệp đính kèm & project\_owner & Báo cáo được lưu, truy xuất được \\ \hline
+FR05 & Nộp báo cáo cuối kỳ và kích hoạt trạng thái chờ nghiệm thu & project\_owner & Đề tài chuyển \texttt{cho\_nghiem\_thu} tự động \\ \hline
+FR06 & Parse file đề xuất hợp đồng (PDF/DOCX/TXT) & research\_staff & Trả thông tin nhận diện + confidence \\ \hline
+FR07 & Tạo hợp đồng, ký hợp đồng, upload bản scan đã ký & research\_staff, project\_owner & Hợp đồng chuyển trạng thái đúng quy trình \\ \hline
+FR08 & Tạo hội đồng cho đề tài đủ điều kiện nghiệm thu & research\_staff & Chỉ tạo khi đề tài ở trạng thái hợp lệ \\ \hline
+FR09 & Chấm điểm, nhận xét, ghi biên bản nghiệm thu & council\_member (4 vai trò) & Kết quả đánh giá lưu đầy đủ, có truy vết \\ \hline
+FR10 & Hoàn tất hội đồng và cập nhật trạng thái đề tài sau nghiệm thu & research\_staff, council\_member & Đề tài chuyển \texttt{da\_nghiem\_thu} \\ \hline
+FR11 & Tạo yêu cầu gia hạn, phê duyệt hoặc từ chối gia hạn & project\_owner, research\_staff & Có quyết định và cập nhật thời hạn nếu duyệt \\ \hline
+FR12 & Nộp hồ sơ quyết toán gồm nhiều mục ngân sách & project\_owner & Hồ sơ quyết toán và budget items được lưu \\ \hline
+FR13 & Yêu cầu bổ sung/duyệt quyết toán theo transition guard & research\_staff, accounting & Không cho phép nhảy trạng thái không hợp lệ \\ \hline
+FR14 & Tạo record lưu trữ khi đề tài thanh lý hoàn tất & accounting, archive\_staff & Có archive record và tải xuống theo quyền \\ \hline
+FR15 & Thống kê báo cáo theo trạng thái/lĩnh vực/hợp đồng & report\_viewer & Dashboard phản ánh dữ liệu hệ thống thực \\ \hline
+\end{tabular}
+\caption{Bảng yêu cầu chức năng (FR)}
+\end{table}
+
+\section{Bảng yêu cầu phi chức năng (NFR)}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|C{1.2cm}|L{4.9cm}|L{2.8cm}|L{4.2cm}|}
+\hline
+\textbf{Mã NFR} & \textbf{Yêu cầu phi chức năng} & \textbf{Mức mục tiêu} & \textbf{Phương án đáp ứng} \\ \hline
+NFR01 & Bảo mật truy cập API theo vai trò & 100\% endpoint nghiệp vụ kiểm soát quyền & Middleware authenticate + requireRole + ownership \\ \hline
+NFR02 & Mã hóa mật khẩu người dùng & Không lưu mật khẩu thuần văn bản & bcryptjs tại backend \\ \hline
+NFR03 & Tính toàn vẹn chuyển trạng thái & Không có transition trái luật & Guard tại service layer \\ \hline
+NFR04 & Khả năng mở rộng module & Dễ bổ sung module mới không phá vỡ cũ & Kiến trúc module theo domain \\ \hline
+NFR05 & Tính truy vết thao tác & Có nhật ký nghiệp vụ và audit & AuditLog + SettlementAudit + EmailLog \\ \hline
+NFR06 & Khả dụng dịch vụ cloud & Triển khai công khai qua HTTPS & Render web/static + health check \\ \hline
+NFR07 & Tính nhất quán dữ liệu & Dữ liệu có ràng buộc khóa và unique & Prisma schema + migration \\ \hline
+NFR08 & Trải nghiệm người dùng theo vai trò & Điều hướng đúng vai trò sau đăng nhập & Router guard và layout riêng \\ \hline
+NFR09 & Khả năng kiểm thử hồi quy & Có smoke test API/UI/workflow & Script kiểm thử tự động \\ \hline
+NFR10 & Khả năng vận hành email & Không làm gãy nghiệp vụ khi lỗi SMTP & Mock mode + retry + log lỗi \\ \hline
+\end{tabular}
+\caption{Bảng yêu cầu phi chức năng (NFR)}
+\end{table}
+
+\section{Bảng API}
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabular}{|C{0.8cm}|C{1.4cm}|L{4.5cm}|L{3.1cm}|L{3.7cm}|}
+\hline
+\textbf{STT} & \textbf{Method} & \textbf{Endpoint} & \textbf{Vai trò} & \textbf{Mục đích} \\ \hline
+1 & POST & /api/auth/login & Tất cả & Đăng nhập hệ thống \\ \hline
+2 & GET & /api/auth/me & Tất cả & Lấy thông tin phiên hiện tại \\ \hline
+3 & GET & /api/projects & Nhiều vai trò & Danh sách đề tài theo scope \\ \hline
+4 & POST & /api/projects & NCKH, quản trị & Tạo đề tài mới \\ \hline
+5 & PUT & /api/projects/:id/status & NCKH, quản trị & Cập nhật trạng thái đề tài \\ \hline
+6 & POST & /api/projects/:id/midterm-report & Chủ nhiệm & Nộp báo cáo giữa kỳ \\ \hline
+7 & POST & /api/projects/:id/final-submission & Chủ nhiệm & Nộp báo cáo cuối kỳ \\ \hline
+8 & POST & /api/contracts/proposals/parse & NCKH, quản trị & Parse hồ sơ đề xuất \\ \hline
+9 & POST & /api/contracts & NCKH, quản trị & Tạo hợp đồng \\ \hline
+10 & POST & /api/contracts/:id/sign & Chủ nhiệm & Ký hợp đồng \\ \hline
+11 & POST & /api/contracts/:id/upload & NCKH, quản trị & Upload hợp đồng scan \\ \hline
+12 & POST & /api/councils & NCKH, quản trị & Tạo hội đồng \\ \hline
+13 & POST & /api/councils/check-conflict & NCKH, quản trị & Kiểm tra xung đột lợi ích \\ \hline
+14 & PUT & /api/councils/:id/approve & NCKH, quản trị & Duyệt hội đồng sang đánh giá \\ \hline
+15 & POST & /api/councils/:id/review & Thành viên hội đồng & Nộp nhận xét phản biện \\ \hline
+16 & POST & /api/councils/:id/score & Thành viên hội đồng & Nộp điểm thành viên \\ \hline
+17 & POST & /api/councils/:id/minutes & Hội đồng, NCKH & Ghi biên bản nghiệm thu \\ \hline
+18 & PUT & /api/councils/:id/complete & Hội đồng, NCKH & Hoàn tất hội đồng \\ \hline
+19 & POST & /api/extension-requests & Chủ nhiệm & Tạo yêu cầu gia hạn \\ \hline
+20 & PUT & /api/extension-requests/:id/approve & NCKH, quản trị & Duyệt hoặc từ chối gia hạn \\ \hline
+21 & POST & /api/settlements & Chủ nhiệm & Nộp hồ sơ quyết toán \\ \hline
+22 & POST & /api/settlements/:id/supplement-request & NCKH, quản trị & Yêu cầu bổ sung hồ sơ \\ \hline
+23 & PUT & /api/settlements/:id/status & NCKH, kế toán, quản trị & Cập nhật trạng thái quyết toán \\ \hline
+24 & PUT & /api/settlements/:id/approve & Kế toán, quản trị & Duyệt thanh lý \\ \hline
+25 & POST & /api/archive/repository/:projectId & Lưu trữ, quản trị & Tạo bản ghi lưu trữ \\ \hline
+26 & GET & /api/archives/:topicId/download & Lưu trữ, báo cáo, chủ nhiệm & Tải hồ sơ lưu trữ \\ \hline
+27 & GET & /api/reports/stats & Báo cáo, quản trị & Thống kê tổng quan \\ \hline
+28 & GET & /api/reports/topics & Báo cáo, quản trị & Thống kê theo lĩnh vực \\ \hline
+29 & GET & /api/reports/progress & Báo cáo, quản trị & Thống kê theo trạng thái \\ \hline
+30 & GET & /api/admin/audit-logs & Quản trị & Truy vết hoạt động hệ thống \\ \hline
+\end{tabular}
+\caption{Bảng API chính của hệ thống}
+\end{table}
+
+\section{Bảng nghiệp vụ chi tiết theo chuỗi xử lý}
+\begin{longtable}{|C{1.0cm}|L{2.6cm}|L{2.6cm}|L{4.2cm}|L{3.0cm}|}
+\hline
+\textbf{Step} & \textbf{Nhóm nghiệp vụ} & \textbf{Actor} & \textbf{Đầu vào/Thao tác} & \textbf{Kỳ vọng đầu ra} \\ \hline
+\endfirsthead
+\hline
+\textbf{Step} & \textbf{Nhóm nghiệp vụ} & \textbf{Actor} & \textbf{Đầu vào/Thao tác} & \textbf{Kỳ vọng đầu ra} \\ \hline
+\endhead
+STP-01 & Template & NCKH, quản trị & Upload template hợp đồng default & Tạo template active dùng cho điền mẫu \\ \hline
+STP-02 & Project & NCKH & Tạo đề tài AI26-P001, gán chủ nhiệm & Đề tài ở trạng thái \textit{dang\_thuc\_hien} \\ \hline
+STP-03 & Contract & NCKH & Tạo hợp đồng từ dự án và ngân sách & Sinh mã hợp đồng và trạng thái chờ ký \\ \hline
+STP-04 & Contract & Chủ nhiệm & Ký hợp đồng từ giao diện chủ nhiệm & Hợp đồng chuyển \texttt{da\_ky} \\ \hline
+STP-05 & Contract & NCKH & Upload bản scan hợp đồng đã ký & Có \texttt{pdfUrl} hợp lệ \\ \hline
+STP-06 & Notification & Hệ thống, quản trị & Kích hoạt nhắc hạn giữa kỳ & Có log gửi mail hoặc thông báo \\ \hline
+STP-07 & Midterm & Chủ nhiệm & Nộp báo cáo giữa kỳ PDF & Lưu báo cáo giữa kỳ thành công \\ \hline
+STP-08 & Final Submission & Chủ nhiệm & Nộp bộ 3 file PDF, DOCX, ZIP cuối kỳ & Đề tài chuyển \textit{cho\_nghiem\_thu} \\ \hline
+STP-09 & Validation & NCKH & Kiểm tra bộ tài liệu cuối kỳ & Đủ điều kiện thành lập hội đồng \\ \hline
+STP-10 & Council Setup & NCKH & Tạo hội đồng và upload quyết định & Hội đồng ở trạng thái đánh giá \\ \hline
+STP-11 & Council Auth & Chủ tịch, phản biện, thư ký, ủy viên & Đăng nhập theo phân vai hội đồng & Điều hướng đúng dashboard phân vai \\ \hline
+STP-12 & Template Fill & reviewer & Tải phiếu nhận xét theo role & Tài liệu được điền đúng dữ liệu đề tài \\ \hline
+STP-13 & Review & reviewer 1 & Nộp điểm và nhận xét phản biện 1 & Lưu bản ghi đánh giá hợp lệ \\ \hline
+STP-14 & Review & reviewer 2 & Nộp điểm và nhận xét phản biện 2 & Đủ số lượng phản biện yêu cầu \\ \hline
+STP-15 & Council Decision & chairman & Nộp kết luận chủ tịch và minh chứng & Có bản ghi kết luận chủ tịch \\ \hline
+STP-16 & Council Validation & secretary & Đối chiếu điểm và kiểm tra trùng quyết định & Biên bản đủ điều kiện ban hành \\ \hline
+STP-17 & Minutes & secretary & Upload biên bản nghiệm thu chính thức & Biên bản lưu và tải lại được \\ \hline
+STP-18 & Completion & NCKH & Hoàn tất hội đồng nghiệm thu & Đề tài chuyển \texttt{da\_nghiem\_thu} \\ \hline
+STP-19 & Settlement Request & NCKH, quản trị & Gửi yêu cầu quyết toán cho chủ nhiệm & Tạo phiên quyết toán mới \\ \hline
+STP-20 & Settlement Submit & Chủ nhiệm & Nộp hồ sơ quyết toán và chứng từ & Hồ sơ quyết toán được ghi nhận \\ \hline
+STP-21 & Liquidation + Archive & Kế toán, lưu trữ & Duyệt thanh lý và lưu trữ hồ sơ & Đề tài \texttt{da\_thanh\_ly}, có archive record \\ \hline
+STP-22 & Extension Request & Chủ nhiệm & Tạo yêu cầu gia hạn có minh chứng & Yêu cầu gia hạn trạng thái \texttt{dang\_cho} \\ \hline
+STP-23 & Extension Decision & NCKH & Duyệt hoặc từ chối gia hạn và ghi chú & Cập nhật quyết định, cập nhật hạn nếu duyệt \\ \hline
+\caption{Chuỗi nghiệp vụ chi tiết STP-01 đến STP-23}
+\end{longtable}
+
+\section{Đối soát tính xác thực nội dung báo cáo}
+Để giảm rủi ro mô tả suy diễn, toàn bộ nội dung nghiệp vụ trong báo cáo được đối chiếu từ ba nguồn đồng thời: mã nguồn chạy thật, tài liệu workflow nội bộ, và tài liệu kiểm thử. Các khẳng định dưới đây chỉ được giữ lại khi tìm thấy bằng chứng ở ít nhất một nguồn chính thức.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|L{3.1cm}|L{4.1cm}|L{5.2cm}|}
+\hline
+\textbf{Nhóm thông tin} & \textbf{Nguồn đối chiếu} & \textbf{Kết luận} \\ \hline
+Luồng API và phân quyền & Route backend và middleware RBAC & Mô tả endpoint/role trong báo cáo bám theo route thực tế \\ \hline
+Trạng thái nghiệp vụ & Enum trong schema và service transition guard & Không giữ mô tả trạng thái ngoài tập enum/guard đã cài đặt \\ \hline
+Workflow liên phòng ban & Tài liệu workflow + kịch bản STP-01..STP-23 & Các bước nghiệp vụ dùng làm khung mô tả và test case \\ \hline
+Kết quả kiểm thử & Tài liệu smoke/business hardening trong repo & Số liệu PASS/FAIL trình bày theo lần chạy đã ghi nhận \\ \hline
+Hạn chế hệ thống & Tài liệu deploy/testing + trạng thái mã nguồn hiện tại & Giữ nguyên phần hạn chế, không trình bày quá mức hoàn thiện \\ \hline
+\end{tabular}
+\caption{Bảng đối soát nguồn để tránh nội dung bịa}
+\end{table}
+
+\section{Kết chương}
+Các yêu cầu chức năng, phi chức năng, API và chuỗi xử lý đã được cụ thể hóa thành tiêu chí đo lường. Đây là cơ sở để thiết kế hệ thống ở mức dữ liệu, kiến trúc và UML trong chương tiếp theo.
+
+% ========================= CHAPTER 4 =========================
+\chapter{Thiết kế hệ thống}
+
+\section{Kiến trúc logic tổng thể}
+Hệ thống được thiết kế theo mô hình nhiều tầng:
+\begin{itemize}[leftmargin=1.2cm]
+\item Tầng trình bày: frontend React, router phân quyền theo role.
+\item Tầng nghiệp vụ: backend Express tổ chức theo module domain.
+\item Tầng dữ liệu: Prisma ORM truy cập MySQL Aiven.
+\item Tầng tích hợp: email, upload file, export tài liệu.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.2cm, >=Stealth, font=\small]
+\node[draw, rounded corners, fill=blue!10, minimum width=12.8cm, minimum height=1.1cm] (ui) {Tầng giao diện (React + TypeScript + Vite + Tailwind)};
+\node[draw, rounded corners, fill=green!10, minimum width=12.8cm, minimum height=1.1cm, below=of ui] (api) {Tầng API (Express, JWT, RBAC, Validation Zod)};
+\node[draw, rounded corners, fill=orange!10, minimum width=12.8cm, minimum height=1.3cm, align=center, below=of api] (domain) {Tầng domain module: Projects, Contracts, Councils,\\Settlements, Extensions, Archive, Reports, Admin};
+\node[draw, rounded corners, fill=purple!10, minimum width=12.8cm, minimum height=1.1cm, below=of domain] (data) {Tầng dữ liệu (Prisma ORM + MySQL Aiven)};
+\node[draw, rounded corners, fill=gray!10, minimum width=12.8cm, minimum height=1.1cm, below=of data] (infra) {Tầng hạ tầng tích hợp (SMTP, Uploads, Export Excel/PDF, Audit/Notification)};
+\draw[->, thick] (ui) -- (api);
+\draw[->, thick] (api) -- (domain);
+\draw[->, thick] (domain) -- (data);
+\draw[->, thick] (domain) -- (infra);
+\end{tikzpicture}
+\caption{Kiến trúc logic nhiều tầng của hệ thống}
+\end{figure}
+
+\section{Bảng database schema}
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabular}{|L{2.8cm}|L{3.0cm}|L{3.0cm}|L{4.4cm}|}
+\hline
+\textbf{Bảng} & \textbf{Cột/khóa chính} & \textbf{Ràng buộc chính} & \textbf{Quan hệ và ý nghĩa nghiệp vụ} \\ \hline
+users & id, email, role, councilRole & email unique, soft delete & 1-n với projects, audit logs, notifications, refresh tokens \\ \hline
+refresh\_tokens & id, token, userId, expiresAt & onDelete cascade theo user & Quản lý phiên đăng nhập và refresh JWT \\ \hline
+projects & id, code, ownerId, status & code unique, status enum & Thực thể lõi liên kết contracts, councils, settlements, reports, archive \\ \hline
+project\_members & id, projectId, userId, role & unique(projectId, userId) & Quản lý thành viên đề tài \\ \hline
+project\_reports & id, projectId, type, fileUrl & type enum (midterm/final) & Lưu báo cáo giữa kỳ và cuối kỳ \\ \hline
+contracts & id, code, projectId, status & code unique, status enum & Theo dõi hợp đồng và vòng đời ký duyệt \\ \hline
+councils & id, decisionCode, projectId, status & decisionCode unique, status enum & Quản lý phiên hội đồng nghiệm thu \\ \hline
+council\_\newline memberships & id, councilId, userId, role, email & role enum, hasConflict flag & Danh sách thành viên hội đồng và vai trò chuyên môn \\ \hline
+council\_reviews & id, councilId, memberId, type, score & unique(councilId, memberId, type) & Lưu nhận xét/chấm điểm từng thành viên \\ \hline
+council\_minutes & id, councilId, fileUrl, recordedBy & councilId unique & Biên bản nghiệm thu chính thức \\ \hline
+settlements & id, code, projectId, status, totalAmount & code unique, status enum & Hồ sơ quyết toán gắn với đề tài \\ \hline
+budget\_items & id, settlementId, planned, spent, status & status enum, onDelete cascade & Chi tiết từng hạng mục chi trong quyết toán \\ \hline
+settlement\_audits & id, settlementId, author, content & timestamp default now & Nhật ký thay đổi trạng thái quyết toán \\ \hline
+extensions & id, projectId, boardStatus, extensionDays & boardStatus enum & Quản lý yêu cầu gia hạn và quyết định \\ \hline
+archive\_records & id, projectId, fileUrlsJson & projectId unique & Hồ sơ lưu trữ sau khi đề tài hoàn tất \\ \hline
+templates & id, name, version, category, fileUrl & soft delete, default flag & Quản lý template biểu mẫu nghiệp vụ \\ \hline
+form\_types,\newline form\_templates & mã loại biểu mẫu và template theo role & index theo formType-targetRole-default & Tự động điền biểu mẫu theo đề tài \\ \hline
+audit\_logs & id, userId, action, module, timestamp & module + timestamp truy vấn nhanh & Truy vết thao tác toàn hệ thống \\ \hline
+notifications & id, userId, type, isRead & onDelete cascade theo user & Cảnh báo và thông báo trong ứng dụng \\ \hline
+system\_configs & id, key, value & key unique & Cấu hình runtime (SMTP, email mock...) \\ \hline
+email\_logs & id, toAddress, status, attempts, sentAt & index status/createdAt & Truy vết chất lượng gửi email \\ \hline
+\end{tabular}
+\caption{Bảng database schema và quan hệ nghiệp vụ chính}
+\end{table}
+
+\section{Sơ đồ Use Case}
+\subsection{Mô tả}
+Sơ đồ Use Case nhấn mạnh tương tác giữa tác nhân và chức năng lõi: quản lý đề tài, hợp đồng, hội đồng, quyết toán, lưu trữ, báo cáo và quản trị.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[>=Stealth, font=\small,
+  actor/.style={draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, fill=gray!12, align=center},
+  usecase/.style={draw, ellipse, minimum width=4.1cm, minimum height=1.0cm, align=center}]
+
+\node[draw, rounded corners, thick, minimum width=14.5cm, minimum height=8.5cm] (sys) at (0,0) {};
+\node at (0,4.0) {\textbf{Hệ thống quản lý đề tài NCKH}};
+
+\node[actor] (staff) at (-8.2,2.8) {research\_staff};
+\node[actor] (owner) at (-8.2,1.2) {project\_owner};
+\node[actor] (council) at (-8.2,-0.4) {council\_member\\(chairman/reviewer/secretary/member)};
+\node[actor] (acc) at (-8.2,-2.0) {accounting};
+\node[actor] (arc) at (8.2,2.0) {archive\_staff};
+\node[actor] (rep) at (8.2,0.4) {report\_viewer};
+\node[actor] (admin) at (8.2,-1.2) {superadmin};
+
+\node[usecase] (uc1) at (-2.3,2.6) {Quản lý đề tài};
+\node[usecase] (uc2) at (-2.3,1.0) {Quản lý hợp đồng};
+\node[usecase] (uc3) at (-2.3,-0.6) {Nghiệm thu hội đồng};
+\node[usecase] (uc4) at (-2.3,-2.2) {Quyết toán và thanh lý};
+\node[usecase] (uc5) at (2.8,2.2) {Lưu trữ hồ sơ};
+\node[usecase] (uc6) at (2.8,0.6) {Báo cáo thống kê};
+\node[usecase] (uc7) at (2.8,-1.0) {Quản trị tài khoản/cấu hình};
+\node[usecase] (uc8) at (2.8,-2.6) {Thông báo và nhật ký};
+
+\draw (staff.east) -- (uc1.west);
+\draw (staff.east) -- (uc2.west);
+\draw (staff.east) -- (uc3.west);
+\draw (owner.east) -- (uc1.west);
+\draw (owner.east) -- (uc2.west);
+\draw (owner.east) -- (uc4.west);
+\draw (council.east) -- (uc3.west);
+\draw (acc.east) -- (uc4.west);
+\draw (arc.west) -- (uc5.east);
+\draw (rep.west) -- (uc6.east);
+\draw (admin.west) -- (uc7.east);
+\draw (admin.west) -- (uc8.east);
+\draw (uc4.east) -- (uc5.west);
+\draw (uc2.east) -- (uc8.west);
+\draw (uc3.east) -- (uc8.west);
+\end{tikzpicture}
+}
+\caption{Use Case Diagram của hệ thống}
+\end{figure}
+
+\section{Sơ đồ Sequence}
+\subsection{Mô tả}
+Sơ đồ Sequence mô tả luồng trọng yếu từ nộp quyết toán đến duyệt thanh lý và tạo hồ sơ lưu trữ.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[>=Stealth, font=\scriptsize]
+\node (u1) at (0,0) {Chủ nhiệm};
+\node (u2) at (2.7,0) {Frontend};
+\node (u3) at (5.4,0) {Backend API};
+\node (u4) at (8.1,0) {Aiven MySQL};
+\node (u5) at (10.8,0) {Kế toán};
+\node (u6) at (13.5,0) {Lưu trữ};
+
+\draw[dashed] (0,-0.4) -- (0,-8.5);
+\draw[dashed] (2.7,-0.4) -- (2.7,-8.5);
+\draw[dashed] (5.4,-0.4) -- (5.4,-8.5);
+\draw[dashed] (8.1,-0.4) -- (8.1,-8.5);
+\draw[dashed] (10.8,-0.4) -- (10.8,-8.5);
+\draw[dashed] (13.5,-0.4) -- (13.5,-8.5);
+
+\draw[->] (0,-1.0) -- node[above]{Nộp hồ sơ quyết toán} (2.7,-1.0);
+\draw[->] (2.7,-1.4) -- node[above]{POST /api/settlements} (5.4,-1.4);
+\draw[->] (5.4,-1.8) -- node[above]{Create Settlement + BudgetItems} (8.1,-1.8);
+\draw[->] (8.1,-2.2) -- node[above]{OK} (5.4,-2.2);
+\draw[->] (5.4,-2.6) -- node[above]{Status=\texttt{cho\_bo\_sung}} (2.7,-2.6);
+
+\draw[->] (10.8,-3.2) -- node[above]{Kiểm tra hồ sơ} (2.7,-3.2);
+\draw[->] (2.7,-3.6) -- node[above]{PUT /api/settlements/:id/approve} (5.4,-3.6);
+\draw[->] (5.4,-4.0) -- node[above]{Update settlement \& project} (8.1,-4.0);
+\draw[->] (8.1,-4.4) -- node[above]{Create archive\_record} (5.4,-4.4);
+\draw[->] (5.4,-4.8) -- node[above]{Result=\texttt{da\_thanh\_ly}} (2.7,-4.8);
+
+\draw[->] (13.5,-5.4) -- node[above]{Mở kho lưu trữ} (2.7,-5.4);
+\draw[->] (2.7,-5.8) -- node[above]{GET /api/archives} (5.4,-5.8);
+\draw[->] (5.4,-6.2) -- node[above]{Query archive\_records} (8.1,-6.2);
+\draw[->] (8.1,-6.6) -- node[above]{Danh sách hồ sơ} (5.4,-6.6);
+\draw[->] (5.4,-7.0) -- node[above]{Trả dữ liệu hiển thị} (2.7,-7.0);
+\draw[->] (2.7,-7.4) -- node[above]{Tải hồ sơ} (13.5,-7.4);
+\end{tikzpicture}
+}
+\caption{Sequence Diagram: quyết toán đến lưu trữ}
+\end{figure}
+
+\section{Sơ đồ Activity}
+\subsection{Mô tả}
+Sơ đồ Activity thể hiện logic điều hướng quy trình chính và hai nhánh ngoại lệ quan trọng: gia hạn và bổ sung hồ sơ quyết toán.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\small,
+process/.style={draw, rounded corners, minimum width=4.2cm, minimum height=0.9cm, align=center, fill=blue!8},
+decision/.style={draw, diamond, aspect=2.0, align=center, fill=yellow!15, inner sep=1pt},
+]
+
+\node[circle, draw, fill=black, inner sep=1.8pt] (start) at (0,0) {};
+\node[process, below=0.8cm of start] (p1) {Tạo đề tài và hợp đồng};
+\node[process, below=0.8cm of p1] (p2) {Thực hiện nghiên cứu, nộp báo cáo cuối kỳ};
+\node[decision, below=1.0cm of p2] (d1) {Có cần gia hạn?};
+\node[process, left=3.2cm of d1] (p3) {Tạo yêu cầu gia hạn};
+\node[process, below=0.8cm of p3] (p4) {Phê duyệt hoặc từ chối gia hạn};
+\node[process, below=1.0cm of d1] (p5) {Thành lập hội đồng và đánh giá};
+\node[process, below=0.8cm of p5] (p6) {Nộp hồ sơ quyết toán};
+\node[decision, below=1.0cm of p6] (d2) {Hồ sơ hợp lệ?};
+\node[process, left=3.2cm of d2] (p7) {Yêu cầu bổ sung và nộp lại};
+\node[process, below=1.0cm of d2] (p8) {Phê duyệt thanh lý và tạo lưu trữ};
+\node[circle, draw, fill=black, inner sep=1.8pt, below=1.0cm of p8] (end) {};
+
+\draw[->] (start) -- (p1);
+\draw[->] (p1) -- (p2);
+\draw[->] (p2) -- (d1);
+\draw[->] (d1) -- node[above]{Có} (p3);
+\draw[->] (p3) -- (p4);
+\draw[->] (p4.east) |- (p5.west);
+\draw[->] (d1) -- node[right]{Không} (p5);
+\draw[->] (p5) -- (p6);
+\draw[->] (p6) -- (d2);
+\draw[->] (d2) -- node[above]{Không} (p7);
+\draw[->] (p7.east) |- (p6.west);
+\draw[->] (d2) -- node[right]{Có} (p8);
+\draw[->] (p8) -- (end);
+\end{tikzpicture}
+\caption{Activity Diagram của quy trình nghiệp vụ tổng thể}
+\end{figure}
+
+\section{Sơ đồ ERD}
+\subsection{Mô tả}
+ERD tập trung vào các thực thể cốt lõi chi phối vòng đời đề tài: \texttt{users}, \texttt{projects}, \texttt{contracts}, \texttt{councils}, \texttt{settlements}, \texttt{archive\_records} và các bảng chi tiết liên quan.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[>=Stealth, font=\scriptsize,
+entity/.style={draw, rounded corners, minimum width=3.3cm, minimum height=1.0cm, align=center, fill=green!10},
+]
+\node[entity] (user) at (0,4.0) {users};
+\node[entity] (project) at (4.5,4.0) {projects};
+\node[entity] (contract) at (9.0,4.0) {contracts};
+\node[entity] (council) at (9.0,1.8) {councils};
+\node[entity] (cmember) at (13.2,1.8) {council\_memberships};
+\node[entity] (creview) at (13.2,0.0) {council\_reviews};
+\node[entity] (minutes) at (9.0,0.0) {council\_minutes};
+\node[entity] (settle) at (4.5,1.8) {settlements};
+\node[entity] (bitem) at (0,1.8) {budget\_items};
+\node[entity] (audit) at (0,0.0) {settlement\_audits};
+\node[entity] (report) at (4.5,0.0) {project\_reports};
+\node[entity] (ext) at (4.5,-1.8) {extensions};
+\node[entity] (archive) at (9.0,-1.8) {archive\_records};
+
+\draw[-] (user) -- node[above]{1:N owner} (project);
+\draw[-] (project) -- node[above]{1:N} (contract);
+\draw[-] (project) -- node[right]{1:N} (council);
+\draw[-] (council) -- node[above]{1:N} (cmember);
+\draw[-] (cmember) -- node[right]{1:N} (creview);
+\draw[-] (council) -- node[right]{1:1} (minutes);
+\draw[-] (project) -- node[left]{1:N} (settle);
+\draw[-] (settle) -- node[above]{1:N} (bitem);
+\draw[-] (settle) -- node[right]{1:N} (audit);
+\draw[-] (project) -- node[right]{1:N} (report);
+\draw[-] (project) -- node[left]{1:N} (ext);
+\draw[-] (project) -- node[above]{1:1} (archive);
+\end{tikzpicture}
+}
+\caption{ERD rút gọn của các thực thể lõi}
+\end{figure}
+
+\section{Sơ đồ State Machine}
+\subsection{Mô tả}
+Sơ đồ trạng thái biểu diễn luồng chính của đề tài từ thực hiện đến lưu trữ, đồng thời thể hiện các nhánh ngoại lệ như trễ hạn hoặc hủy bỏ.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[>=Stealth, node distance=2.2cm, font=\small,
+statebox/.style={draw, rounded corners, minimum width=3.0cm, minimum height=1.0cm, align=center, fill=orange!12}]
+
+\node[statebox] (s1) {\texttt{dang\_thuc\_hien}};
+\node[statebox, right=of s1] (s2) {\texttt{cho\_nghiem\_thu}};
+\node[statebox, right=of s2] (s3) {\texttt{da\_nghiem\_thu}};
+\node[statebox, right=of s3] (s4) {\texttt{da\_thanh\_ly}};
+\node[statebox, below=1.8cm of s1] (s5) {\texttt{tre\_han}};
+\node[statebox, below=1.8cm of s2] (s6) {\texttt{huy\_bo}};
+
+\draw[->] (s1) -- node[above]{Nộp cuối kỳ} (s2);
+\draw[->] (s2) -- node[above]{Hội đồng hoàn tất} (s3);
+\draw[->] (s3) -- node[above]{Duyệt quyết toán} (s4);
+\draw[->] (s1) -- node[left]{Quá hạn} (s5);
+\draw[->] (s5) -- node[below]{Gia hạn} (s1);
+\draw[->] (s1) -- (s6);
+\draw[->] (s2) -- (s6);
+\end{tikzpicture}
+}
+\caption{State Machine cho thực thể đề tài}
+\end{figure}
+
+\section{Kết chương}
+Thiết kế hệ thống đã cụ thể hóa từ kiến trúc tổng thể xuống mô hình dữ liệu và UML. Đây là khung nền để triển khai phần mềm theo đúng nghiệp vụ, đồng thời phục vụ kiểm thử và đánh giá khả năng mở rộng ở chương kế tiếp.
+
+% ========================= CHAPTER 5 =========================
+\chapter{Triển khai}
+
+\section{Triển khai backend theo module}
+Backend được triển khai bằng Node.js + Express, tổ chức theo module nghiệp vụ. Mỗi module gồm route, controller, service, và truy vấn Prisma. Luồng xử lý chính gồm:
+\begin{itemize}[leftmargin=1.2cm]
+\item \textbf{Projects}: tạo đề tài, cập nhật trạng thái, nộp báo cáo giữa kỳ/cuối kỳ.
+\item \textbf{Contracts}: parse đề xuất, tạo hợp đồng, ký và upload bản scan.
+\item \textbf{Councils}: tạo hội đồng, kiểm tra COI, chấm điểm, biên bản, hoàn tất nghiệm thu.
+\item \textbf{Settlements}: nộp hồ sơ quyết toán, yêu cầu bổ sung, phê duyệt thanh lý.
+\item \textbf{Archive}: tạo/lấy bản ghi lưu trữ, tải xuống theo phạm vi quyền.
+\item \textbf{Reports}: thống kê theo trạng thái, lĩnh vực, hợp đồng.
+\end{itemize}
+
+Kiểm soát truy cập được thực hiện qua middleware xác thực JWT và middleware kiểm tra vai trò, sau đó tiếp tục kiểm tra ownership ở service layer để ngăn truy cập chéo dữ liệu giữa các chủ nhiệm đề tài.
+
+\section{Hiện thực hóa logic nghiệp vụ bằng công nghệ}
+\subsection{Pipeline xử lý request từ giao diện đến cơ sở dữ liệu}
+Mỗi thao tác nghiệp vụ quan trọng đều đi qua pipeline chuẩn hóa: frontend gọi API qua Axios interceptor, backend xác thực token, middleware kiểm tra role, service kiểm tra điều kiện nghiệp vụ, sau đó mới ghi dữ liệu qua Prisma. Pipeline này giúp cô lập lỗi theo tầng và tăng khả năng bảo trì.
+
+Ở góc nhìn workflow, ưu điểm của pipeline chuẩn là mọi bước đều có điểm chặn rõ ràng. Ví dụ, một chủ nhiệm không thể ký hợp đồng không thuộc phạm vi của mình vì bị chặn ở service ownership check, dù có token hợp lệ. Tương tự, người dùng đúng vai trò nhưng sai trạng thái hồ sơ vẫn bị chặn ở transition guard.
+
+\subsection{Hiện thực hóa state machine trong service layer}
+Khác với cách cập nhật trạng thái trực tiếp trong controller, hệ thống gom luật chuyển trạng thái vào service để tái sử dụng và kiểm soát tập trung. Cách làm này đặc biệt quan trọng ở các module có nhiều trạng thái như đề tài, hội đồng, quyết toán và gia hạn.
+
+Luật chuyển trạng thái được triển khai theo hai lớp:
+\begin{itemize}[leftmargin=1.2cm]
+\item \textbf{Lớp điều kiện dữ liệu}: yêu cầu dữ liệu bắt buộc trước khi được chuyển pha (ví dụ có báo cáo cuối kỳ mới sang chờ nghiệm thu).
+\item \textbf{Lớp điều kiện quyền}: chỉ vai trò đủ thẩm quyền mới được gọi API chuyển trạng thái.
+\end{itemize}
+
+\subsection{Hiện thực hóa workflow liên phòng ban}
+Workflow của đề tài trong hệ thống không chỉ là chuỗi kỹ thuật một module, mà là phối hợp liên phòng ban qua nhiều module:
+\begin{itemize}[leftmargin=1.2cm]
+\item NCKH điều phối pha khởi tạo và nghiệm thu.
+\item Chủ nhiệm thực thi và nộp hồ sơ.
+\item Hội đồng đánh giá và xác nhận biên bản.
+\item Kế toán quyết định pha thanh lý tài chính.
+\item Lưu trữ tiếp nhận hồ sơ hoàn tất.
+\end{itemize}
+
+Việc hiện thực hóa workflow liên phòng ban được hỗ trợ bởi các thành phần kỹ thuật: notification/email để kích hoạt hành động tiếp theo, audit log để truy vết, và report API để đo lường tiến độ toàn cục.
+
+\subsection{Xử lý tài liệu số trong các điểm nút nghiệp vụ}
+Hệ thống dùng nhiều kỹ thuật tài liệu khác nhau tùy bước nghiệp vụ:
+\begin{itemize}[leftmargin=1.2cm]
+\item Parse đề xuất hợp đồng: đọc nội dung PDF/DOCX/TXT để trích thông tin gợi ý.
+\item Quản lý biên bản và quyết định hội đồng: upload file kèm metadata và endpoint tải xuống theo quyền.
+\item Quyết toán: lưu chứng từ theo hạng mục chi, kết hợp xuất dữ liệu phục vụ kiểm tra.
+\item Biểu mẫu: điền mẫu tự động theo dữ liệu đề tài để giảm nhập tay và tăng tính nhất quán.
+\end{itemize}
+
+\subsection{Bảng mapping workflow và hiện thực kỹ thuật}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|L{2.9cm}|L{3.4cm}|L{3.2cm}|L{2.9cm}|}
+\hline
+\textbf{Pha workflow} & \textbf{Module/API chính} & \textbf{Cơ chế kỹ thuật} & \textbf{Kết quả nghiệp vụ} \\ \hline
+Khởi tạo đề tài & Projects (create, update status) & Validate + sinh mã + RBAC + ownership & Đề tài chuẩn dữ liệu và đúng pha \\ \hline
+Hợp đồng & Contracts (parse, create, sign, upload) & Parse tài liệu + guard quyền ký + lưu file & Hợp đồng hợp lệ, có truy vết \\ \hline
+Nghiệm thu & Councils (create, review, score, minutes, complete) & COI check + upsert đánh giá + update trạng thái liên động & Đề tài được nghiệm thu có căn cứ \\ \hline
+Quyết toán & Settlements (create, supplement, approve) & Transition guard + audit + transaction & Đề tài chuyển thanh lý đúng quy trình \\ \hline
+Lưu trữ & Archive (repository, download) & Scope quyền truy cập + kiểm tra trạng thái đề tài & Hồ sơ số hóa lưu trữ an toàn \\ \hline
+Báo cáo & Reports (stats, topics, progress) & Aggregate/groupBy theo dữ liệu thực & Dashboard phục vụ điều hành \\ \hline
+\end{tabular}
+\caption{Mapping workflow nghiệp vụ và hiện thực kỹ thuật}
+\end{table}
+
+\section{Triển khai frontend và cơ chế render}
+Frontend dùng React + Vite, tổ chức định tuyến theo vai trò. Các trang được lazy load theo route để tối ưu tải ban đầu. Cơ chế render chính:
+\begin{itemize}[leftmargin=1.2cm]
+\item Route guard chặn truy cập trái vai trò và điều hướng về trang đăng nhập.
+\item Layout chuyên biệt cho từng vai trò (research staff, project owner, council, kế toán, lưu trữ, báo cáo, quản trị).
+\item Axios interceptor gắn token cho mọi request và xử lý lỗi 401 tập trung.
+\item Dashboard thống kê dùng Chart.js, dữ liệu lấy từ API backend theo thời gian thực.
+\end{itemize}
+
+\section{Triển khai hạ tầng Render + Aiven}
+\subsection{Render blueprint}
+Hệ thống dùng một blueprint gồm hai service:
+\begin{itemize}[leftmargin=1.2cm]
+\item \textbf{nckh-frontend}: static service, build từ Vite, rewrite SPA về \texttt{/index.html}.
+\item \textbf{nckh-backend}: web service Node.js, chạy build TypeScript và Prisma migration trước khi start.
+\end{itemize}
+
+\subsection{Cơ sở dữ liệu Aiven}
+Backend kết nối Aiven for MySQL qua biến môi trường \texttt{DATABASE\_URL}. Prisma migration đảm bảo đồng bộ schema giữa môi trường phát triển và production.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|L{3.8cm}|L{4.2cm}|L{4.7cm}|}
+\hline
+\textbf{Nhóm biến môi trường} & \textbf{Biến chính} & \textbf{Vai trò} \\ \hline
+Backend runtime & \texttt{NODE\_ENV}, \texttt{PORT}, \texttt{NODE\_VERSION} & Thiết lập môi trường và cổng chạy backend \\ \hline
+Database & \texttt{DATABASE\_URL} & Kết nối MySQL Aiven \\ \hline
+Auth & \texttt{JWT\_SECRET}, \texttt{JWT\_REFRESH\_SECRET}, \texttt{JWT\_EXPIRES\_IN} & Bảo mật xác thực phiên \\ \hline
+Frontend integration & \texttt{FRONTEND\_URL}, \texttt{VITE\_API\_URL} & CORS và định tuyến API đúng môi trường \\ \hline
+Email & \texttt{EMAIL\_MOCK}, \texttt{SMTP\_HOST}, \texttt{SMTP\_USER}, \texttt{SMTP\_PASS} & Gửi email thực hoặc chạy mock để không gián đoạn nghiệp vụ \\ \hline
+\end{tabular}
+\caption{Biến môi trường triển khai trên Render và Aiven}
+\end{table}
+
+\section{Bảng kỹ thuật xử lý chi tiết cho từng role-function}
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabular}{|L{2.0cm}|L{2.2cm}|L{3.3cm}|L{3.3cm}|L{2.5cm}|}
+\hline
+\textbf{Role} & \textbf{Function} & \textbf{Input} & \textbf{Technique xử lý} & \textbf{Output} \\ \hline
+NCKH & Tạo đề tài & Metadata đề tài, owner, budget & Validate schema + sinh mã tự động + ghi audit & Project mới \texttt{dang\_thuc\_hien} \\ \hline
+NCKH & Parse đề xuất hợp đồng & PDF, DOCX hoặc TXT đề xuất & Extract text + rule matching + confidence scoring & Dữ liệu gợi ý tạo hợp đồng \\ \hline
+Chủ nhiệm & Nộp báo cáo giữa kỳ & Nội dung + file PDF hoặc DOCX & Upload multipart + lưu project report type midterm & Báo cáo giữa kỳ được lưu \\ \hline
+Chủ nhiệm & Nộp báo cáo cuối kỳ & Bộ hồ sơ kết quả nghiên cứu & Upload + kiểm tra ownership + update trạng thái đề tài & Đề tài \texttt{cho\_nghiem\_thu} \\ \hline
+Chủ nhiệm & Ký hợp đồng & Yêu cầu ký hợp đồng & Check contract ownership + đổi trạng thái hợp đồng & Hợp đồng \texttt{da\_ky} \\ \hline
+chairman & Chấm điểm kết luận & Điểm và quyết nghị chủ tịch & Upsert score theo thành viên + loại đánh giá & Bản ghi kết luận chủ tịch \\ \hline
+reviewer & Phản biện & Nhận xét chuyên môn + điểm & Upsert review theo cặp council-member-type & Bản ghi phản biện hợp lệ \\ \hline
+secretary & Nộp biên bản & File biên bản + nội dung phiên họp & Upload file + update council minutes & Biên bản nghiệm thu chính thức \\ \hline
+Kế toán & Duyệt quyết toán & Trạng thái duyệt + ghi chú & Transition guard + transaction cập nhật đề tài & Quyết toán duyệt, đề tài thanh lý \\ \hline
+Lưu trữ & Tạo lưu trữ & File hồ sơ và notes & Validate trạng thái đề tài + ghi file URLs JSON & Archive record được tạo \\ \hline
+Báo cáo & Xem dashboard & Bộ lọc kỳ, lĩnh vực, trạng thái & Aggregate/groupBy ở backend + render chart FE & Báo cáo điều hành trực quan \\ \hline
+superadmin & Quản trị người dùng & Tạo/sửa/khóa user, reset password & RBAC + audit log + ràng buộc unique email & Tài khoản vận hành an toàn \\ \hline
+\end{tabular}
+\caption{Bảng chi tiết kỹ thuật xử lý cho từng function và role}
+\end{table}
+
+\section{Các lưu ý vận hành thực tế}
+\begin{itemize}[leftmargin=1.2cm]
+\item Render gói free dùng filesystem tạm thời; thư mục upload không bền vững sau mỗi lần redeploy hoặc restart.
+\item Cần lộ trình chuyển file upload sang object storage để production ổn định dài hạn.
+\item Một số trang frontend ở module báo cáo/quản trị vẫn cần hoàn thiện đồng bộ dữ liệu thực trong các pha tiếp theo.
+\item Với email production, cần cấu hình SMTP thực và tắt \texttt{EMAIL\_MOCK}.
+\end{itemize}
+
+\section{Kết chương}
+Chương 5 đã trình bày hiện thực kỹ thuật từ backend, frontend đến hạ tầng cloud và cơ chế xử lý nghiệp vụ theo role-function. Đây là cơ sở để đánh giá chất lượng qua kiểm thử chức năng và kiểm thử quy trình trong chương 6.
+
+% ========================= CHAPTER 6 =========================
+\chapter{Kiểm thử}
+
+\section{Chiến lược kiểm thử}
+Chiến lược kiểm thử kết hợp ba lớp:
+\begin{itemize}[leftmargin=1.2cm]
+\item \textbf{API smoke test}: xác nhận endpoint lõi hoạt động ổn định.
+\item \textbf{UI role smoke test}: đăng nhập theo vai trò, duyệt trang và xác nhận tương tác chính.
+\item \textbf{Workflow smoke test}: chạy luồng nghiệp vụ liên hoàn từ đề tài đến lưu trữ.
+\end{itemize}
+
+\section{Môi trường kiểm thử}
+\begin{table}[H]
+\centering
+\begin{tabular}{|L{3.0cm}|L{4.5cm}|L{5.2cm}|}
+\hline
+\textbf{Thành phần} & \textbf{Cấu hình} & \textbf{Mục tiêu kiểm thử} \\ \hline
+Backend & Node.js + Express + Prisma & Xác nhận endpoint, trạng thái, ràng buộc nghiệp vụ \\ \hline
+Frontend & React + Vite + Playwright & Xác nhận điều hướng vai trò và hành vi giao diện \\ \hline
+Database & MySQL schema thực tế & Xác nhận toàn vẹn dữ liệu và transition guard \\ \hline
+Deploy target & Render + Aiven & Xác nhận vận hành cloud gần production \\ \hline
+\end{tabular}
+\caption{Môi trường và mục tiêu kiểm thử}
+\end{table}
+
+\section{Bảng test case}
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabular}{|L{1.3cm}|L{2.3cm}|L{3.8cm}|L{3.4cm}|L{2.7cm}|}
+\hline
+\textbf{TC} & \textbf{Vai trò} & \textbf{Mô tả ca kiểm thử} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} \\ \hline
+TC01 & research\_staff & Tạo đề tài mới với owner hợp lệ & Sinh mã đề tài, trạng thái khởi tạo đúng & Pass \\ \hline
+TC02 & research\_staff & Parse đề xuất hợp đồng từ DOCX/PDF & Trả thông tin gợi ý và confidence & Pass \\ \hline
+TC03 & project\_owner & Ký hợp đồng đang chờ ký & Hợp đồng chuyển \texttt{da\_ky} & Pass \\ \hline
+TC04 & project\_owner & Nộp báo cáo giữa kỳ & Lưu report midterm thành công & Pass \\ \hline
+TC05 & project\_owner & Nộp báo cáo cuối kỳ & Đề tài chuyển \texttt{cho\_nghiem\_thu} & Pass \\ \hline
+TC06 & research\_staff & Tạo hội đồng cho đề tài đủ điều kiện & Hội đồng tạo thành công, có decision code & Pass \\ \hline
+TC07 & reviewer & Nộp phản biện lần 1/2 & Lưu nhận xét và điểm theo member & Pass \\ \hline
+TC08 & secretary & Upload biên bản nghiệm thu & Biên bản được lưu và tải lại được & Pass \\ \hline
+TC09 & council\_member & Hoàn tất hội đồng nghiệm thu & Đề tài chuyển \texttt{da\_nghiem\_thu} & Pass \\ \hline
+TC10 & project\_owner & Nộp hồ sơ quyết toán có chứng từ & Tạo settlement và budget items & Pass \\ \hline
+TC11 & research\_staff & Yêu cầu bổ sung hồ sơ quyết toán & Settlement sang \texttt{cho\_bo\_sung} & Pass \\ \hline
+TC12 & accounting & Duyệt quyết toán hợp lệ & Settlement \texttt{da\_xac\_nhan} & Pass \\ \hline
+TC13 & accounting & Xác nhận thanh lý & Đề tài \texttt{da\_thanh\_ly} & Pass \\ \hline
+TC14 & archive\_staff & Tạo record lưu trữ đề tài thanh lý & Archive record tạo thành công & Pass \\ \hline
+TC15 & report\_viewer & Xem dashboard và xuất thống kê & Số liệu hiển thị đúng theo API & Pass \\ \hline
+TC16 & superadmin & Khóa user và kiểm tra đăng nhập lại & User bị chặn đăng nhập & Pass \\ \hline
+TC17 & project\_owner & Cố ký hợp đồng không thuộc sở hữu & Bị từ chối theo ownership guard & Pass \\ \hline
+TC18 & accounting & Cập nhật trạng thái quyết toán không hợp lệ & API trả lỗi transition không hợp lệ & Pass \\ \hline
+TC19 & research\_staff & Tạo hợp đồng trùng active contract & API từ chối tạo trùng & Pass \\ \hline
+TC20 & council\_member & Truy cập hội đồng không được phân công & API từ chối theo scope thành viên & Pass \\ \hline
+\end{tabular}
+\caption{Bảng test case theo vai trò và nghiệp vụ}
+\end{table}
+
+\section{Kết quả kiểm thử tổng hợp}
+Các số liệu trong bảng dưới đây được tổng hợp theo lần chạy smoke gần nhất đã lưu vết trong tài liệu kiểm thử nội bộ của dự án.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|L{3.6cm}|L{2.6cm}|L{2.6cm}|L{4.0cm}|}
+\hline
+\textbf{Nhóm kiểm thử} & \textbf{PASS} & \textbf{FAIL} & \textbf{Ghi chú} \\ \hline
+API smoke test & 11 & 0 & Xác nhận endpoint lõi hoạt động ổn định \\ \hline
+Workflow smoke test & Theo kịch bản & N/A & Chạy script workflow end-to-end từ parse đề xuất đến lưu trữ \\ \hline
+UI role smoke test & 10 vai trò & 0 lỗi login & Không ghi nhận lỗi JS và lỗi nút chính \\ \hline
+Business hardening recheck & Đạt & 0 regression nghiêm trọng & Scope role và transition guard hoạt động đúng \\ \hline
+\end{tabular}
+\caption{Tổng hợp kết quả kiểm thử chính}
+\end{table}
+
+\section{Đánh giá chất lượng và điểm cần cải tiến}
+\subsection{Điểm đạt}
+\begin{itemize}[leftmargin=1.2cm]
+\item Luồng nghiệp vụ chính hoạt động xuyên suốt và có kiểm soát trạng thái.
+\item Phân quyền role + ownership đảm bảo an toàn dữ liệu theo phạm vi người dùng.
+\item Kiểm thử tự động đã giảm nguy cơ hồi quy khi cập nhật chức năng.
+\end{itemize}
+
+\subsection{Điểm cần cải tiến}
+\begin{itemize}[leftmargin=1.2cm]
+\item Một số trang frontend ở nhóm báo cáo/quản trị vẫn cần đồng bộ hoàn toàn với dữ liệu thực.
+\item Lưu trữ file trên Render free chưa bền vững, cần chuyển sang object storage.
+\item Cần mở rộng thêm kiểm thử hiệu năng và kiểm thử tải cho kịch bản nhiều người dùng đồng thời.
+\end{itemize}
+
+\section{Kết chương}
+Kết quả kiểm thử cho thấy hệ thống đạt mức ổn định cho luồng nghiệp vụ cốt lõi. Tuy nhiên, để sẵn sàng vận hành production quy mô lớn, cần thực hiện thêm các cải tiến về lưu trữ tệp, đồng bộ toàn bộ trang dữ liệu thực và kiểm thử tải.
+
+% ========================= CHAPTER 7 =========================
+\chapter{Kết luận}
+
+\section{Kết quả đạt được}
+Đề tài đã xây dựng thành công một hệ thống quản lý NCKH fullstack có khả năng vận hành thực tế theo vòng đời nghiệp vụ: thực hiện đề tài, nghiệm thu, quyết toán và lưu trữ. Hệ thống đáp ứng đồng thời ba trục quan trọng:
+\begin{itemize}[leftmargin=1.2cm]
+\item \textbf{Trục nghiệp vụ}: bám sát quy trình tác nghiệp nhiều vai trò.
+\item \textbf{Trục kỹ thuật}: kiến trúc phân lớp, RBAC, state machine, xử lý tài liệu số.
+\item \textbf{Trục vận hành}: triển khai cloud Render + Aiven, có health check và bộ kiểm thử tự động.
+\end{itemize}
+
+\section{Đóng góp của đề tài}
+\begin{itemize}[leftmargin=1.2cm]
+\item Chuẩn hóa dữ liệu và trạng thái cho các phân hệ dự án NCKH.
+\item Kết nối nghiệp vụ liên phòng ban từ nghiên cứu, hội đồng, kế toán đến lưu trữ.
+\item Cung cấp cơ chế truy vết và minh bạch quyết định thông qua audit và log.
+\item Tạo nền móng để mở rộng báo cáo điều hành và tích hợp hệ sinh thái số của trường.
+\end{itemize}
+
+\section{Hạn chế}
+\begin{itemize}[leftmargin=1.2cm]
+\item Chưa triển khai lưu trữ tệp bền vững cho production (hiện phụ thuộc filesystem tạm trên Render free).
+\item Một số trang frontend chưa hoàn tất 100\% đồng bộ dữ liệu thực ở các nhánh phụ.
+\item Chưa thực hiện kiểm thử tải chuyên sâu cho số lượng truy cập đồng thời cao.
+\end{itemize}
+
+\section{Hướng phát triển}
+\begin{itemize}[leftmargin=1.2cm]
+\item Chuyển lớp lưu trữ tệp sang S3/Cloudinary/R2 để đảm bảo bền vững dữ liệu.
+\item Hoàn thiện toàn bộ màn hình báo cáo và quản trị theo dữ liệu API thực.
+\item Mở rộng dashboard theo KPI nghiên cứu khoa học cấp khoa/trường.
+\item Tích hợp chữ ký số và quy trình phê duyệt văn bản điện tử.
+\item Bổ sung kiểm thử tải và quan sát hệ thống (metrics/tracing) phục vụ production.
+\end{itemize}
+
+\section{Kết luận chung}
+Hệ thống được xây dựng trong đề tài đã chứng minh tính khả thi của việc số hóa toàn bộ chu trình đề tài NCKH bằng kiến trúc fullstack hiện đại. Việc kết hợp chặt chẽ giữa nghiệp vụ, dữ liệu và kiểm thử giúp sản phẩm không chỉ dừng ở mức mô phỏng học thuật mà đã tiến gần hơn tới khả năng ứng dụng thực tiễn trong môi trường quản lý nghiên cứu khoa học.
+
+% ========================= APPENDIX =========================
+\appendix
+\chapter{Phụ lục}
+
+\section{Nguồn PlantUML tham khảo}
+\subsection{Use Case}
+\begin{verbatim}
+@startuml
+left to right direction
+actor research_staff
+actor project_owner
+actor council_member
+actor accounting
+actor archive_staff
+actor report_viewer
+actor superadmin
+
+rectangle "NCKH System" {
+  usecase "Quản lý đề tài" as UC1
+  usecase "Quản lý hợp đồng" as UC2
+  usecase "Nghiệm thu hội đồng" as UC3
+  usecase "Quyết toán và thanh lý" as UC4
+  usecase "Lưu trữ hồ sơ" as UC5
+  usecase "Báo cáo thống kê" as UC6
+  usecase "Quản trị hệ thống" as UC7
+}
+
+research_staff --> UC1
+research_staff --> UC2
+research_staff --> UC3
+project_owner --> UC1
+project_owner --> UC2
+project_owner --> UC4
+council_member --> UC3
+accounting --> UC4
+archive_staff --> UC5
+report_viewer --> UC6
+superadmin --> UC7
+@enduml
+\end{verbatim}
+
+\subsection{Sequence}
+\begin{verbatim}
+@startuml
+actor Owner
+participant Frontend
+participant Backend
+database MySQL
+participant Accounting
+participant Archive
+
+Owner -> Frontend: Nộp hồ sơ quyết toán
+Frontend -> Backend: POST /api/settlements
+Backend -> MySQL: create settlement + budget items
+MySQL --> Backend: ok
+Backend --> Frontend: status=cho_bo_sung
+
+Accounting -> Frontend: Duyệt quyết toán
+Frontend -> Backend: PUT /api/settlements/:id/approve
+Backend -> MySQL: update settlement + project + archive
+MySQL --> Backend: ok
+Backend --> Frontend: status=da_thanh_ly
+
+Archive -> Frontend: Truy cập kho lưu trữ
+Frontend -> Backend: GET /api/archives
+Backend -> MySQL: query archive records
+Backend --> Frontend: records
+@enduml
+\end{verbatim}
+
+\subsection{Activity}
+\begin{verbatim}
+@startuml
+start
+:Tạo đề tài và hợp đồng;
+:Nộp báo cáo cuối kỳ;
+if (Có cần gia hạn?) then (Có)
+  :Tạo yêu cầu gia hạn;
+  :Duyệt/Từ chối gia hạn;
+endif
+:Thành lập hội đồng;
+:Đánh giá và nghiệm thu;
+:Nộp hồ sơ quyết toán;
+if (Hồ sơ hợp lệ?) then (Không)
+  :Yêu cầu bổ sung;
+  :Nộp lại hồ sơ;
+endif
+:Phê duyệt thanh lý;
+:Tạo bản ghi lưu trữ;
+stop
+@enduml
+\end{verbatim}
+
+\subsection{State Machine}
+\begin{verbatim}
+@startuml
+[*] --> dang_thuc_hien
+
+dang_thuc_hien --> cho_nghiem_thu : nộp báo cáo cuối kỳ
+cho_nghiem_thu --> da_nghiem_thu : hội đồng hoàn tất
+
+ dang_thuc_hien --> tre_han : quá hạn
+ tre_han --> dang_thuc_hien : gia hạn/điều chỉnh
+
+ da_nghiem_thu --> da_thanh_ly : duyệt quyết toán
+ dang_thuc_hien --> huy_bo
+ cho_nghiem_thu --> huy_bo
+@enduml
+\end{verbatim}
+
+\subsection{ERD}
+\begin{verbatim}
+@startuml
+entity users
+entity projects
+entity contracts
+entity councils
+entity council_memberships
+entity council_reviews
+entity council_minutes
+entity settlements
+entity budget_items
+entity settlement_audits
+entity extensions
+entity project_reports
+entity archive_records
+
+users ||--o{ projects : owner
+projects ||--o{ contracts
+projects ||--o{ councils
+councils ||--o{ council_memberships
+council_memberships ||--o{ council_reviews
+councils ||--|| council_minutes
+projects ||--o{ settlements
+settlements ||--o{ budget_items
+settlements ||--o{ settlement_audits
+projects ||--o{ extensions
+projects ||--o{ project_reports
+projects ||--|| archive_records
+@enduml
+\end{verbatim}
+
+\section{Danh sách trạng thái nghiệp vụ chuẩn hóa}
+\begin{table}[H]
+\centering
+\begin{tabular}{|L{3.2cm}|L{4.6cm}|L{5.0cm}|}
+\hline
+\textbf{Thực thể} & \textbf{Trạng thái chính} & \textbf{Ghi chú} \\ \hline
+Đề tài & \texttt{dang\_thuc\_hien}, \texttt{tre\_han}, \texttt{cho\_nghiem\_thu}, \texttt{da\_nghiem\_thu}, \texttt{da\_thanh\_ly}, \texttt{huy\_bo} & Trạng thái lõi xuyên suốt vòng đời \\ \hline
+Hợp đồng & \texttt{cho\_duyet}, \texttt{da\_ky}, \texttt{hoan\_thanh}, \texttt{huy} & Kiểm soát ký và hoàn tất hợp đồng \\ \hline
+Hội đồng & \texttt{cho\_danh\_gia}, \texttt{dang\_danh\_gia}, \texttt{da\_hoan\_thanh} & Hoàn tất hội đồng sẽ cập nhật đề tài \\ \hline
+Quyết toán & \texttt{cho\_bo\_sung}, \texttt{hop\_le}, \texttt{hoa\_don\_vat}, \texttt{da\_xac\_nhan} & \texttt{da\_xac\_nhan} dẫn đến thanh lý đề tài \\ \hline
+Gia hạn & \texttt{dang\_cho}, \texttt{da\_phe\_duyet}, \texttt{tu\_choi} & Có tác động đến hạn kết thúc đề tài khi duyệt \\ \hline
+\end{tabular}
+\caption{Danh sách trạng thái nghiệp vụ}
+\end{table}
+
+\end{document}

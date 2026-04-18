@@ -1,6 +1,16 @@
+param(
+  [string]$BackendBaseUrl = 'http://localhost:3000',
+  [string]$ApiBaseUrl = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
-$base = 'http://localhost:3000/api'
+$normalizedBackend = $BackendBaseUrl.Trim().TrimEnd('/')
+$base = if ($ApiBaseUrl -and $ApiBaseUrl.Trim()) {
+  $ApiBaseUrl.Trim().TrimEnd('/')
+} else {
+  if ($normalizedBackend.ToLower().EndsWith('/api')) { $normalizedBackend } else { "$normalizedBackend/api" }
+}
 $results = New-Object System.Collections.Generic.List[object]
 $workspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $smokeMode = if ($env:SMOKE_MODE) { $env:SMOKE_MODE.ToLower() } else { 'relaxed' }

@@ -313,6 +313,69 @@ const ResearchStaffDashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Progress Tracking Table */}
+          <div className="card overflow-hidden mt-6">
+            <div className="px-6 py-4 border-b border-gray-200 bg-blue-50">
+              <h2 className="text-lg font-bold text-gray-900">Tiến độ & Báo cáo Đề tài</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr className="text-xs uppercase font-bold text-gray-600">
+                    <th className="px-6 py-3 text-left">Mã</th>
+                    <th className="px-6 py-3 text-left">Tên đề tài</th>
+                    <th className="px-6 py-3 text-left">Thời gian</th>
+                    <th className="px-6 py-3 text-center">Báo cáo GK</th>
+                    <th className="px-6 py-3 text-center">Báo cáo TK</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {projects.filter(p => p.status === 'dang_thuc_hien' || p.status === 'cho_nghiem_thu' || p.status === 'tre_han').map(p => (
+                    <tr key={p.id} className="text-sm hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-semibold text-gray-900">{p.code}</td>
+                      <td className="px-6 py-4 text-gray-700">{p.title}</td>
+                      <td className="px-6 py-4 text-gray-500 text-xs">
+                        {p.durationMonths ? `${p.durationMonths} tháng` : ''}<br/>
+                        ({p.startDate} - {p.endDate})
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {p.midtermReportUrl ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Đã nộp</span>
+                            <a href={`http://localhost:8080/api/projects/${p.id}/reports/midterm/download`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                              Tải file
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Chưa có</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {p.finalReportUrl ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Đã nộp</span>
+                            <a href={`http://localhost:8080/api/projects/${p.id}/reports/final/download`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                              Tải file
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Chưa có</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {projects.filter(p => p.status === 'dang_thuc_hien' || p.status === 'cho_nghiem_thu' || p.status === 'tre_han').length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-800 font-semibold">
+                        Không có đề tài nào đang theo dõi tiến độ.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
       {loading && <p className="text-xs text-gray-500 text-center py-4">Đang đồng bộ dữ liệu từ hệ thống...</p>}

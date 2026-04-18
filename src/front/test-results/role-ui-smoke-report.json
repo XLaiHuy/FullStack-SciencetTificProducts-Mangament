@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-04-17T03:31:17.893Z",
-  "finishedAt": "2026-04-17T03:34:37.845Z",
+  "startedAt": "2026-04-17T16:17:51.982Z",
+  "finishedAt": "2026-04-17T16:20:56.202Z",
   "frontendUrl": "http://localhost:5173",
   "roles": [
     {
@@ -16,12 +16,21 @@
         "/research-staff/settlement-tracking",
         "/research-staff/extension-management"
       ],
-      "buttonsClicked": 56,
+      "buttonsClicked": 62,
       "buttonFailures": [],
       "uploadChecks": 1,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/research-staff/settlement-tracking",
+          "message": "Cannot read properties of undefined (reading 'replace')"
+        },
+        {
+          "url": "http://localhost:5173/research-staff/settlement-tracking",
+          "message": "Cannot read properties of undefined (reading 'replace')"
+        }
+      ],
       "error": null
     },
     {
@@ -36,7 +45,7 @@
         "/project-owner/acceptance-minutes",
         "/project-owner/settlement"
       ],
-      "buttonsClicked": 18,
+      "buttonsClicked": 27,
       "buttonFailures": [],
       "uploadChecks": 1,
       "downloadChecks": 2,
@@ -49,17 +58,47 @@
       "email": "accounting@nckh.edu.vn",
       "loginOk": true,
       "visitedRoutes": [
-        "/accounting/dashboard",
-        "/accounting/document-list",
-        "/accounting/document-management",
-        "/accounting/liquidation-confirmation"
+        "/accounting/dashboard"
       ],
-      "buttonsClicked": 16,
+      "buttonsClicked": 0,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "Cannot read properties of undefined (reading 'toString')"
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "Cannot read properties of undefined (reading 'toString')"
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "The above error occurred in the <AccountingDashboard> component:\n\n    at AccountingDashboard (http://localhost:5173/src/pages/accounting/DashboardPage.tsx:25:20)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4131:5)\n    at Outlet (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4537:26)\n    at div\n    at main\n    at div\n    at div\n    at AccountingLayout\n    at ProtectedRoute (http://localhost:5173/src/router/ProtectedRoute.tsx:19:34)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4131:5)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4601:5)\n    at Suspense\n    at div\n    at AnimatedRouteContainer (http://localhost:5173/src/router/index.tsx:214:20)\n    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4544:15)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:5290:5)\n    at AppRouter\n    at App (http://localhost:5173/src/App.tsx:24:3)\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://reactjs.org/link/error-boundaries to learn more about error boundaries."
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "Cannot read properties of undefined (reading 'toString')"
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "Cannot read properties of undefined (reading 'toString')"
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "Cannot read properties of undefined (reading 'toString')"
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "The above error occurred in the <AccountingDashboard> component:\n\n    at AccountingDashboard (http://localhost:5173/src/pages/accounting/DashboardPage.tsx:25:20)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4131:5)\n    at Outlet (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4537:26)\n    at div\n    at main\n    at div\n    at div\n    at AccountingLayout\n    at ProtectedRoute (http://localhost:5173/src/router/ProtectedRoute.tsx:19:34)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4131:5)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4601:5)\n    at Suspense\n    at div\n    at AnimatedRouteContainer (http://localhost:5173/src/router/index.tsx:214:20)\n    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:4544:15)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=8d317c96:5290:5)\n    at AppRouter\n    at App (http://localhost:5173/src/App.tsx:24:3)\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://reactjs.org/link/error-boundaries to learn more about error boundaries."
+        },
+        {
+          "url": "http://localhost:5173/accounting/dashboard",
+          "message": "Cannot read properties of undefined (reading 'toString')"
+        }
+      ],
       "error": null
     },
     {
@@ -70,7 +109,7 @@
         "/archive/dashboard",
         "/archive/repository"
       ],
-      "buttonsClicked": 9,
+      "buttonsClicked": 13,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -89,7 +128,7 @@
         "/reports/progress-statistics",
         "/reports/export"
       ],
-      "buttonsClicked": 19,
+      "buttonsClicked": 24,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -108,7 +147,7 @@
         "/superadmin/audit-log",
         "/superadmin/category-management"
       ],
-      "buttonsClicked": 29,
+      "buttonsClicked": 32,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
@@ -122,14 +161,54 @@
       "loginOk": true,
       "visitedRoutes": [
         "/council-member/dashboard",
-        "/council-member/chairman"
+        "/council-member/chairman",
+        "/council-member/reviewer",
+        "/council-member/secretary",
+        "/council-member/member"
       ],
-      "buttonsClicked": 2,
+      "buttonsClicked": 22,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        }
+      ],
       "error": null
     },
     {
@@ -138,14 +217,54 @@
       "loginOk": true,
       "visitedRoutes": [
         "/council-member/dashboard",
-        "/council-member/reviewer"
+        "/council-member/chairman",
+        "/council-member/reviewer",
+        "/council-member/secretary",
+        "/council-member/member"
       ],
-      "buttonsClicked": 2,
+      "buttonsClicked": 22,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        }
+      ],
       "error": null
     },
     {
@@ -154,14 +273,54 @@
       "loginOk": true,
       "visitedRoutes": [
         "/council-member/dashboard",
-        "/council-member/secretary"
+        "/council-member/chairman",
+        "/council-member/reviewer",
+        "/council-member/secretary",
+        "/council-member/member"
       ],
-      "buttonsClicked": 13,
+      "buttonsClicked": 22,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        }
+      ],
       "error": null
     },
     {
@@ -170,24 +329,64 @@
       "loginOk": true,
       "visitedRoutes": [
         "/council-member/dashboard",
+        "/council-member/chairman",
+        "/council-member/reviewer",
+        "/council-member/secretary",
         "/council-member/member"
       ],
-      "buttonsClicked": 11,
+      "buttonsClicked": 22,
       "buttonFailures": [],
       "uploadChecks": 0,
       "downloadChecks": 0,
       "ioFailures": [],
-      "jsErrors": [],
+      "jsErrors": [
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/chairman",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/reviewer",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/secretary",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        },
+        {
+          "url": "http://localhost:5173/council-member/member",
+          "message": "Failed to load resource: the server responded with a status of 500 ()"
+        }
+      ],
       "error": null
     }
   ],
   "totals": {
     "roles": 10,
     "loginFailed": 0,
-    "totalRoutesVisited": 37,
-    "totalButtonsClicked": 175,
+    "totalRoutesVisited": 46,
+    "totalButtonsClicked": 246,
     "totalButtonFailures": 0,
-    "totalJsErrors": 0,
+    "totalJsErrors": 46,
     "totalUploadChecks": 2,
     "totalDownloadChecks": 2,
     "totalIoFailures": 0,

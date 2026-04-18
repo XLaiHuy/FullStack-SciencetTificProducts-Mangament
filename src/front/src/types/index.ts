@@ -39,6 +39,9 @@ export interface Project {
   advancedAmount: number;
   field: string;
   durationMonths: number;
+  midtermReportUrl?: string;
+  midtermReportContent?: string;
+  finalReportUrl?: string;
 }
 
 export interface Contract {

@@ -7,9 +7,12 @@ import com.nckh.backend.modules.projects.ProjectRepository;
 import com.nckh.backend.modules.users.User;
 import com.nckh.backend.modules.users.UserRole;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class ContractService {
 
     private final ContractRepository contractRepository;
@@ -34,8 +37,25 @@ public class ContractService {
     public ContractItem getById(String id, User actor) {
         Contract c = contractRepository.findByIdAndIsDeletedFalse(id)
             .orElseThrow(() -> new IllegalArgumentException("Hop dong khong ton tai"));
-        if (actor.getRole() == UserRole.project_owner && !c.getProject().getOwner().getId().equals(actor.getId())) {
-            throw new IllegalArgumentException("Ban khong co quyen xem hop dong nay");
+        if (actor != null && actor.getRole() == UserRole.project_owner) {
+            String ownerId = null;
+            try {
+                if (c.getProject() != null && c.getProject().getOwner() != null) {
+                    ownerId = c.getProject().getOwner().getId();
+                }
+            } catch (Exception ignored) {
+                ownerId = null;
+            }
+            if ((ownerId == null || ownerId.isBlank()) && c.getProject() != null) {
+                String projectId = c.getProject().getId();
+                Project p = projectRepository.findByIdAndIsDeletedFalse(projectId).orElse(null);
+                if (p != null && p.getOwner() != null) {
+                    ownerId = p.getOwner().getId();
+                }
+            }
+            if (ownerId == null || !ownerId.equals(actor.getId())) {
+                throw new IllegalArgumentException("Ban khong co quyen xem hop dong nay");
+            }
         }
         return toItem(c);
     }
@@ -44,9 +64,15 @@ public class ContractService {
         Project project = projectRepository.findByIdAndIsDeletedFalse(request.projectId())
             .orElseThrow(() -> new IllegalArgumentException("De tai khong ton tai"));
 
+        boolean hasActiveContract = contractRepository.findByProjectIdAndIsDeletedFalse(project.getId()).stream()
+            .anyMatch(existing -> existing.getStatus() != ContractStatus.huy);
+        if (hasActiveContract) {
+            throw new IllegalArgumentException("De tai da ton tai hop dong hien hanh");
+        }
+
         Contract c = new Contract();
-        c.setId(request.id());
-        c.setCode(request.code());
+        c.setId((request.id() == null || request.id().isBlank()) ? UUID.randomUUID().toString() : request.id());
+        c.setCode((request.code() == null || request.code().isBlank()) ? generateContractCode() : request.code());
         c.setProject(project);
         c.setBudget(request.budget());
         c.setAgencyName(request.agencyName());
@@ -73,13 +99,64 @@ public class ContractService {
         contractRepository.save(c);
     }
 
+    public ContractItem updatePdfUrl(String id, String pdfUrl) {
+        Contract c = contractRepository.findByIdAndIsDeletedFalse(id)
+            .orElseThrow(() -> new IllegalArgumentException("Hop dong khong ton tai"));
+        c.setPdfUrl(pdfUrl);
+        return toItem(contractRepository.save(c));
+    }
+
     private ContractItem toItem(Contract c) {
+        String projectId = c.getProject() == null ? "" : c.getProject().getId();
+        String projectCode = "";
+        String projectTitle = "";
+        String ownerName = "";
+        String ownerEmail = "";
+        String ownerTitle = "";
+        
+        if (projectId != null && !projectId.isBlank()) {
+            try {
+                if (c.getProject() != null) {
+                    projectCode = c.getProject().getCode() == null ? "" : c.getProject().getCode();
+                    projectTitle = c.getProject().getTitle() == null ? "" : c.getProject().getTitle();
+                    if (c.getProject().getOwner() != null) {
+                        ownerName = c.getProject().getOwner().getName();
+                        ownerEmail = c.getProject().getOwner().getEmail();
+                        ownerTitle = c.getProject().getOwner().getTitle();
+                    }
+                }
+            } catch (Exception ignored) {
+                // Detached lazy proxy; fallback to repository lookup below.
+            }
+            if (projectCode.isBlank() || projectTitle.isBlank() || ownerName == null || ownerName.isBlank()) {
+                Project p = projectRepository.findByIdAndIsDeletedFalse(projectId).orElse(null);
+                if (p != null) {
+                    if (projectCode.isBlank()) {
+                        projectCode = p.getCode() == null ? "" : p.getCode();
+                    }
+                    if (projectTitle.isBlank()) {
+                        projectTitle = p.getTitle() == null ? "" : p.getTitle();
+                    }
+                    if (ownerName == null || ownerName.isBlank()) {
+                        if (p.getOwner() != null) {
+                            ownerName = p.getOwner().getName();
+                            ownerEmail = p.getOwner().getEmail();
+                            ownerTitle = p.getOwner().getTitle();
+                        }
+                    }
+                }
+            }
+        }
+        
         return new ContractItem(
             c.getId(),
             c.getCode(),
-            c.getProject().getId(),
-            c.getProject().getCode(),
-            c.getProject().getTitle(),
+            projectId,
+            projectCode,
+            projectTitle,
+            ownerName == null ? "" : ownerName,
+            ownerEmail == null ? "" : ownerEmail,
+            ownerTitle == null ? "" : ownerTitle,
             c.getBudget(),
             c.getStatus(),
             c.getSignedDate(),
@@ -88,5 +165,9 @@ public class ContractService {
             c.getPdfUrl(),
             c.getNotes()
         );
+    }
+
+    private String generateContractCode() {
+        return "HD/" + java.time.Year.now().getValue() + "/" + String.format("%03d", contractRepository.findByIsDeletedFalseOrderByCreatedAtDesc().size() + 1);
     }
 }

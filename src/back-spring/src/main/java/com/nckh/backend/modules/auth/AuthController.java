@@ -28,8 +28,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@Valid @RequestBody LogoutRequest request) {
+    public ApiResponse<Void> logout(@AuthenticationPrincipal User user, @RequestBody(required = false) LogoutRequest request) {
         authService.logout(request);
+        if (user != null) {
+            authService.logoutAllByUserId(user.getId());
+        }
         return ApiResponse.ok(null, "Dang xuat thanh cong");
     }
 

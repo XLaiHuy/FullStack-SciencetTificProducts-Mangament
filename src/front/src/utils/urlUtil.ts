@@ -3,7 +3,7 @@
  * Shared URL utilities for frontend services
  */
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace(/\/$/, '');
 const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 
 /**

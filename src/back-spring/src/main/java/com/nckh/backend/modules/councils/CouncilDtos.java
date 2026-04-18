@@ -7,9 +7,11 @@ import java.math.BigDecimal;
 
 public class CouncilDtos {
 
-    public record CreateCouncilRequest(@NotBlank String id, @NotBlank String decisionCode, @NotBlank String projectId) {}
+    public record CreateCouncilRequest(String id, String decisionCode, @NotBlank String projectId, java.util.List<MemberInput> members) {}
 
-    public record ScoreRequest(@NotBlank String memberId, @NotNull @DecimalMin("0.0") BigDecimal score, String comment) {}
+    public record MemberInput(String id, String name, String title, String institution, String email, String phone, String affiliation, String role) {}
+
+    public record ScoreRequest(String memberId, @NotNull @DecimalMin("0.0") BigDecimal score, String comment) {}
 
     public record CouncilItem(
         String id,

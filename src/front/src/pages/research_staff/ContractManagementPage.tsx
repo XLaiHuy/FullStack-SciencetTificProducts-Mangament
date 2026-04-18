@@ -796,7 +796,7 @@ const ContractManagementPage: React.FC = () => {
               <p className="text-gray-700"><strong>Ngân sách:</strong> {formatCurrency(detailContract.budget)}</p>
               <div className="pt-4 flex gap-3">
                 <button
-                  onClick={() => contractService.previewPdf(detailContract.id).catch((error) => showToast(typeof error === 'string' ? error : 'Không thể xem PDF.', 'error'))}
+                  onClick={() => contractService.previewPdf(detailContract.id).catch((error) => showToast(error instanceof Error ? error.message : 'Không thể xem PDF.', 'error'))}
                   className="btn-primary text-xs"
                 >
                   Xem PDF

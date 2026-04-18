@@ -4,14 +4,16 @@ import type { Council } from '../../types';
 
 const AcceptanceMinutesPage: React.FC = () => {
   const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [councils, setCouncils] = useState<Council[]>([]);
   const [selectedCouncilId, setSelectedCouncilId] = useState('');
   const [council, setCouncil] = useState<Council | null>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const showToast = (message: string) => {
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast(message);
-    setTimeout(() => setToast(''), 2500);
+    setToastType(type);
+    setTimeout(() => setToast(''), 3000);
   };
 
   useEffect(() => {
@@ -26,7 +28,7 @@ const AcceptanceMinutesPage: React.FC = () => {
         if (detail) setCouncil(detail);
       } catch (err) {
         console.error(err);
-        showToast('Không thể tải dữ liệu biên bản nghiệm thu.');
+        showToast('Không thể tải dữ liệu biên bản nghiệm thu.', 'error');
       }
     };
     loadCouncil();
@@ -40,7 +42,7 @@ const AcceptanceMinutesPage: React.FC = () => {
         if (detail) setCouncil(detail);
       } catch (err) {
         console.error(err);
-        showToast('Không thể tải chi tiết hội đồng đã chọn.');
+        showToast('Không thể tải chi tiết hội đồng đã chọn.', 'error');
       }
     };
     loadDetail();
@@ -55,7 +57,7 @@ const AcceptanceMinutesPage: React.FC = () => {
 
   const handleDownloadPdf = async () => {
     if (!council) {
-      showToast('Chưa có hội đồng để tải biên bản.');
+      showToast('Chưa có hội đồng để tải biên bản.', 'error');
       return;
     }
 
@@ -63,10 +65,10 @@ const AcceptanceMinutesPage: React.FC = () => {
     try {
       const fallbackName = `BienBanNghiemThu_${council.decisionCode.replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`;
       await councilService.downloadMinutes(council.id, fallbackName);
-      showToast('Đã tải biên bản nghiệm thu từ hệ thống.');
+      showToast('Đã tải biên bản nghiệm thu từ hệ thống.', 'success');
     } catch (err) {
       console.error(err);
-      showToast(typeof err === 'string' ? err : 'Không thể tải biên bản nghiệm thu.');
+      showToast(err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Không thể tải biên bản nghiệm thu.'), 'error');
     } finally {
       setDownloading(false);
     }
@@ -74,7 +76,11 @@ const AcceptanceMinutesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold">{toast}</div>}
+      {toast && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-bold ${
+          toastType === 'error' ? 'bg-red-600' : 'bg-green-600'
+        }`}>{toast}</div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Biên bản Nghiệm thu</h1>
         <p className="text-slate-500 text-sm mt-1">Xem biên bản nghiệm thu và kết quả đánh giá từ Hội đồng</p>

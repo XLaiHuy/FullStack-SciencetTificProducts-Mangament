@@ -29,6 +29,12 @@ public class Council {
     @Column(columnDefinition = "TEXT")
     private String decisionPdfUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String minutesFileUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String minutesContent;
+
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 
@@ -44,6 +50,10 @@ public class Council {
     public void setStatus(CouncilStatus status) { this.status = status; }
     public String getDecisionPdfUrl() { return decisionPdfUrl; }
     public void setDecisionPdfUrl(String decisionPdfUrl) { this.decisionPdfUrl = decisionPdfUrl; }
+    public String getMinutesFileUrl() { return minutesFileUrl; }
+    public void setMinutesFileUrl(String minutesFileUrl) { this.minutesFileUrl = minutesFileUrl; }
+    public String getMinutesContent() { return minutesContent; }
+    public void setMinutesContent(String minutesContent) { this.minutesContent = minutesContent; }
     public Boolean getIsDeleted() { return isDeleted; }
     public void setIsDeleted(Boolean deleted) { isDeleted = deleted; }
 }

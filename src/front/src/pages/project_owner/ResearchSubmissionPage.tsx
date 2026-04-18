@@ -99,15 +99,26 @@ const ResearchSubmissionPage: React.FC = () => {
         {step === 3 && (
           <div className="p-6 space-y-6">
             <h2 className="text-lg font-bold text-slate-800">Xác nhận & Nộp kết quả</h2>
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-              <p className="text-sm font-semibold text-primary mb-2">Bạn sắp nộp kết quả nghiên cứu cho đề tài:</p>
-              <p className="text-sm font-bold text-slate-900">{selectedProject?.code} — {selectedProject?.title}</p>
-              <p className="text-xs text-slate-500 mt-2">Lưu ý: Sau khi nộp, bạn sẽ không thể chỉnh sửa hồ sơ. Phòng NCKH sẽ xem xét và phản hồi.</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <input type="checkbox" id="confirm" className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" />
-              <label htmlFor="confirm" className="text-sm text-slate-700">Tôi xác nhận rằng tất cả thông tin và tài liệu nộp là chính xác và đầy đủ.</label>
-            </div>
+
+            {selectedProject?.status !== 'dang_thuc_hien' ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
+                <p className="text-yellow-800 font-bold mb-2">Không thể nộp hồ sơ lúc này!</p>
+                <p className="text-yellow-700 text-sm">Đề tài của bạn hiện không ở trạng thái "Đang thực hiện". Nếu bạn đã nộp trước đó, hồ sơ đang được chờ nghiệm thu.</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-primary mb-2">Bạn sắp nộp kết quả nghiên cứu cho đề tài:</p>
+                  <p className="text-sm font-bold text-slate-900">{selectedProject?.code} — {selectedProject?.title}</p>
+                  <p className="text-xs text-slate-500 mt-2">Lưu ý: Sau khi nộp, bạn sẽ không thể chỉnh sửa hồ sơ. Phòng NCKH sẽ xem xét và phản hồi.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" id="confirm" className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" />
+                  <label htmlFor="confirm" className="text-sm text-slate-700">Tôi xác nhận rằng tất cả thông tin và tài liệu nộp là chính xác và đầy đủ.</label>
+                </div>
+              </>
+            )}
+
             <div className="flex justify-between">
               <button onClick={() => setStep(2)} className="px-6 py-2.5 text-sm font-bold text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50">← Quay lại</button>
               <button
@@ -117,14 +128,16 @@ const ResearchSubmissionPage: React.FC = () => {
                   try {
                     await projectService.submitProduct(projectId, { type: 'final_report', content: 'Nộp kết quả nghiên cứu', file: finalFile });
                     setSubmitted(true);
+                    // Update local state to reflect change instantly
+                    setProjects(projects.map(p => p.id === projectId ? { ...p, status: 'cho_nghiem_thu' } : p));
                   } finally {
                     setLoading(false);
                   }
                 }}
                 className="px-8 py-2.5 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50"
-                disabled={loading || !projectId || !finalFile}
+                disabled={loading || !projectId || !finalFile || selectedProject?.status !== 'dang_thuc_hien' || submitted}
               >
-                {loading ? 'ĐANG NỘP...' : '✓ NỘP KẾT QUẢ NGHIÊN CỨU'}
+                {loading ? 'ĐANG NỘP...' : (submitted ? 'ĐÃ NỘP' : '✓ NỘP KẾT QUẢ NGHIÊN CỨU')}
               </button>
             </div>
           </div>

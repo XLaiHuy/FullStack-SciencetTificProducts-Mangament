@@ -4,19 +4,18 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 public class ProjectDtos {
 
     public record CreateProjectRequest(
-        @NotBlank String id,
-        @NotBlank String code,
+        String id,
+        String code,
         @NotBlank String title,
         @NotBlank String ownerId,
         @NotBlank String department,
         @NotBlank String field,
-        @NotNull LocalDate startDate,
-        @NotNull LocalDate endDate,
+        @NotBlank String startDate,
+        @NotBlank String endDate,
         @NotNull Integer durationMonths,
         @NotNull @DecimalMin("0.01") BigDecimal budget,
         @DecimalMin("0.00") BigDecimal advancedAmount
@@ -30,11 +29,19 @@ public class ProjectDtos {
         String title,
         String ownerId,
         String ownerName,
+        String ownerEmail,
+        String ownerTitle,
         ProjectStatus status,
         BigDecimal budget,
         BigDecimal advancedAmount,
         String department,
-        String field
+        String field,
+        String startDate,
+        String endDate,
+        Integer durationMonths,
+        String midtermReportUrl,
+        String midtermReportContent,
+        String finalReportUrl
     ) {}
 
     public record DashboardStats(

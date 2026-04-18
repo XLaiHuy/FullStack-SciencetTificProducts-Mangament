@@ -58,6 +58,15 @@ public class Project {
     @Column(nullable = false, name = "updatedAt")
     private Instant updatedAt = Instant.now();
 
+    @Column(length = 500)
+    private String midtermReportUrl;
+
+    @Column(length = 2000)
+    private String midtermReportContent;
+
+    @Column(length = 500)
+    private String finalReportUrl;
+
     @PreUpdate
     void onUpdate() {
         updatedAt = Instant.now();
@@ -89,4 +98,10 @@ public class Project {
     public void setStatus(ProjectStatus status) { this.status = status; }
     public Boolean getIsDeleted() { return isDeleted; }
     public void setIsDeleted(Boolean deleted) { isDeleted = deleted; }
+    public String getMidtermReportUrl() { return midtermReportUrl; }
+    public void setMidtermReportUrl(String midtermReportUrl) { this.midtermReportUrl = midtermReportUrl; }
+    public String getMidtermReportContent() { return midtermReportContent; }
+    public void setMidtermReportContent(String midtermReportContent) { this.midtermReportContent = midtermReportContent; }
+    public String getFinalReportUrl() { return finalReportUrl; }
+    public void setFinalReportUrl(String finalReportUrl) { this.finalReportUrl = finalReportUrl; }
 }

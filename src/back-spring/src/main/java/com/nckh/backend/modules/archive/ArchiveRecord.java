@@ -1,6 +1,5 @@
 package com.nckh.backend.modules.archive;
 
-import com.nckh.backend.modules.projects.Project;
 import jakarta.persistence.*;
 import java.time.Instant;
 
@@ -12,9 +11,8 @@ public class ArchiveRecord {
     @Column(length = 64)
     private String id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "projectId", nullable = false)
-    private Project project;
+    @Column(name = "projectId", nullable = false, length = 64)
+    private String projectId;
 
     @Column(nullable = false)
     private Instant archivedAt = Instant.now();
@@ -30,8 +28,8 @@ public class ArchiveRecord {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-    public Project getProject() { return project; }
-    public void setProject(Project project) { this.project = project; }
+    public String getProjectId() { return projectId; }
+    public void setProjectId(String projectId) { this.projectId = projectId; }
     public Instant getArchivedAt() { return archivedAt; }
     public void setArchivedAt(Instant archivedAt) { this.archivedAt = archivedAt; }
     public String getArchivedBy() { return archivedBy; }

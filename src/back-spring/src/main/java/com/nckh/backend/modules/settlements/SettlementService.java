@@ -2,16 +2,23 @@ package com.nckh.backend.modules.settlements;
 
 import static com.nckh.backend.modules.settlements.SettlementDtos.*;
 
+import com.nckh.backend.modules.notifications.Notification;
+import com.nckh.backend.modules.notifications.NotificationRepository;
+import com.nckh.backend.modules.notifications.NotificationType;
 import com.nckh.backend.modules.projects.Project;
 import com.nckh.backend.modules.projects.ProjectRepository;
 import com.nckh.backend.modules.projects.ProjectStatus;
 import com.nckh.backend.modules.users.User;
 import com.nckh.backend.modules.users.UserRole;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class SettlementService {
 
     private static final Map<SettlementStatus, List<SettlementStatus>> ALLOWED_TRANSITIONS = Map.of(
@@ -23,17 +30,35 @@ public class SettlementService {
 
     private final SettlementRepository settlementRepository;
     private final ProjectRepository projectRepository;
+    private final NotificationRepository notificationRepository;
 
-    public SettlementService(SettlementRepository settlementRepository, ProjectRepository projectRepository) {
+    public SettlementService(
+        SettlementRepository settlementRepository,
+        ProjectRepository projectRepository,
+        NotificationRepository notificationRepository
+    ) {
         this.settlementRepository = settlementRepository;
         this.projectRepository = projectRepository;
+        this.notificationRepository = notificationRepository;
     }
 
-    public List<SettlementItem> getAll(User actor) {
+    public List<SettlementItem> getAll(User actor, String status, String search) {
         List<Settlement> list = actor.getRole() == UserRole.project_owner
             ? settlementRepository.findByProjectOwnerIdAndIsDeletedFalseOrderByCreatedAtDesc(actor.getId())
             : settlementRepository.findByIsDeletedFalseOrderByCreatedAtDesc();
-        return list.stream().map(this::toItem).toList();
+
+        String normalizedStatus = status == null ? "" : status.trim();
+        String keyword = search == null ? "" : search.trim().toLowerCase();
+
+        return list.stream()
+            .filter(s -> normalizedStatus.isBlank() || s.getStatus().name().equalsIgnoreCase(normalizedStatus))
+            .filter(s -> keyword.isBlank()
+                || (s.getCode() != null && s.getCode().toLowerCase().contains(keyword))
+                || (s.getContent() != null && s.getContent().toLowerCase().contains(keyword))
+                || (s.getProject() != null && s.getProject().getTitle() != null && s.getProject().getTitle().toLowerCase().contains(keyword))
+            )
+            .map(this::toItem)
+            .toList();
     }
 
     public SettlementItem getById(String id, User actor) {
@@ -58,12 +83,19 @@ public class SettlementService {
         }
 
         Settlement settlement = new Settlement();
-        settlement.setId(request.id());
-        settlement.setCode(request.code());
+        settlement.setId((request.id() == null || request.id().isBlank()) ? UUID.randomUUID().toString() : request.id());
+        settlement.setCode((request.code() == null || request.code().isBlank())
+            ? ("QT-" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")))
+            : request.code());
         settlement.setProject(project);
         settlement.setContent(request.content());
         settlement.setTotalAmount(request.totalAmount());
-        settlement.setSubmittedBy(request.submittedBy());
+        settlement.setSubmittedBy((request.submittedBy() == null || request.submittedBy().isBlank()) ? actor.getName() : request.submittedBy());
+
+        if (request.evidenceFiles() != null && !request.evidenceFiles().isEmpty()) {
+            String attachNote = "\n[EvidenceFiles] " + String.join(", ", request.evidenceFiles());
+            settlement.setContent(request.content() + attachNote);
+        }
 
         return toItem(settlementRepository.save(settlement));
     }
@@ -72,7 +104,10 @@ public class SettlementService {
         Settlement s = settlementRepository.findByIdAndIsDeletedFalse(id)
             .orElseThrow(() -> new IllegalArgumentException("Ho so quyet toan khong ton tai"));
         s.setStatus(SettlementStatus.cho_bo_sung);
-        s.setSupplementNote(request.note());
+        s.setSupplementNote(request.resolvedNote());
+        String noteText = request.resolvedNote() == null ? "" : request.resolvedNote();
+        String message = "Ho so quyet toan " + s.getCode() + " can bo sung: " + noteText;
+        notifyOwnerIfAbsent(s, NotificationType.warning, message);
         return toItem(settlementRepository.save(s));
     }
 
@@ -96,6 +131,7 @@ public class SettlementService {
             Project p = s.getProject();
             p.setStatus(ProjectStatus.da_thanh_ly);
             projectRepository.save(p);
+            notifyOwnerIfAbsent(s, NotificationType.info, "Ho so quyet toan " + s.getCode() + " da duoc xac nhan.");
         }
 
         return toItem(settlementRepository.save(s));
@@ -112,10 +148,35 @@ public class SettlementService {
             s.getProject().getId(),
             s.getProject().getCode(),
             s.getProject().getTitle(),
+            Map.of(
+                "id", s.getProject().getId(),
+                "title", s.getProject().getTitle(),
+                "budget", s.getProject().getBudget()
+            ),
             s.getTotalAmount(),
             s.getStatus(),
             s.getSubmittedBy(),
             s.getSupplementNote()
         );
+    }
+
+    private void notifyOwnerIfAbsent(Settlement settlement, NotificationType type, String message) {
+        if (settlement.getProject() == null || settlement.getProject().getOwner() == null) {
+            return;
+        }
+        String ownerId = settlement.getProject().getOwner().getId();
+        if (ownerId == null || ownerId.isBlank()) {
+            return;
+        }
+        if (notificationRepository.countByUserIdAndMessage(ownerId, message) > 0) {
+            return;
+        }
+        Notification n = new Notification();
+        n.setId(UUID.randomUUID().toString());
+        n.setUser(settlement.getProject().getOwner());
+        n.setType(type);
+        n.setMessage(message);
+        n.setIsRead(false);
+        notificationRepository.save(n);
     }
 }

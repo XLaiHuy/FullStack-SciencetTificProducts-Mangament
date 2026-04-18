@@ -9,8 +9,8 @@ import java.time.LocalDate;
 public class ContractDtos {
 
     public record CreateContractRequest(
-        @NotBlank String id,
-        @NotBlank String code,
+        String id,
+        String code,
         @NotBlank String projectId,
         @NotNull @DecimalMin("0.01") BigDecimal budget,
         String agencyName,
@@ -26,6 +26,9 @@ public class ContractDtos {
         String projectId,
         String projectCode,
         String projectTitle,
+        String owner,
+        String ownerEmail,
+        String ownerTitle,
         BigDecimal budget,
         ContractStatus status,
         LocalDate signedDate,

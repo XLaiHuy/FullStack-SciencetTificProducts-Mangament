@@ -63,7 +63,7 @@ export const templateService = {
 
   async fill(id: string, projectId: string): Promise<void> {
     const token = localStorage.getItem('nckh_token');
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
     const response = await fetch(`${baseUrl}/templates/${id}/fill?projectId=${encodeURIComponent(projectId)}`, {
       method: 'GET',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -86,7 +86,7 @@ export const templateService = {
 
   async downloadOriginal(id: string, fallbackFileName?: string): Promise<void> {
     const token = localStorage.getItem('nckh_token');
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
     const response = await fetch(`${baseUrl}/templates/${id}/download`, {
       method: 'GET',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
