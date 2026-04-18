@@ -9,6 +9,7 @@ const ResearchSubmissionPage: React.FC = () => {
   const [finalFile, setFinalFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const selectedProject = React.useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
 
@@ -125,11 +126,26 @@ const ResearchSubmissionPage: React.FC = () => {
                 onClick={async () => {
                   if (!projectId || !finalFile) return;
                   setLoading(true);
+                  setSubmitError('');
                   try {
                     await projectService.submitProduct(projectId, { type: 'final_report', content: 'Nộp kết quả nghiên cứu', file: finalFile });
-                    setSubmitted(true);
-                    // Update local state to reflect change instantly
-                    setProjects(projects.map(p => p.id === projectId ? { ...p, status: 'cho_nghiem_thu' } : p));
+                    // Re-fetch real project state from backend before marking successful UI.
+                    const refreshed = await projectService.getById(projectId);
+                    if (refreshed) {
+                      setProjects((prev) => prev.map((p) => (p.id === projectId ? refreshed : p)));
+                      if (refreshed.status === 'cho_nghiem_thu') {
+                        setSubmitted(true);
+                      } else {
+                        setSubmitError('Nộp chưa hoàn tất: đề tài chưa chuyển sang Chờ nghiệm thu. Vui lòng kiểm tra lại.');
+                      }
+                    } else {
+                      setSubmitError('Không thể xác nhận trạng thái sau khi nộp. Vui lòng tải lại trang.');
+                    }
+                  } catch (error) {
+                    const message = typeof error === 'string'
+                      ? error
+                      : (error as any)?.message || 'Nộp hồ sơ thất bại.';
+                    setSubmitError(message);
                   } finally {
                     setLoading(false);
                   }
@@ -143,6 +159,7 @@ const ResearchSubmissionPage: React.FC = () => {
           </div>
         )}
       </div>
+      {submitError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{submitError}</div>}
       {submitted && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">Đã nộp hồ sơ cuối kỳ thành công.</div>}
     </div>
   );

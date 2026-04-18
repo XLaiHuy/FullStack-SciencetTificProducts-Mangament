@@ -68,6 +68,14 @@ const NOISE_NAME_PREFIXES = [
   'don vi',
   'chuc danh',
   'chu nhiem',
+  'cong hoa xa hoi',
+  'doc lap',
+  'danh sach',
+  'ma de tai',
+  'ten de tai',
+  'ngay thanh lap',
+  'ghi chu',
+  'hoi dong',
 ];
 
 const rebalanceRecognizedRoles = (rows: CouncilMember[]) => {
@@ -121,7 +129,7 @@ const mergeMember = (base: CouncilMember, incoming: CouncilMember): CouncilMembe
 const memberKey = (member: CouncilMember) => {
   const normalizedEmail = (member.email ?? '').trim().toLowerCase();
   if (normalizedEmail) return `email:${normalizedEmail}`;
-  return `name:${normalizeText(member.name)}|role:${member.role}`;
+  return `name:${normalizeText(member.name)}`;
 };
 
 const dedupeMembers = (rows: CouncilMember[]) => {

@@ -129,6 +129,7 @@ public class ProjectController {
     @PostMapping(path = "/{id}/final-submission", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('project_owner')")
     public ApiResponse<Map<String, Object>> submitFinalReport(@PathVariable String id, @RequestPart("file") MultipartFile file, @RequestParam(value = "content", required = false) String content) {
+        projectService.ensureFinalSubmissionAllowed(id);
         String url = saveUpload(file, "reports");
         projectService.updateFinalReport(id, url);
         projectService.updateStatus(id, new UpdateStatusRequest(ProjectStatus.cho_nghiem_thu));
@@ -144,6 +145,7 @@ public class ProjectController {
     @PostMapping(path = "/{id}/final-submission", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasRole('project_owner')")
     public ApiResponse<Map<String, Object>> submitFinalReportJson(@PathVariable String id, @RequestBody(required = false) Map<String, Object> payload) {
+        projectService.ensureFinalSubmissionAllowed(id);
         projectService.updateStatus(id, new UpdateStatusRequest(ProjectStatus.cho_nghiem_thu));
         String content = payload == null ? "" : String.valueOf(payload.getOrDefault("content", ""));
         return ApiResponse.ok(Map.<String, Object>of(
@@ -159,6 +161,7 @@ public class ProjectController {
     @PreAuthorize("hasRole('project_owner')")
     public ApiResponse<Map<String, Object>> submitProduct(@PathVariable String id, @RequestPart("file") MultipartFile file, @RequestParam(value = "type", required = false) String type, @RequestParam(value = "content", required = false) String content) {
         if ("final_report".equals(type)) {
+            projectService.ensureFinalSubmissionAllowed(id);
             String url = saveUpload(file, "reports");
             projectService.updateFinalReport(id, url);
             projectService.updateStatus(id, new UpdateStatusRequest(ProjectStatus.cho_nghiem_thu));

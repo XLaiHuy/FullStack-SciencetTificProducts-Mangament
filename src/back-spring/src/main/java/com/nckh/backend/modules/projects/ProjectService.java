@@ -142,6 +142,14 @@ public class ProjectService {
         projectRepository.save(project);
     }
 
+    public void ensureFinalSubmissionAllowed(String id) {
+        Project project = projectRepository.findByIdAndIsDeletedFalse(id)
+            .orElseThrow(() -> new IllegalArgumentException("De tai khong ton tai"));
+        if (project.getStatus() != ProjectStatus.dang_thuc_hien) {
+            throw new IllegalArgumentException("De tai khong o trang thai dang_thuc_hien");
+        }
+    }
+
     public List<Map<String, Object>> owners() {
         return userRepository.findByRoleAndIsDeletedFalse(UserRole.project_owner).stream()
             .map(u -> Map.<String, Object>of(

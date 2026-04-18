@@ -47,3 +47,6 @@ src/front/.git_front_backup/
 
 # Generated test artifacts
 src/front/test-results/
+
+# Local export artifact
+NCKH_Final.zip

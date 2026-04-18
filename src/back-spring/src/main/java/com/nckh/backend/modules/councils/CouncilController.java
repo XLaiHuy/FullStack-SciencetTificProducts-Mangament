@@ -196,7 +196,7 @@ public class CouncilController {
 
             String key = !email.isBlank()
                 ? "email:" + email
-                : "name:" + normalizeVietnamese(name.toLowerCase(Locale.ROOT));
+                : "name:" + normalizeVietnamese(name.toLowerCase(Locale.ROOT)).replaceAll("[^a-z0-9 ]", "").trim();
 
             Map<String, Object> existing = deduped.get(key);
             if (existing == null) {
@@ -292,7 +292,15 @@ public class CouncilController {
             || normalized.startsWith("email")
             || normalized.startsWith("hoc ham")
             || normalized.startsWith("nhap hoc ham")
-            || normalized.startsWith("don vi");
+            || normalized.startsWith("don vi")
+            || normalized.startsWith("cong hoa xa hoi")
+            || normalized.startsWith("doc lap")
+            || normalized.startsWith("danh sach")
+            || normalized.startsWith("ma de tai")
+            || normalized.startsWith("ten de tai")
+            || normalized.startsWith("ngay thanh lap")
+            || normalized.startsWith("ghi chu")
+            || normalized.startsWith("hoi dong");
     }
 
     private boolean isNoiseName(String name) {
@@ -302,7 +310,15 @@ public class CouncilController {
             || normalized.startsWith("ho va ten")
             || normalized.startsWith("hoc ham")
             || normalized.startsWith("nhap hoc ham")
-            || normalized.startsWith("don vi");
+            || normalized.startsWith("don vi")
+            || normalized.startsWith("cong hoa xa hoi")
+            || normalized.startsWith("doc lap")
+            || normalized.startsWith("danh sach")
+            || normalized.startsWith("ma de tai")
+            || normalized.startsWith("ten de tai")
+            || normalized.startsWith("ngay thanh lap")
+            || normalized.startsWith("ghi chu")
+            || normalized.startsWith("hoi dong");
     }
 
     private Map<String, Object> parseTableLikeLine(String line) {
