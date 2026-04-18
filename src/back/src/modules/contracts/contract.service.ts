@@ -249,6 +249,15 @@ const buildContractPdfBuffer = async (contract: any) => {
   return Buffer.from(bytes);
 };
 
+const CONTRACT_ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  cho_duyet: ['da_ky', 'huy'],
+  da_ky: ['hoan_thanh', 'huy'],
+  hoan_thanh: [],
+  huy: [],
+};
+
+const CONTRACT_PDF_EDITABLE_STATUSES = new Set(['cho_duyet', 'da_ky']);
+
 // ─── Contract Service ─────────────────────────────────────────────────────────
 export const ContractService = {
   /** POST /api/contracts/proposals/parse */
@@ -506,6 +515,9 @@ export const ContractService = {
     if (contract.project.ownerId !== actorId) {
       throw new Error('Bạn không có quyền ký hợp đồng của đề tài này.');
     }
+    if (contract.status === 'hoan_thanh' || contract.status === 'huy') {
+      throw new Error('Hợp đồng đã chốt nên không thể ký lại.');
+    }
     if (contract.status !== 'cho_duyet') throw new Error('Chỉ có thể ký hợp đồng đang ở trạng thái "Chờ duyệt".');
 
     const updated = await prisma.contract.update({
@@ -522,6 +534,15 @@ export const ContractService = {
     const contract = await prisma.contract.findFirst({ where: { id, is_deleted: false } });
     if (!contract) throw new Error('Hợp đồng không tồn tại.');
 
+    if (status === contract.status) {
+      return contract;
+    }
+
+    const allowed = CONTRACT_ALLOWED_TRANSITIONS[contract.status] ?? [];
+    if (!allowed.includes(status)) {
+      throw new Error(`Không thể chuyển trạng thái từ "${contract.status}" sang "${status}".`);
+    }
+
     const updated = await prisma.contract.update({
       where: { id },
       data:  { status: status as never },
@@ -535,6 +556,9 @@ export const ContractService = {
   async uploadPdf(id: string, filePath: string, actorId: string, actorName: string) {
     const contract = await prisma.contract.findFirst({ where: { id, is_deleted: false } });
     if (!contract) throw new Error('Hợp đồng không tồn tại.');
+    if (!CONTRACT_PDF_EDITABLE_STATUSES.has(contract.status)) {
+      throw new Error('Hợp đồng đã chốt nên không thể cập nhật PDF.');
+    }
 
     // Delete the previously stored PDF file from disk if it exists
     if (contract.pdfUrl) {
@@ -559,7 +583,7 @@ export const ContractService = {
   async delete(id: string, actorId: string, actorName: string) {
     const contract = await prisma.contract.findFirst({ where: { id, is_deleted: false } });
     if (!contract) throw new Error('Hợp đồng không tồn tại.');
-    if (contract.status === 'da_ky') throw new Error('Không thể xóa hợp đồng đã ký.');
+    if (contract.status !== 'cho_duyet') throw new Error('Chỉ có thể xóa hợp đồng ở trạng thái chờ duyệt.');
 
     await prisma.contract.update({ where: { id }, data: { is_deleted: true } });
     await logBusiness(actorId, actorName, 'DELETE', 'Contracts', JSON.stringify({ old_values: contract }));

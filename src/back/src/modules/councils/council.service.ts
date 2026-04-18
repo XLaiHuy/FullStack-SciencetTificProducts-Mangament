@@ -132,8 +132,44 @@ const buildNewCouncilAccountsCsv = (
     'Chi hien thi mot lan. Yeu cau doi mat khau khi dang nhap dau tien.',
   ].map(toCsvCell).join(',')));
 
-  return [header, ...body].join('\n');
+  return `\uFEFF${[header, ...body].join('\n')}`;
 };
+
+async function ensureCouncilEditable(councilId: string) {
+  const council = await prisma.council.findFirst({
+    where: { id: councilId, is_deleted: false },
+    select: { status: true },
+  });
+  if (!council) throw new Error('Hội đồng không tồn tại.');
+
+  if (council.status !== 'cho_danh_gia') {
+    throw new Error('Hội đồng đã được chốt bước thành lập nên không thể chỉnh sửa thành phần/quyết định.');
+  }
+
+  const scoredCount = await prisma.councilReview.count({
+    where: { councilId, type: 'score' },
+  });
+
+  if (scoredCount > 0) {
+    throw new Error('Hội đồng đã được chấm điểm hoặc hoàn thành nên không thể chỉnh sửa.');
+  }
+}
+
+async function ensureCouncilEvaluationOpen(councilId: string) {
+  const council = await prisma.council.findFirst({
+    where: { id: councilId, is_deleted: false },
+    select: { status: true },
+  });
+  if (!council) throw new Error('Hội đồng không tồn tại.');
+
+  if (council.status === 'da_hoan_thanh') {
+    throw new Error('Hội đồng đã hoàn thành nên không thể chỉnh sửa dữ liệu đánh giá.');
+  }
+
+  if (council.status !== 'dang_danh_gia') {
+    throw new Error('Hội đồng chưa được phê duyệt đánh giá nên chưa thể ghi nhận điểm/biên bản.');
+  }
+}
 
 const buildCouncilPdfBuffer = async (title: string, lines: string[]) => {
   const toPdfText = (value: string) =>
@@ -668,6 +704,7 @@ export const CouncilService = {
 
   /** POST /api/councils/:id/members */
   async addMember(councilId: string, member: z.infer<typeof MemberSchema>, actorId: string, actorName: string) {
+    await ensureCouncilEditable(councilId);
     const council = await prisma.council.findFirst({
       where: { id: councilId, is_deleted: false },
       include: {
@@ -735,6 +772,7 @@ export const CouncilService = {
 
   /** POST /api/councils/:id/decision */
   async uploadDecision(councilId: string, filePath: string, actorId: string, actorName: string) {
+    await ensureCouncilEditable(councilId);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
 
@@ -867,6 +905,7 @@ export const CouncilService = {
 
   /** DELETE /api/councils/:id/members/:memberId */
   async removeMember(councilId: string, memberId: string, actorId: string, actorName: string) {
+    await ensureCouncilEditable(councilId);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
     
@@ -908,6 +947,9 @@ export const CouncilService = {
   async approve(id: string, actorId: string, actorName: string) {
     const council = await prisma.council.findFirst({ where: { id, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
+    if (council.status !== 'cho_danh_gia') {
+      throw new Error('Chỉ có thể phê duyệt hội đồng ở trạng thái chờ đánh giá.');
+    }
 
     const updated = await prisma.council.update({
       where: { id },
@@ -931,6 +973,12 @@ export const CouncilService = {
       },
     });
     if (!council) throw new Error('Hội đồng không tồn tại.');
+    if (council.status === 'da_hoan_thanh') {
+      throw new Error('Hội đồng đã hoàn thành nghiệm thu.');
+    }
+    if (council.status !== 'dang_danh_gia') {
+      throw new Error('Chỉ có thể hoàn thành nghiệm thu khi hội đồng đang ở bước đánh giá.');
+    }
 
     const missingRoles = getMissingCouncilRoles(council.members);
     if (council.members.length < 5 || missingRoles.length > 0) {
@@ -961,6 +1009,7 @@ export const CouncilService = {
 
   /** POST /api/councils/:id/review */
   async submitReview(councilId: string, userId: string, payload: unknown) {
+    await ensureCouncilEvaluationOpen(councilId);
     const { score, comments } = ReviewPayloadSchema.parse(payload);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
@@ -988,6 +1037,7 @@ export const CouncilService = {
     actorName: string,
     payload: unknown,
   ) {
+    await ensureCouncilEvaluationOpen(councilId);
     const { content, fileUrl } = MinutesPayloadSchema.parse(payload);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hoi dong khong ton tai.');
@@ -1011,6 +1061,7 @@ export const CouncilService = {
 
   /** POST /api/councils/:id/score */
   async submitScore(councilId: string, userId: string, payload: unknown) {
+    await ensureCouncilEvaluationOpen(councilId);
     const { score, comments } = ScorePayloadSchema.parse(payload);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hội đồng không tồn tại.');
@@ -1036,6 +1087,7 @@ export const CouncilService = {
     actorRole: string,
     payload: unknown,
   ) {
+    await ensureCouncilEvaluationOpen(councilId);
     const { memberId, decision, note } = ScoreDecisionSchema.parse(payload);
     const council = await prisma.council.findFirst({ where: { id: councilId, is_deleted: false } });
     if (!council) throw new Error('Hoi dong khong ton tai.');
