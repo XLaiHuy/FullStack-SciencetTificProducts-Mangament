@@ -67,9 +67,22 @@ public class CouncilController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('research_staff','superadmin')")
-    public ApiResponse<CouncilItem> create(@Valid @RequestBody CreateCouncilRequest request) {
-        CouncilItem item = councilService.create(request);
-        return ApiResponse.ok(item, "Tao hoi dong thanh cong");
+    public ApiResponse<Map<String, Object>> create(@Valid @RequestBody CreateCouncilRequest request) {
+        CouncilCreateResult result = councilService.create(request);
+        CouncilItem item = result.council();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", item.id());
+        payload.put("decisionCode", item.decisionCode());
+        payload.put("projectId", item.projectId());
+        payload.put("projectCode", item.projectCode());
+        payload.put("projectTitle", item.projectTitle());
+        payload.put("createdDate", item.createdDate());
+        payload.put("status", item.status());
+        payload.put("decisionPdfUrl", item.decisionPdfUrl());
+        payload.put("newAccountsCount", result.newAccountsCount());
+        payload.put("newAccountsCsvBase64", result.newAccountsCsvBase64());
+        payload.put("newAccountsCsvFileName", result.newAccountsCsvFileName());
+        return ApiResponse.ok(payload, "Tao hoi dong thanh cong");
     }
 
     @PostMapping("/check-conflict")

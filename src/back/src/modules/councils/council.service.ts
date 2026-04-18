@@ -89,6 +89,11 @@ const REQUIRED_COUNCIL_ROLES: Array<MemberInput['role']> = ['chu_tich', 'phan_bi
 const getMissingCouncilRoles = (members: Array<{ role: MemberInput['role'] }>) =>
   REQUIRED_COUNCIL_ROLES.filter((role) => !members.some((member) => member.role === role));
 
+const SCORE_ELIGIBLE_ROLES: MemberInput['role'][] = ['chu_tich', 'phan_bien_1', 'phan_bien_2'];
+
+const isScoreEligibleRole = (role?: string | null): role is MemberInput['role'] =>
+  role === 'chu_tich' || role === 'phan_bien_1' || role === 'phan_bien_2';
+
 const generateTemporaryPassword = () => `NCKH@${Math.random().toString(36).slice(-6)}A1`;
 
 const getConfiguredCouncilDefaultPassword = async () => {
@@ -481,6 +486,7 @@ export const CouncilService = {
       : userRole === 'project_owner'
         ? { project: { ownerId: userId } }
         : {};
+
     const council = await prisma.council.findFirst({
       where: { OR: [{ id }, { decisionCode: id }], is_deleted: false, ...roleFilter },
       include: {
@@ -499,7 +505,9 @@ export const CouncilService = {
           },
         },
         members: { where: { is_deleted: false } },
-        reviews: true,
+        reviews: userRole === 'council_member'
+          ? { where: { member: { userId, is_deleted: false } } }
+          : true,
         minutes: true,
       },
     });
@@ -1011,8 +1019,8 @@ export const CouncilService = {
       where: { councilId, userId, is_deleted: false },
     });
     if (!member) throw new Error('Bạn không phải thành viên hợp lệ của Hội đồng này.');
-    if (member.role === 'thu_ky') {
-      throw new Error('Thu ky hoi dong khong thuc hien cham diem.');
+    if (!isScoreEligibleRole(member.role)) {
+      throw new Error('Chi chu tich va cac phan bien moi duoc cham diem.');
     }
 
     return prisma.councilReview.upsert({
@@ -1162,10 +1170,11 @@ export const CouncilService = {
     }
 
     const items = members.map((member) => {
+      const scoreRequired = isScoreEligibleRole(member.role);
       const latest = latestByMember.get(member.id) ?? { scoreRow: null, decisionRow: null };
       const { scoreRow, decisionRow } = latest;
       const parsedDecision = parseDecision(decisionRow?.comments ?? null);
-      const numericScore = scoreRow?.score !== null && scoreRow?.score !== undefined
+      const numericScore = scoreRequired && scoreRow?.score !== null && scoreRow?.score !== undefined
         ? Number(scoreRow.score)
         : null;
 
@@ -1174,14 +1183,14 @@ export const CouncilService = {
         memberName: member.name ?? 'Unknown',
         role: member.role ?? 'uy_vien',
         score: numericScore,
-        comments: scoreRow?.comments ?? null,
-        isSubmitted: numericScore !== null,
-        submittedAt: scoreRow?.updatedAt ?? scoreRow?.createdAt ?? null,
-        submittedType: scoreRow?.type ?? null,
-        decisionStatus: parsedDecision.decision,
-        decisionNote: parsedDecision.note,
-        decisionBy: parsedDecision.decidedByName,
-        decisionAt: parsedDecision.decidedAt ?? (decisionRow?.updatedAt?.toISOString() ?? null),
+        comments: scoreRequired ? (scoreRow?.comments ?? null) : null,
+        isSubmitted: scoreRequired ? numericScore !== null : false,
+        submittedAt: scoreRequired ? (scoreRow?.updatedAt ?? scoreRow?.createdAt ?? null) : null,
+        submittedType: scoreRequired ? (scoreRow?.type ?? null) : null,
+        decisionStatus: scoreRequired ? parsedDecision.decision : null,
+        decisionNote: scoreRequired ? parsedDecision.note : '',
+        decisionBy: scoreRequired ? parsedDecision.decidedByName : '',
+        decisionAt: scoreRequired ? (parsedDecision.decidedAt ?? (decisionRow?.updatedAt?.toISOString() ?? null)) : null,
       };
     });
 

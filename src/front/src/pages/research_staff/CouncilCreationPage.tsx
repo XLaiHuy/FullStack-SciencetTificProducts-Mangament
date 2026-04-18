@@ -685,8 +685,10 @@ const CouncilCreationPage: React.FC = () => {
           fileName,
           csvBase64: created.newAccountsCsvBase64,
         });
-        showToast(`Đã xuất CSV ${created.newAccountsCount} tài khoản hội đồng mới.`, 'success');
-        pushActivity(`Xuất CSV credential tài khoản mới cho hội đồng ${created.decisionCode}.`, 'user');
+        showToast(`Đã xuất CSV tài khoản hội đồng (${created.newAccountsCount} thành viên).`, 'success');
+        pushActivity(`Xuất CSV tài khoản hội đồng cho hội đồng ${created.decisionCode}.`, 'user');
+      } else {
+        showToast('Đã lưu hội đồng nhưng không có dữ liệu credential để xuất.', 'success');
       }
 
       setCouncils([created, ...councils]);

@@ -35,6 +35,8 @@ const roleLabel = (role: string) => {
   return role;
 };
 
+const isScoreRole = (role: string) => role === 'chu_tich' || role === 'phan_bien_1' || role === 'phan_bien_2';
+
 const SecretaryPage: React.FC = () => {
   const [toast, setToast] = React.useState('');
   const [error, setError] = React.useState('');
@@ -182,7 +184,7 @@ const SecretaryPage: React.FC = () => {
     if (!activeCouncil) return false;
     if (rows.length === 0) return false;
 
-    const submittedRows = rows.filter((row) => row.isSubmitted);
+    const submittedRows = rows.filter((row) => isScoreRole(row.role) && row.isSubmitted);
     if (submittedRows.length < 3) return false;
 
     return submittedRows.every((row) => row.decisionStatus === 'accepted');
@@ -381,17 +383,19 @@ const SecretaryPage: React.FC = () => {
                         <td className="px-6 py-4 text-sm text-gray-600">{roleLabel(row.role)}</td>
                         <td className="px-6 py-4 text-sm font-bold text-center">{row.score ?? '-'}</td>
                         <td className="px-6 py-4 text-sm">
-                          {row.isSubmitted ? (
+                          {isScoreRole(row.role) ? row.isSubmitted ? (
                             <span className="text-emerald-600 font-semibold">
                               Đã nộp {row.submittedAt ? `(${new Date(row.submittedAt).toLocaleTimeString('vi-VN')})` : ''}
                             </span>
                           ) : (
                             <span className="text-amber-600 font-semibold">Chưa nộp</span>
+                          ) : (
+                            <span className="text-slate-400 font-semibold">Không chấm điểm</span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <button
-                            disabled={!row.isSubmitted || row.decisionStatus === 'accepted'}
+                            disabled={!isScoreRole(row.role) || !row.isSubmitted || row.decisionStatus === 'accepted'}
                             onClick={() => openDecisionDialog(row.memberId, 'accepted', row.memberName)}
                             className={`px-3 py-1 text-white text-xs rounded ${
                               row.decisionStatus === 'accepted'
@@ -402,7 +406,7 @@ const SecretaryPage: React.FC = () => {
                             {row.decisionStatus === 'accepted' ? '✓ Đã xác nhận' : 'Xác nhận hợp lệ'}
                           </button>
                           <button
-                            disabled={!row.isSubmitted}
+                            disabled={!isScoreRole(row.role) || !row.isSubmitted}
                             onClick={() => openDecisionDialog(row.memberId, 'rework', row.memberName)}
                             className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50"
                           >

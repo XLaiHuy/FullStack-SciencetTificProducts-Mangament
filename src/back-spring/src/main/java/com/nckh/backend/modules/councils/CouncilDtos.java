@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.time.Instant;
 
 public class CouncilDtos {
 
@@ -19,8 +20,25 @@ public class CouncilDtos {
         String projectId,
         String projectCode,
         String projectTitle,
+        Instant createdDate,
         CouncilStatus status,
         String decisionPdfUrl
+    ) {}
+
+    public record CouncilCredentialRow(
+        String name,
+        String email,
+        String password,
+        String role,
+        boolean newlyCreated,
+        boolean passwordReset
+    ) {}
+
+    public record CouncilCreateResult(
+        CouncilItem council,
+        int newAccountsCount,
+        String newAccountsCsvBase64,
+        String newAccountsCsvFileName
     ) {}
 
     public record ScoreSummary(String councilId, int totalScores, BigDecimal averageScore, boolean passed) {}

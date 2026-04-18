@@ -2,6 +2,8 @@ package com.nckh.backend.modules.councils;
 
 import static com.nckh.backend.modules.councils.CouncilDtos.*;
 
+import com.nckh.backend.modules.admin.SystemConfig;
+import com.nckh.backend.modules.admin.SystemConfigRepository;
 import com.nckh.backend.modules.projects.Project;
 import com.nckh.backend.modules.projects.ProjectRepository;
 import com.nckh.backend.modules.projects.ProjectStatus;
@@ -10,12 +12,15 @@ import com.nckh.backend.modules.users.UserRepository;
 import com.nckh.backend.modules.users.UserRole;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,19 +33,25 @@ public class CouncilService {
     private final CouncilMemberRepository councilMemberRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final SystemConfigRepository systemConfigRepository;
 
     public CouncilService(
         CouncilRepository councilRepository,
         CouncilReviewRepository reviewRepository,
         CouncilMemberRepository councilMemberRepository,
         ProjectRepository projectRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        PasswordEncoder passwordEncoder,
+        SystemConfigRepository systemConfigRepository
     ) {
         this.councilRepository = councilRepository;
         this.reviewRepository = reviewRepository;
         this.councilMemberRepository = councilMemberRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.systemConfigRepository = systemConfigRepository;
     }
 
     public List<CouncilItem> getAll(User actor) {
@@ -75,7 +86,7 @@ public class CouncilService {
         return toItem(council);
     }
 
-    public CouncilItem create(CreateCouncilRequest request) {
+    public CouncilCreateResult create(CreateCouncilRequest request) {
         Project project = projectRepository.findByIdAndIsDeletedFalse(request.projectId())
             .orElseThrow(() -> new IllegalArgumentException("De tai khong ton tai"));
 
@@ -87,8 +98,13 @@ public class CouncilService {
         council.setProject(project);
 
         Council saved = councilRepository.save(council);
-        replaceMembers(saved, request.members());
-        return toItem(saved);
+        List<CouncilCredentialRow> credentialRows = replaceMembers(saved, request.members());
+        return new CouncilCreateResult(
+            toItem(saved),
+            credentialRows.size(),
+            encodeCredentialCsv(credentialRows),
+            buildCredentialFileName(saved.getDecisionCode())
+        );
     }
 
     public CouncilItem approve(String id) {
@@ -313,20 +329,24 @@ public class CouncilService {
             projectId,
             projectCode,
             projectTitle,
+            c.getCreatedDate(),
             c.getStatus(),
             c.getDecisionPdfUrl()
         );
     }
 
-    private void replaceMembers(Council council, List<MemberInput> members) {
+    private List<CouncilCredentialRow> replaceMembers(Council council, List<MemberInput> members) {
+        List<CouncilCredentialRow> credentialRows = new ArrayList<>();
         if (members == null || members.isEmpty()) {
-            return;
+            return credentialRows;
         }
         List<CouncilMember> existing = councilMemberRepository.findByCouncilIdAndIsDeletedFalseOrderByCreatedAtAsc(council.getId());
         for (CouncilMember old : existing) {
             old.setDeleted(true);
         }
         councilMemberRepository.saveAll(existing);
+
+        String tempPassword = resolveCouncilDefaultPassword();
 
         List<CouncilMember> fresh = members.stream().map(input -> {
             CouncilMember member = new CouncilMember();
@@ -340,10 +360,25 @@ public class CouncilService {
             member.setPhone(input.phone() == null ? "" : input.phone());
             member.setAffiliation(input.affiliation() == null ? "" : input.affiliation());
             member.setRole(input.role() == null || input.role().isBlank() ? "uy_vien" : input.role());
-            member.setMemberUserId(resolveUserIdByEmail(email));
+
+            if (!email.isBlank()) {
+                AccountProvisionResult provision = provisionCouncilAccount(member.getName(), member.getTitle(), email, tempPassword);
+                member.setMemberUserId(provision.userId());
+                credentialRows.add(new CouncilCredentialRow(
+                    member.getName(),
+                    email,
+                    provision.passwordForExport(),
+                    provision.role().name(),
+                    provision.newlyCreated(),
+                    provision.passwordReset()
+                ));
+            } else {
+                member.setMemberUserId(null);
+            }
             return member;
         }).toList();
         councilMemberRepository.saveAll(fresh);
+        return credentialRows;
     }
 
     public void replaceMembers(String councilId, List<MemberInput> members) {
@@ -360,6 +395,8 @@ public class CouncilService {
             return;
         }
 
+        String tempPassword = resolveCouncilDefaultPassword();
+
         List<CouncilMember> fresh = members.stream().map(input -> {
             CouncilMember member = new CouncilMember();
             member.setId(input.id() == null || input.id().isBlank() ? UUID.randomUUID().toString() : input.id());
@@ -372,11 +409,94 @@ public class CouncilService {
             member.setPhone(input.phone() == null ? "" : input.phone());
             member.setAffiliation(input.affiliation() == null ? "" : input.affiliation());
             member.setRole(input.role() == null || input.role().isBlank() ? "uy_vien" : input.role());
-            member.setMemberUserId(resolveUserIdByEmail(email));
+
+            if (!email.isBlank()) {
+                AccountProvisionResult provision = provisionCouncilAccount(member.getName(), member.getTitle(), email, tempPassword);
+                member.setMemberUserId(provision.userId());
+            } else {
+                member.setMemberUserId(null);
+            }
             return member;
         }).toList();
         councilMemberRepository.saveAll(fresh);
     }
+
+    private AccountProvisionResult provisionCouncilAccount(String name, String title, String email, String tempPassword) {
+        User existing = userRepository.findByEmailAndIsDeletedFalse(email).orElse(null);
+        if (existing == null) {
+            User created = new User();
+            created.setId(UUID.randomUUID().toString());
+            created.setName(name == null || name.isBlank() ? email : name);
+            created.setEmail(email);
+            created.setTitle(title == null ? "" : title);
+            created.setRole(UserRole.council_member);
+            created.setActive(true);
+            created.setLocked(false);
+            created.setDeleted(false);
+            created.setPasswordHash(passwordEncoder.encode(tempPassword));
+            User saved = userRepository.save(created);
+            return new AccountProvisionResult(saved.getId(), saved.getRole(), tempPassword, true, false);
+        }
+
+        if (existing.getRole() == UserRole.council_member) {
+            existing.setPasswordHash(passwordEncoder.encode(tempPassword));
+            existing.setActive(true);
+            existing.setLocked(false);
+            userRepository.save(existing);
+            return new AccountProvisionResult(existing.getId(), existing.getRole(), tempPassword, false, true);
+        }
+
+        return new AccountProvisionResult(existing.getId(), existing.getRole(), "", false, false);
+    }
+
+    private String resolveCouncilDefaultPassword() {
+        String configured = systemConfigRepository.findByKey("COUNCIL_DEFAULT_PASSWORD")
+            .map(SystemConfig::getValue)
+            .map(String::trim)
+            .orElse("");
+        if (configured.length() >= 6) {
+            return configured;
+        }
+        return "123456";
+    }
+
+    private String encodeCredentialCsv(List<CouncilCredentialRow> rows) {
+        if (rows.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("\"name\",\"email\",\"temporaryPassword\",\"role\",\"status\"\n");
+        for (CouncilCredentialRow row : rows) {
+            String status = row.newlyCreated() ? "NEW" : (row.passwordReset() ? "RESET" : "EXISTING");
+            builder
+                .append(csvCell(row.name())).append(',')
+                .append(csvCell(row.email())).append(',')
+                .append(csvCell(row.password())).append(',')
+                .append(csvCell(row.role())).append(',')
+                .append(csvCell(status)).append('\n');
+        }
+        return Base64.getEncoder().encodeToString(builder.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String csvCell(String value) {
+        String safe = value == null ? "" : value;
+        return "\"" + safe.replace("\"", "\"\"") + "\"";
+    }
+
+    private String buildCredentialFileName(String decisionCode) {
+        String seed = decisionCode == null || decisionCode.isBlank() ? "council" : decisionCode;
+        String normalized = seed.replaceAll("[^A-Za-z0-9._-]", "_");
+        return "council_credentials_" + normalized + ".csv";
+    }
+
+    private record AccountProvisionResult(
+        String userId,
+        UserRole role,
+        String passwordForExport,
+        boolean newlyCreated,
+        boolean passwordReset
+    ) {}
 
     private Map<String, Object> toMemberMap(CouncilMember m) {
         Map<String, Object> row = new LinkedHashMap<>();
